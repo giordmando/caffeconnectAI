@@ -1,0 +1,200 @@
+[
+       {
+        "id": "coffee-bag-1",
+        "name": "Caffè Arabica - Miscela Premium",
+        "category": "coffee",
+        "price": 8.90,
+        "description": "Miscela premium di caffè arabica proveniente da Etiopia e Colombia. Note fruttate e corpo ricco. Sacchetto da 250g di caffè in grani.",
+        "details": {
+          "origin": ["Etiopia", "Colombia"],
+          "roastLevel": "medio",
+          "flavor": ["fruttato", "cioccolatoso"],
+          "weight": "250g",
+          "form": "grani"
+        },
+        "imageUrl": "https://via.placeholder.com/150?text=CaffèArabica",
+        "inStock": true,
+        "popularity": 90
+      },
+      {
+        "id": "coffee-bag-2",
+        "name": "Caffè Specialty Etiopia Yirgacheffe",
+        "category": "coffee",
+        "price": 12.50,
+        "description": "Caffè specialty monorigine dall'Etiopia con note di agrumi, fiori e miele. Tostatura leggera per mantenere gli aromi. Sacchetto da 250g.",
+        "details": {
+          "origin": ["Etiopia"],
+          "roastLevel": "leggero",
+          "flavor": ["agrumi", "floreale", "miele"],
+          "weight": "250g",
+          "form": "grani"
+        },
+        "imageUrl": "https://via.placeholder.com/150?text=YirgacheffeCoffee",
+        "inStock": true,
+        "popularity": 85
+      },
+      {
+        "id": "coffee-bag-3",
+        "name": "Espresso Italiano - Miscela Tradizionale",
+        "category": "coffee",
+        "price": 7.50,
+        "description": "La nostra miscela classica per un vero espresso italiano. Note di cioccolato, caramello e frutta secca. Sacchetto da 250g macinato per espresso.",
+        "details": {
+          "origin": ["Brasile", "Guatemala", "India"],
+          "roastLevel": "medio-scuro",
+          "flavor": ["cioccolato", "caramello", "frutta secca"],
+          "weight": "250g",
+          "form": "macinato"
+        },
+        "imageUrl": "https://via.placeholder.com/150?text=EspressoItaliano",
+        "inStock": true,
+        "popularity": 95
+      },
+      {
+        "id": "coffee-bag-4",
+        "name": "Caffè Decaffeinato Premium",
+        "category": "coffee",
+        "price": 9.90,
+        "description": "Il nostro miglior caffè decaffeinato con processo ad acqua. Tutto l'aroma senza caffeina. Sacchetto da 250g disponibile in grani o macinato.",
+        "details": {
+          "origin": ["Colombia", "Brasile"],
+          "roastLevel": "medio",
+          "flavor": ["caramello", "nocciola"],
+          "weight": "250g",
+          "form": "grani/macinato",
+          "decaf": true
+        },
+        "imageUrl": "https://via.placeholder.com/150?text=DecafCoffee",
+        "inStock": true,
+        "popularity": 75
+      },
+      {
+        "id": "tea-1",
+        "name": "Tè Verde Giapponese Sencha",
+        "category": "tea",
+        "price": 6.90,
+        "description": "Tè verde giapponese di alta qualità con sapore rinfrescante e note erbacee. Ricco di antiossidanti. Confezione da 100g.",
+        "details": {
+          "origin": ["Giappone"],
+          "type": "verde",
+          "flavor": ["erbaceo", "fresco", "umami"],
+          "weight": "100g",
+          "form": "foglie"
+        },
+        "imageUrl": "https://via.placeholder.com/150?text=SenchaTea",
+        "inStock": true,
+        "popularity": 80
+      },
+      {
+        "id": "tea-2",
+        "name": "Earl Grey Classico",
+        "category": "tea",
+        "price": 5.50,
+        "description": "Tè nero aromatizzato al bergamotto, un classico intramontabile. Confezione da 20 bustine biodegradabili.",
+        "details": {
+          "origin": ["India", "Sri Lanka"],
+          "type": "nero",
+          "flavor": ["bergamotto", "agrumi"],
+          "weight": "40g",
+          "form": "bustine"
+        },
+        "imageUrl": "https://via.placeholder.com/150?text=EarlGreyTea",
+        "inStock": true,
+        "popularity": 85
+      },
+      {
+        "id": "accessory-1",
+        "name": "Tazza in Ceramica CaféConnect",
+        "category": "accessory",
+        "price": 12.00,
+        "description": "Tazza in ceramica artigianale con logo CaféConnect. Perfetta per il tuo caffè o tè preferito. Capacità 250ml.",
+        "details": {
+          "material": "ceramica",
+          "capacity": "250ml",
+          "color": ["bianco", "nero"],
+          "dishwasherSafe": true
+        },
+        "imageUrl": "https://via.placeholder.com/150?text=CeramicMug",
+        "inStock": true,
+        "popularity": 90
+      },
+      {
+        "id": "accessory-2",
+        "name": "French Press Premium",
+        "category": "accessory",
+        "price": 24.90,
+        "description": "French Press in vetro e acciaio inox per preparare un ottimo caffè in modo semplice. Capacità 350ml, ideale per 2-3 tazze.",
+        "details": {
+          "material": ["vetro", "acciaio inox"],
+          "capacity": "350ml",
+          "parts": ["beaker", "plunger", "filter"],
+          "dishwasherSafe": true
+        },
+        "imageUrl": "https://via.placeholder.com/150?text=FrenchPress",
+        "inStock": true,
+        "popularity": 85
+      },
+      {
+        "id": "accessory-3",
+        "name": "Moka Express 3 tazze",
+        "category": "accessory",
+        "price": 22.50,
+        "description": "La classica caffettiera moka italiana per espresso casalingo. Versione da 3 tazze in alluminio.",
+        "details": {
+          "material": "alluminio",
+          "capacity": "3 tazze",
+          "stoveType": ["gas", "elettrico", "induzione con adattatore"]
+        },
+        "imageUrl": "https://via.placeholder.com/150?text=MokaExpress",
+        "inStock": true,
+        "popularity": 95
+      },
+      {
+        "id": "food-1",
+        "name": "Biscotti alle Mandorle",
+        "category": "food",
+        "price": 4.90,
+        "description": "Biscotti artigianali alle mandorle, perfetti per accompagnare il caffè. Confezione da 200g.",
+        "details": {
+          "ingredients": ["farina", "burro", "zucchero", "mandorle", "uova"],
+          "weight": "200g",
+          "allergens": ["glutine", "frutta a guscio", "uova", "lattosio"],
+          "dietaryInfo": ["vegetariano"]
+        },
+        "imageUrl": "https://via.placeholder.com/150?text=AlmondCookies",
+        "inStock": true,
+        "popularity": 85
+      },
+      {
+        "id": "food-2",
+        "name": "Cioccolato Fondente 70%",
+        "category": "food",
+        "price": 3.90,
+        "description": "Tavoletta di cioccolato fondente 70% da cacao selezionato. Perfetto abbinamento con caffè intensi. 100g.",
+        "details": {
+          "ingredients": ["massa di cacao", "zucchero di canna", "burro di cacao", "vaniglia"],
+          "weight": "100g",
+          "allergens": ["può contenere tracce di latte", "soia", "frutta a guscio"],
+          "dietaryInfo": ["vegan", "gluten-free"]
+        },
+        "imageUrl": "https://via.placeholder.com/150?text=DarkChocolate",
+        "inStock": true,
+        "popularity": 80
+      },
+      {
+        "id": "gift-1",
+        "name": "Gift Box Caffè del Mondo",
+        "category": "gift",
+        "price": 29.90,
+        "description": "Set regalo con 4 diverse origini di caffè specialty in confezione elegante. Perfetto come regalo per gli amanti del caffè.",
+        "details": {
+          "contents": ["Caffè Etiopia 100g", "Caffè Colombia 100g", "Caffè Guatemala 100g", "Caffè Honduras 100g"],
+          "packaging": "scatola regalo in legno",
+          "form": "grani"
+        },
+        "imageUrl": "https://via.placeholder.com/150?text=CoffeeGiftBox",
+        "inStock": true,
+        "popularity": 90
+      }
+  ]
+
