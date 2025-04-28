@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { mockApiGetProducts } from '../api/mockApi';
+import { mockApiGetProducts } from '../../api/mockApi';
 
 interface ProductRecommendation {
   id: string;

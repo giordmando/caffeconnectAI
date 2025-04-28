@@ -1,15 +1,14 @@
-// Placeholder for ChatInterface component
 import React, { useState, useEffect, useRef } from 'react';
 import { Message } from '../types/Message';
 import { UIComponent } from '../types/UI';
-import { UserContext } from '../types/UserContext';
-import { createDefaultAIService, EnhancedAIService } from '../services/enhancedAIService';
-import { DynamicUIRenderer } from './DynamicUIFactory';
-import { useLocalStorage } from '../hooks/useLocalStorage';
+import { useServices } from '../contexts/ServiceContext';
+import { DynamicUIRenderer } from './ui/DynamicUIRenderer';
 
-
+/**
+ * Main chat interface component
+ */
 const ChatInterface: React.FC = () => {
-  // Stato
+  // State
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isTyping, setIsTyping] = useState(false);
@@ -17,74 +16,16 @@ const ChatInterface: React.FC = () => {
   const [suggestedPrompts, setSuggestedPrompts] = useState<string[]>([]);
   const [availableActions, setAvailableActions] = useState<any[]>([]);
   
-  // Stato per il servizio AI
-  const [aiService, setAIService] = useState<EnhancedAIService>(() => {
-    const defaultAIService = createDefaultAIService();
-    return defaultAIService;
-  });
+  // Get services
+  const { aiService, userService } = useServices();
   
-  useEffect(() => {
-    const savedConfig = localStorage.getItem('cafeconnect-ai-config');
-    if (savedConfig) {
-      try {
-        const parsedConfig = JSON.parse(savedConfig);
-        const { provider, config } = parsedConfig;
+  // Get user context
+  const userContext = userService.getUserContext();
   
-        // Crea un nuovo servizio AI con la configurazione salvata
-        const newAIService = new EnhancedAIService({
-          provider,
-          providerConfig: config,
-          enableFunctionCalling: true,
-        });
-  
-        setAIService(newAIService);
-      } catch (error) {
-        console.error('Errore nel parsing della configurazione salvata:', error);
-      }
-    }
-  }, []);
-  // Stato utente persistente
-  const [userContext, setUserContext] = useLocalStorage<UserContext>('cafeconnect-user-context', {
-    userId: `user-${Math.floor(Math.random() * 10000)}`,
-    preferences: [],
-    interactions: [],
-    lastVisit: new Date().toISOString(),
-    dietaryRestrictions: []
-  });
-
-  // Riferimento all'elemento della chat per lo scroll automatico
+  // Reference to messages container for auto-scrolling
   const messagesEndRef = useRef<null | HTMLDivElement>(null);
-  useEffect(() => {
-    const handleStorageChange = (event: StorageEvent) => {
-      if (event.key === 'cafeconnect-ai-config' && event.newValue) {
-        try {
-          const parsedConfig = JSON.parse(event.newValue);
-          const { provider, config } = parsedConfig;
-
-          // Crea un nuovo servizio AI con la configurazione aggiornata
-          const newAIService = new EnhancedAIService({
-            provider,
-            providerConfig: config,
-            enableFunctionCalling: true,
-          });
-
-          setAIService(newAIService);
-        } catch (error) {
-          console.error('Errore nel parsing della configurazione aggiornata:', error);
-        }
-      }
-  };
-
-  // Aggiungi il listener
-  window.addEventListener('storage', handleStorageChange);
-
-  // Rimuovi il listener quando il componente viene smontato
-  return () => {
-    window.removeEventListener('storage', handleStorageChange);
-  };
-  }, []);
-
-  // Effetto per caricare un messaggio di benvenuto iniziale
+  
+  // Load initial welcome message
   useEffect(() => {
     const loadWelcomeMessage = async () => {
       setIsTyping(true);
@@ -108,8 +49,11 @@ const ChatInterface: React.FC = () => {
         if (response.availableActions) {
           setAvailableActions(response.availableActions);
         }
+        
+        // Update user context
+        userService.addInteraction("Initial welcome message");
       } catch (error) {
-        console.error('Errore nel caricamento del messaggio di benvenuto:', error);
+        console.error('Error loading welcome message:', error);
         setMessages([{
           role: 'assistant',
           content: 'Benvenuto a CaféConnect! Come posso aiutarti oggi?',
@@ -118,23 +62,17 @@ const ChatInterface: React.FC = () => {
       }
       
       setIsTyping(false);
-      
-      // Aggiorna le ultime interazioni dell'utente
-      setUserContext({
-        ...userContext,
-        lastVisit: new Date().toISOString()
-      });
     };
     
     loadWelcomeMessage();
   }, [aiService]);
   
-  // Effetto per lo scrolling automatico quando arrivano nuovi messaggi
+  // Auto-scroll when new messages arrive
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, uiComponents]);
   
-  // Gestione invio messaggio
+  // Send message handler
   const handleSendMessage = async () => {
     if (inputValue.trim() === '' || isTyping) return;
     
@@ -144,53 +82,45 @@ const ChatInterface: React.FC = () => {
       timestamp: Date.now()
     };
     
-    // Aggiorna la UI immediatamente con il messaggio dell'utente
+    // Update UI immediately with user message
     setMessages(prev => [...prev, userMessage]);
     setInputValue('');
     setIsTyping(true);
     
-    // Aggiorna interazioni utente
-    const updatedInteractions = [
-      inputValue, 
-      ...userContext.interactions
-    ].slice(0, 10); // mantieni solo le ultime 10 interazioni
-    
-    setUserContext({
-      ...userContext,
-      interactions: updatedInteractions
-    });
+    // Update user interactions
+    userService.addInteraction(inputValue);
     
     try {
-      // Invia messaggio all'AI
+      // Send message to AI
       const response = await aiService.sendMessage(
         inputValue, 
         userContext
       );
       
-      // Aggiorna messaggi con la risposta dell'AI
+      // Update messages with AI response
       setMessages(prev => [...prev, response.message]);
       
-      // Aggiorna componenti UI se presenti
+      // Update UI components if present
       if (response.uiComponents) {
         setUIComponents(prev => [
           ...(response.uiComponents ?? []),
-          ...prev.slice(0, 5) // Mantieni solo i 5 componenti più recenti
+          ...prev.slice(0, 5) // Keep only the 5 most recent components
         ]);
       }
       
-      // Aggiorna suggerimenti
+      // Update suggestions
       if (response.suggestedPrompts) {
         setSuggestedPrompts(response.suggestedPrompts);
       }
       
-      // Aggiorna azioni disponibili
+      // Update available actions
       if (response.availableActions) {
         setAvailableActions(response.availableActions);
       }
     } catch (error) {
-      console.error('Errore nella comunicazione con l\'AI:', error);
+      console.error('Error communicating with AI:', error);
       
-      // Messaggio di errore
+      // Error message
       setMessages(prev => [...prev, {
         role: 'assistant',
         content: 'Mi dispiace, ho avuto un problema nel processare la tua richiesta. Puoi riprovare?',
@@ -201,64 +131,46 @@ const ChatInterface: React.FC = () => {
     setIsTyping(false);
   };
   
-  // Gestione input
+  // Input change handler
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setInputValue(e.target.value);
   };
   
-  // Gestione pressione Invio
+  // Key press handler
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       handleSendMessage();
     }
   };
   
-  // Gestione click su suggerimento
+  // Suggestion click handler
   const handleSuggestionClick = (suggestion: string) => {
     setInputValue(suggestion);
     handleSendMessage();
   };
   
-  // Gestione azioni UI
+  // UI action handler
   const handleUIAction = (action: string, payload: any) => {
-    console.log(`Azione UI: ${action}`, payload);
+    console.log(`UI Action: ${action}`, payload);
     
-    // Esempio di gestione click su prodotto o menu item
+    // Example of handling item click or menu item
     if (action === 'view_item') {
-      // Qui potresti aprire una modal o navigare a una pagina dettaglio
-      alert(`Visualizzazione dettagli per: ${payload.id}`);
+      // Here you could open a modal or navigate to a detail page
+      alert(`Viewing details for: ${payload.id}`);
     } else if (action === 'order_item') {
-      // Qui potresti aggiungere al carrello
-      alert(`Aggiunto al carrello: ${payload.id}`);
+      // Here you could add to cart
+      alert(`Added to cart: ${payload.id}`);
       
-      // Aggiorna preferenze utente
-      const updatedPreferences = [...userContext.preferences];
-      const existingPrefIndex = updatedPreferences.findIndex(
-        p => p.itemId === payload.id && p.itemType === payload.type
-      );
-      
-      if (existingPrefIndex >= 0) {
-        // Incrementa rating se esiste già
-        updatedPreferences[existingPrefIndex].rating = 
-          Math.min(5, updatedPreferences[existingPrefIndex].rating + 1);
-      } else {
-        // Aggiungi nuova preferenza
-        updatedPreferences.push({
-          itemId: payload.id,
-          itemType: payload.type,
-          rating: 4, // Valore iniziale
-          timestamp: Date.now()
-        });
-      }
-      
-      setUserContext({
-        ...userContext,
-        preferences: updatedPreferences
+      // Update user preferences
+      userService.updatePreference({
+        itemId: payload.id,
+        itemType: payload.type,
+        rating: 4, // Initial value
+        timestamp: Date.now()
       });
     }
   };
   
-  // Rendering componente
   return (
     <div className="chat-container">
       {/* Header */}
@@ -267,11 +179,10 @@ const ChatInterface: React.FC = () => {
         <div className="provider-badge">
           Powered by {aiService.getProviderName()}
         </div>
-       
       </div>
       
       <div className="chat-layout">
-        {/* Area messaggi principale */}
+        {/* Main messages area */}
         <div className="chat-messages">
           {messages.map((msg, index) => (
             <div 
@@ -295,7 +206,7 @@ const ChatInterface: React.FC = () => {
             </div>
           )}
           
-          {/* Componenti UI inline */}
+          {/* Inline UI components */}
           <DynamicUIRenderer 
             components={uiComponents} 
             placement="inline"
@@ -305,7 +216,7 @@ const ChatInterface: React.FC = () => {
           <div ref={messagesEndRef} />
         </div>
         
-        {/* Sidebar per componenti UI */}
+        {/* Sidebar for UI components */}
         <div className="chat-sidebar">
           <DynamicUIRenderer 
             components={uiComponents} 
@@ -315,7 +226,7 @@ const ChatInterface: React.FC = () => {
         </div>
       </div>
       
-      {/* Componenti UI bottom */}
+      {/* Bottom UI components */}
       <div className="components-bottom">
         <DynamicUIRenderer 
           components={uiComponents} 
@@ -324,7 +235,7 @@ const ChatInterface: React.FC = () => {
         />
       </div>
       
-      {/* Suggerimenti */}
+      {/* Suggested prompts */}
       {suggestedPrompts.length > 0 && (
         <div className="suggested-prompts">
           {suggestedPrompts.map((prompt, index) => (
@@ -339,7 +250,7 @@ const ChatInterface: React.FC = () => {
         </div>
       )}
       
-      {/* Area input */}
+      {/* Input area */}
       <div className="chat-input-container">
         <input
           type="text"
@@ -359,7 +270,7 @@ const ChatInterface: React.FC = () => {
         </button>
       </div>
       
-      {/* Azioni disponibili */}
+      {/* Available actions */}
       {availableActions.length > 0 && (
         <div className="available-actions">
           {availableActions.map((action, index) => (

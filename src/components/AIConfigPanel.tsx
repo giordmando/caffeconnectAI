@@ -1,32 +1,36 @@
-// Placeholder for AIConfigPanel component
 import React, { useState } from 'react';
 import { AIProviderConfig } from '../types/AIProvider';
 import { useLocalStorage } from '../hooks/useLocalStorage';
+import { useServices } from '../contexts/ServiceContext';
 
 interface AIConfigPanelProps {
-  onSaveConfig: (provider: string, config: AIProviderConfig) => void;
   onClose: () => void;
 }
 
-const AIConfigPanel: React.FC<AIConfigPanelProps> = ({ onSaveConfig, onClose }) => {
-  // Carica la configurazione salvata
+/**
+ * Component for configuring AI provider settings
+ */
+const AIConfigPanel: React.FC<AIConfigPanelProps> = ({ onClose }) => {
+  const { changeAIProvider, currentProvider } = useServices();
+  
+  // Load saved configuration
   const [savedConfig, setSavedConfig] = useLocalStorage<{
     provider: string;
     config: AIProviderConfig;
   }>('cafeconnect-ai-config', {
-    provider: 'openai',
+    provider: 'mockai',
     config: {
       apiKey: '',
-      model: 'gpt-4'
+      model: 'mockai-sim'
     }
   });
   
-  // Stato locale per il form
+  // Local state for form
   const [provider, setProvider] = useState(savedConfig.provider);
   const [apiKey, setApiKey] = useState(savedConfig.config.apiKey);
   const [model, setModel] = useState(savedConfig.config.model);
   
-  // Opzioni modello in base al provider
+  // Get model options based on provider
   const getModelOptions = (provider: string) => {
     switch (provider) {
       case 'openai':
@@ -46,24 +50,24 @@ const AIConfigPanel: React.FC<AIConfigPanelProps> = ({ onSaveConfig, onClose }) 
           { value: 'gemini-pro', label: 'Gemini Pro' },
           { value: 'gemini-ultra', label: 'Gemini Ultra' }
         ];
-        case 'mockai':
-          return [
-            { value: 'mockai-sim', label: 'Mock AI simulate' }
-          ];
+      case 'mockai':
+        return [
+          { value: 'mockai-sim', label: 'Mock AI simulate' }
+        ];
       default:
         return [{ value: 'default', label: 'Default Model' }];
     }
   };
   
-  // Gestione cambio provider
+  // Handle provider change
   const handleProviderChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const newProvider = e.target.value;
     setProvider(newProvider);
-    // Seleziona il primo modello disponibile per il nuovo provider
+    // Select first available model for the new provider
     setModel(getModelOptions(newProvider)[0].value);
   };
   
-  // Gestione invio form
+  // Handle form submission
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -72,14 +76,16 @@ const AIConfigPanel: React.FC<AIConfigPanelProps> = ({ onSaveConfig, onClose }) 
       model
     };
     
-    // Salva in localStorage
+    // Save to localStorage
     setSavedConfig({
       provider,
       config
     });
     
-    // Notifica il componente parent
-    onSaveConfig(provider, config);
+    // Update the AI service
+    changeAIProvider(provider, config);
+    
+    // Close the panel
     onClose();
   };
   
@@ -152,8 +158,20 @@ const AIConfigPanel: React.FC<AIConfigPanelProps> = ({ onSaveConfig, onClose }) 
           )}
         </div>
         
-        {/* Checkbox per modalità testing senza API key */}
+        {/* Checkbox for testing mode without API key */}
         <div className="form-check">
+          <input
+            type="checkbox"
+            id="mockMode"
+            checked={provider === 'mockai'}
+            onChange={(e) => {
+              if (e.target.checked) {
+                setProvider('mockai');
+                setModel('mockai-sim');
+              }
+            }}
+            className="form-check-input"
+          />
           <label className="form-check-label" htmlFor="mockMode">
             Usa modalità demo (con provider MockAI)
           </label>
