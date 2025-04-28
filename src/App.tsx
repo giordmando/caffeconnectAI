@@ -1,58 +1,22 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import ChatInterface from './components/ChatInterface';
 import AIConfigPanel from './components/AIConfigPanel';
-import { createDefaultAIService } from './services/enhancedAIService';
-import { AIProviderConfig } from './types/AIProvider';
-import { useLocalStorage } from './hooks/useLocalStorage';
-import { FunctionService, functionService } from './services/functionService';
+import { useServices } from './contexts/ServiceContext';
 import './styles/App.css';
 
-// Servizio AI
-const aiService = createDefaultAIService();
-
+/**
+ * Main application component
+ */
 function App() {
-  // Stato applicazione
+  // Application state
   const [isConfigPanelOpen, setIsConfigPanelOpen] = useState(false);
-  const [currentProvider, setCurrentProvider] = useState('openai');
-  const [availableFunctions, setAvailableFunctions] = useState<string[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   
-  // Carica la configurazione salvata
-  const [savedConfig] = useLocalStorage<{
-    provider: string;
-    config: AIProviderConfig;
-  }>('cafeconnect-ai-config', {
-    provider: 'openai',
-    config: {
-      apiKey: 'mock-key',
-      model: 'gpt-4'
-    }
-  });
+  // Get services from context
+  const { currentProvider, functionService } = useServices();
   
-  // Inizializzazione
-  useEffect(() => {
-    const initApp = async () => {
-      // Configurazione AI
-      if (savedConfig && savedConfig.provider) {
-        setCurrentProvider(savedConfig.provider);
-        aiService.changeProvider(savedConfig.provider, savedConfig.config);
-      }
-      
-      // Ottieni le funzioni disponibili
-      const functions = functionService.getAllFunctions();
-      setAvailableFunctions(functions.map(fn => fn.name));
-      
-      setIsLoading(false);
-    };
-    
-    initApp();
-  }, []);
-  
-  // Gestione salvataggio configurazione
-  const handleSaveConfig = (provider: string, config: AIProviderConfig) => {
-    setCurrentProvider(provider);
-    aiService.changeProvider(provider, config);
-  };
+  // Get available functions
+  const availableFunctions = functionService.getAllFunctions().map(fn => fn.name);
   
   if (isLoading) {
     return (
@@ -100,14 +64,13 @@ function App() {
           </div>
         </div>
         <div className="app-info">
-          <p>CaféConnect AI Light &copy; 2023</p>
+          <p>CaféConnect AI Light &copy; 2025</p>
         </div>
       </footer>
       
       {isConfigPanelOpen && (
         <div className="modal-overlay">
           <AIConfigPanel 
-            onSaveConfig={handleSaveConfig}
             onClose={() => setIsConfigPanelOpen(false)}
           />
         </div>

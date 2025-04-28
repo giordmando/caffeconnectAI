@@ -7,4 +7,6 @@
     interactions: string[];
     lastVisit: string;
     dietaryRestrictions: string[];
+    name?: string;
+    email?: string;
   }

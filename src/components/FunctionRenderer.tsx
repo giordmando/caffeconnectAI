@@ -1,8 +1,8 @@
 import React from 'react';
-import { LoyaltyCard } from './LoyaltyCard';
-import { MenuCarousel } from './MenuCarousel';
-import { ProductCarousel } from './ProductCarousel';
-import { PreferencesCard } from './PreferencesCard';
+import { LoyaltyCard } from './ui/LoyaltyCard';
+import { MenuCarousel } from './ui/MenuCarousel';
+import { ProductCarousel } from './ui/ProductCarousel';
+import { PreferencesCard } from './ui/PreferencesCard';
 
 interface FunctionRendererProps {
   functionName: string;
