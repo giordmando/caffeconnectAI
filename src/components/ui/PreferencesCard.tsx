@@ -24,7 +24,13 @@ export const PreferencesCard: React.FC<PreferencesCardProps> = ({
 }) => {
   const { favoriteDrinks, favoriteFood, dietaryRestrictions, usualVisitTime, lastOrderedItems } = preferences;
   
-  // Traduzione dei momenti della giornata in italiano
+  /**
+   * TODO spostare in a translation file
+   * Traduzione dei momenti della giornata in italiano
+   * @param time 
+   * @returns 
+   */
+ 
   const translateTimeOfDay = (time: string): string => {
     switch (time) {
       case 'morning':

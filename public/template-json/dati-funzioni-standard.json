@@ -1,0 +1,53 @@
+{
+    "functionDataEndpoints": {
+      "get_user_loyalty_points": "https://api.tuodominio.com/loyalty/points",
+      "get_user_preferences": "https://api.tuodominio.com/user/preferences",
+      "get_menu_recommendations": "https://api.tuodominio.com/recommendations/menu",
+      "get_product_recommendations": "https://api.tuodominio.com/recommendations/products"
+    }
+  }
+
+1. get_user_loyalty_points
+Risposta endpoint:
+json{
+  "points": 1250,
+  "tier": "Gold",
+  "nextTier": {
+    "name": "Platinum",
+    "pointsNeeded": 250
+  },
+  "history": [
+    { "date": "2023-03-15", "points": 50, "reason": "Acquisto Cappuccino" },
+    { "date": "2023-03-10", "points": 100, "reason": "Acquisto French Press" }
+  ]
+}
+2. get_user_preferences
+Risposta endpoint:
+json{
+  "favoriteDrinks": ["Cappuccino", "Espresso"],
+  "favoriteFood": ["Cornetto Integrale", "Pain au Chocolat"],
+  "dietaryRestrictions": ["low-sugar"],
+  "usualVisitTime": "morning",
+  "lastOrderedItems": [
+    { "name": "Cappuccino", "date": "2023-03-15" },
+    { "name": "Cornetto Integrale", "date": "2023-03-15" }
+  ]
+}
+3. get_menu_recommendations
+Risposta endpoint:
+json{
+  "recommendations": [
+    { "id": "coffee-2", "name": "Cappuccino", "confidence": 0.95 },
+    { "id": "pastry-2", "name": "Cornetto Integrale", "confidence": 0.88 },
+    { "id": "pastry-3", "name": "Pain au Chocolat", "confidence": 0.75 }
+  ]
+}
+4. get_product_recommendations
+Risposta endpoint:
+json{
+  "recommendations": [
+    { "id": "coffee-bag-2", "name": "Caffè Specialty Etiopia", "confidence": 0.92 },
+    { "id": "coffee-bag-1", "name": "Caffè Arabica - Miscela Premium", "confidence": 0.88 },
+    { "id": "accessory-3", "name": "Moka Express 3 tazze", "confidence": 0.75 }
+  ]
+}

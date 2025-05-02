@@ -37,6 +37,7 @@ const AIConfigPanel: React.FC<AIConfigPanelProps> = ({ onClose }) => {
         return [
           { value: 'gpt-4', label: 'GPT-4' },
           { value: 'gpt-4-turbo', label: 'GPT-4 Turbo' },
+          { value: 'gpt-4o', label: 'GPT-4o' },
           { value: 'gpt-3.5-turbo', label: 'GPT-3.5 Turbo' }
         ];
       case 'claude':
@@ -145,7 +146,17 @@ const AIConfigPanel: React.FC<AIConfigPanelProps> = ({ onClose }) => {
         
         <div className="form-group api-info">
           {provider === 'openai' && (
-            <p>Per ottenere una API key di OpenAI, visita <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer">platform.openai.com</a></p>
+            <div className="api-info">
+              <p>Per ottenere una API key di OpenAI:</p>
+              <ol>
+                <li>Accedi al tuo account su <a href="https://platform.openai.com/" target="_blank" rel="noopener noreferrer">platform.openai.com</a></li>
+                <li>Vai alla sezione API Keys</li>
+                <li>Clicca su "Create new secret key"</li>
+                <li>Imposta un nome per la chiave (opzionale) e copia la chiave generata</li>
+                <li>Incolla la chiave qui</li>
+              </ol>
+              <p>Nota: I modelli GPT-4 potrebbero richiedere un account con accesso avanzato.</p>
+            </div>
           )}
           {provider === 'claude' && (
             <p>Per ottenere una API key di Claude, visita <a href="https://console.anthropic.com/" target="_blank" rel="noopener noreferrer">console.anthropic.com</a></p>

@@ -25,9 +25,10 @@ export const FunctionRenderer: React.FC<FunctionRendererProps> = ({
   // Determina quale componente renderizzare in base al nome della funzione
   switch (functionName) {
     case 'get_user_loyalty_points':
+      console.log("######################## Rendering LoyaltyCard component with functionData:", functionData);
       return (
         <LoyaltyCard
-          points={functionData.points}
+          points={functionData.data.points}
           tier={functionData.tier}
           nextTier={functionData.nextTier}
           history={functionData.history}

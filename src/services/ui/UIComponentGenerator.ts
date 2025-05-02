@@ -28,8 +28,9 @@ export class UIComponentGenerator implements IUIComponentGenerator {
       const functionResult = JSON.parse(lastFunctionResult.functionResult!.result);
       
       if (functionResult.success) {
-        const data = functionResult.data;
-        
+        const data = functionResult.data?.data ?? functionResult.data;
+        console.log("######################## Generating UI components with data:", data);
+ 
         if (functionName === 'get_user_loyalty_points') {
           components.push({
             type: 'loyaltyCard',

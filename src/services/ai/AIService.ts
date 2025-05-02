@@ -1,6 +1,5 @@
 import { IAIService } from './interfaces/IAIService';
 import { IAIProvider, IMessageProvider, IStreamProvider, IFunctionCallingProvider } from './interfaces/IAIProvider';
-import { AIProviderFactory } from './AIProviderFactory';
 import { IUIComponentGenerator } from './interfaces/IUIComponentGenerator';
 import { IFunctionService } from '../function/interfaces/IFunctionService';
 import { Message } from '../../types/Message';
@@ -10,6 +9,7 @@ import { AIProviderConfig } from '../../types/AIProvider';
 import { AIMessageFormatter } from './AIMessageFormatter';
 import { AIResponseProcessor } from './AIResponseProcessor';
 import { UIComponentGenerator } from '../ui/UIComponentGenerator';
+import { AIProviderFactory } from './AIProviderRegistry';
 
 /**
  * Main AI service implementation
@@ -48,6 +48,23 @@ export class AIService implements IAIService {
     ];
     
     console.log(`AI service initialized with provider: ${this.provider.name}`);
+  }
+  /**
+   * Get suggested prompts based on the user context
+   */
+  async getSuggestedPrompts(userContext: UserContext): Promise<string[]> {
+    try {
+      // Generate suggested prompts using the UIComponentGenerator
+      const suggestedPrompts = this.uiComponentGenerator.getSuggestedPrompts(userContext);
+
+      // Return the generated prompts
+      return suggestedPrompts;
+    } catch (error) {
+      console.error('Error generating suggested prompts:', error);
+
+      // Fallback to default prompts in case of an error
+      return ['Come posso aiutarti?', 'Mostrami i prodotti disponibili', 'Quali sono le tue funzionalità?'];
+    }
   }
   
   /**

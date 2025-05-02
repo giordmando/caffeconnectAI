@@ -1,62 +1,169 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Message } from '../types/Message';
-import { UIComponent } from '../types/UI';
-import { useServices } from '../contexts/ServiceContext';
-import { DynamicUIRenderer } from './ui/DynamicUIRenderer';
-
-/**
- * Main chat interface component
- */
-const ChatInterface: React.FC = () => {
-  // State
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [inputValue, setInputValue] = useState('');
-  const [isTyping, setIsTyping] = useState(false);
-  const [uiComponents, setUIComponents] = useState<UIComponent[]>([]);
-  const [suggestedPrompts, setSuggestedPrompts] = useState<string[]>([]);
-  const [availableActions, setAvailableActions] = useState<any[]>([]);
+  import { Message } from '../types/Message';
+  import { UIComponent } from '../types/UI';
+  import { useServices } from '../contexts/ServiceContext';
+  import { DynamicUIRenderer } from './ui/DynamicUIRenderer';
+  import { configManager } from '../config/ConfigManager';
   
-  // Get services
-  const { aiService, userService } = useServices();
+  interface ChatInterfaceProps {
+    welcomeMessage?: string;
+    showSidebar?: boolean;
+    enableSuggestions?: boolean;
+    enableDynamicComponents?: boolean;
+    maxRecommendations?: number;
+  }
   
-  // Get user context
-  const userContext = userService.getUserContext();
-  
-  // Reference to messages container for auto-scrolling
-  const messagesEndRef = useRef<null | HTMLDivElement>(null);
-  
-  // Load initial welcome message
-  useEffect(() => {
-    const loadWelcomeMessage = async () => {
+  /**
+   * Interfaccia di chat principale
+   */
+  const ChatInterface: React.FC<ChatInterfaceProps> = ({
+    welcomeMessage,
+    showSidebar = true,
+    enableSuggestions = true,
+    enableDynamicComponents = true,
+    maxRecommendations = 3
+  }) => {
+    // Stato
+    const [messages, setMessages] = useState<Message[]>([]);
+    const [inputValue, setInputValue] = useState('');
+    const [isTyping, setIsTyping] = useState(false);
+    const [uiComponents, setUIComponents] = useState<UIComponent[]>([]);
+    const [suggestedPrompts, setSuggestedPrompts] = useState<string[]>([]);
+    const [availableActions, setAvailableActions] = useState<any[]>([]);
+    
+    // Ottieni servizi
+    const { aiService, userService } = useServices();
+    
+    // Ottieni contesto utente
+    const userContext = userService.getUserContext();
+    
+    // Riferimento al container dei messaggi per l'auto-scroll
+    const messagesEndRef = useRef<null | HTMLDivElement>(null);
+    
+    // Carica messaggio di benvenuto iniziale
+    useEffect(() => {
+      const loadWelcomeMessage = async () => {
+        setIsTyping(true);
+        
+        try {
+          // Se è fornito un messaggio di benvenuto personalizzato, usalo
+          if (welcomeMessage) {
+            // Crea messaggio assistente con il testo personalizzato
+            const welcomeMsg: Message = {
+              role: 'assistant',
+              content: welcomeMessage,
+              timestamp: Date.now()
+            };
+            
+            setMessages([welcomeMsg]);
+            
+            // Ottieni suggerimenti iniziali
+            if (enableSuggestions) {
+              const initialSuggestions = await aiService.getSuggestedPrompts(userContext);
+              setSuggestedPrompts(initialSuggestions);
+            }
+          } else {
+            // Altrimenti chiedi all'IA un messaggio di benvenuto
+            const response = await aiService.sendMessage(
+              "Ciao! Sono nuovo qui.", 
+              userContext
+            );
+            
+            setMessages([response.message]);
+            
+            if (response.uiComponents && enableDynamicComponents) {
+              setUIComponents(response.uiComponents);
+            }
+            
+            if (response.suggestedPrompts && enableSuggestions) {
+              setSuggestedPrompts(response.suggestedPrompts);
+            }
+            
+            if (response.availableActions) {
+              setAvailableActions(response.availableActions);
+            }
+          }
+          
+          // Aggiorna contesto utente
+          userService.addInteraction("Initial welcome message");
+        } catch (error) {
+          console.error('Error loading welcome message:', error);
+          
+          // Messaggio di fallback
+          setMessages([{
+            role: 'assistant',
+            content: welcomeMessage || 'Benvenuto! Come posso aiutarti oggi?',
+            timestamp: Date.now()
+          }]);
+        }
+        
+        setIsTyping(false);
+      };
+      
+      loadWelcomeMessage();
+    }, [aiService, userService, userContext, welcomeMessage, enableDynamicComponents, enableSuggestions]);
+    
+    // Auto-scroll quando arrivano nuovi messaggi
+    useEffect(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, [messages, uiComponents]);
+    
+    // Gestione invio messaggio
+    const handleSendMessage = async () => {
+      if (inputValue.trim() === '' || isTyping) return;
+      
+      const userMessage: Message = {
+        role: 'user',
+        content: inputValue,
+        timestamp: Date.now()
+      };
+      
+      // Aggiorna UI immediatamente con il messaggio utente
+      setMessages(prev => [...prev, userMessage]);
+      setInputValue('');
       setIsTyping(true);
       
+      // Aggiorna interazioni utente
+      userService.addInteraction(inputValue);
+      
       try {
+        // Invia messaggio all'AI
         const response = await aiService.sendMessage(
-          "Ciao! Sono nuovo qui.", 
+          inputValue, 
           userContext
         );
         
-        setMessages([response.message]);
+        // Aggiorna messaggi con la risposta dell'AI
+        setMessages(prev => [...prev, response.message]);
         
-        if (response.uiComponents) {
-          setUIComponents(response.uiComponents);
+        // Aggiorna componenti UI se presenti e abilitati
+        if (response.uiComponents && enableDynamicComponents) {
+          setUIComponents(prev => [
+            ...(response.uiComponents ?? []).slice(0, maxRecommendations),
+            ...prev.slice(0, 5 - Math.min(maxRecommendations, response.uiComponents?.length || 0)) // Mantieni solo i più recenti
+          ]);
         }
         
-        if (response.suggestedPrompts) {
+        // Aggiorna suggerimenti se abilitati
+        if (response.suggestedPrompts && enableSuggestions) {
           setSuggestedPrompts(response.suggestedPrompts);
+        } else {
+          setSuggestedPrompts([]);
         }
         
+        // Aggiorna azioni disponibili
         if (response.availableActions) {
           setAvailableActions(response.availableActions);
+        } else {
+          setAvailableActions([]);
         }
-        
-        // Update user context
-        userService.addInteraction("Initial welcome message");
       } catch (error) {
-        console.error('Error loading welcome message:', error);
-        setMessages([{
+        console.error('Errore nella comunicazione con l\'AI:', error);
+        
+        // Messaggio di errore
+        setMessages(prev => [...prev, {
           role: 'assistant',
-          content: 'Benvenuto a CaféConnect! Come posso aiutarti oggi?',
+          content: 'Mi dispiace, ho avuto un problema nel processare la tua richiesta. Puoi riprovare?',
           timestamp: Date.now()
         }]);
       }
@@ -64,228 +171,173 @@ const ChatInterface: React.FC = () => {
       setIsTyping(false);
     };
     
-    loadWelcomeMessage();
-  }, [aiService]);
-  
-  // Auto-scroll when new messages arrive
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, uiComponents]);
-  
-  // Send message handler
-  const handleSendMessage = async () => {
-    if (inputValue.trim() === '' || isTyping) return;
-    
-    const userMessage: Message = {
-      role: 'user',
-      content: inputValue,
-      timestamp: Date.now()
+    // Gestione cambio input
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      setInputValue(e.target.value);
     };
     
-    // Update UI immediately with user message
-    setMessages(prev => [...prev, userMessage]);
-    setInputValue('');
-    setIsTyping(true);
-    
-    // Update user interactions
-    userService.addInteraction(inputValue);
-    
-    try {
-      // Send message to AI
-      const response = await aiService.sendMessage(
-        inputValue, 
-        userContext
-      );
-      
-      // Update messages with AI response
-      setMessages(prev => [...prev, response.message]);
-      
-      // Update UI components if present
-      if (response.uiComponents) {
-        setUIComponents(prev => [
-          ...(response.uiComponents ?? []),
-          ...prev.slice(0, 5) // Keep only the 5 most recent components
-        ]);
+    // Gestione tasto
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === 'Enter') {
+        handleSendMessage();
       }
-      
-      // Update suggestions
-      if (response.suggestedPrompts) {
-        setSuggestedPrompts(response.suggestedPrompts);
-      }
-      
-      // Update available actions
-      if (response.availableActions) {
-        setAvailableActions(response.availableActions);
-      }
-    } catch (error) {
-      console.error('Error communicating with AI:', error);
-      
-      // Error message
-      setMessages(prev => [...prev, {
-        role: 'assistant',
-        content: 'Mi dispiace, ho avuto un problema nel processare la tua richiesta. Puoi riprovare?',
-        timestamp: Date.now()
-      }]);
-    }
+    };
     
-    setIsTyping(false);
-  };
-  
-  // Input change handler
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setInputValue(e.target.value);
-  };
-  
-  // Key press handler
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
+    // Gestione click suggerimento
+    const handleSuggestionClick = (suggestion: string) => {
+      setInputValue(suggestion);
       handleSendMessage();
-    }
-  };
-  
-  // Suggestion click handler
-  const handleSuggestionClick = (suggestion: string) => {
-    setInputValue(suggestion);
-    handleSendMessage();
-  };
-  
-  // UI action handler
-  const handleUIAction = (action: string, payload: any) => {
-    console.log(`UI Action: ${action}`, payload);
+    };
     
-    // Example of handling item click or menu item
-    if (action === 'view_item') {
-      // Here you could open a modal or navigate to a detail page
-      alert(`Viewing details for: ${payload.id}`);
-    } else if (action === 'order_item') {
-      // Here you could add to cart
-      alert(`Added to cart: ${payload.id}`);
+    // Gestione azione UI
+    const handleUIAction = (action: string, payload: any) => {
+      console.log(`UI Action: ${action}`, payload);
       
-      // Update user preferences
-      userService.updatePreference({
-        itemId: payload.id,
-        itemType: payload.type,
-        rating: 4, // Initial value
-        timestamp: Date.now()
-      });
-    }
-  };
-  
-  return (
-    <div className="chat-container">
-      {/* Header */}
-      <div className="chat-header">
-        <h2>CaféConnect AI</h2>
-        <div className="provider-badge">
-          Powered by {aiService.getProviderName()}
-        </div>
-      </div>
-      
-      <div className="chat-layout">
-        {/* Main messages area */}
-        <div className="chat-messages">
-          {messages.map((msg, index) => (
-            <div 
-              key={index} 
-              className={`message ${msg.role === 'user' ? 'user-message' : 'ai-message'}`}
-            >
-              <div className="message-content">{msg.content}</div>
-              <div className="message-time">
-                {new Date(msg.timestamp).toLocaleTimeString()}
-              </div>
-            </div>
-          ))}
-          
-          {isTyping && (
-            <div className="message ai-message typing">
-              <div className="typing-indicator">
-                <span></span>
-                <span></span>
-                <span></span>
-              </div>
-            </div>
-          )}
-          
-          {/* Inline UI components */}
-          <DynamicUIRenderer 
-            components={uiComponents} 
-            placement="inline"
-            onAction={handleUIAction}
-          />
-          
-          <div ref={messagesEndRef} />
+      // Esempio di gestione click su item o elemento menu
+      if (action === 'view_item') {
+        // Qui potresti aprire un modale o navigare a una pagina di dettaglio
+        alert(`Visualizzazione dettagli per: ${payload.id}`);
+      } else if (action === 'order_item') {
+        // Qui potresti aggiungere al carrello
+        alert(`Aggiunto al carrello: ${payload.id}`);
+        
+        // Aggiorna preferenze utente
+        userService.updatePreference({
+          itemId: payload.id,
+          itemType: payload.type,
+          rating: 4, // Valore iniziale
+          timestamp: Date.now()
+        });
+      }
+    };
+    
+    // Ottieni configurazione business
+    const businessConfig = configManager.getSection('business');
+    
+    return (
+      <div className="chat-container">
+        {/* Header */}
+        <div className="chat-header">
+          <h2>{businessConfig.name} AI</h2>
+          <div className="provider-badge">
+            Powered by {aiService.getProviderName()}
+          </div>
         </div>
         
-        {/* Sidebar for UI components */}
-        <div className="chat-sidebar">
-          <DynamicUIRenderer 
-            components={uiComponents} 
-            placement="sidebar"
-            onAction={handleUIAction}
+        <div className="chat-layout">
+          {/* Area messaggi principale */}
+          <div className="chat-messages">
+            {messages.map((msg, index) => (
+              <div 
+                key={index} 
+                className={`message ${msg.role === 'user' ? 'user-message' : 'ai-message'}`}
+              >
+                <div className="message-content">{msg.content}</div>
+                <div className="message-time">
+                  {new Date(msg.timestamp).toLocaleTimeString()}
+                </div>
+              </div>
+            ))}
+            
+            {isTyping && (
+              <div className="message ai-message typing">
+                <div className="typing-indicator">
+                  <span></span>
+                  <span></span>
+                  <span></span>
+                </div>
+              </div>
+            )}
+            
+            {/* Componenti UI inline */}
+            {enableDynamicComponents && (
+              <DynamicUIRenderer 
+                components={uiComponents} 
+                placement="inline"
+                onAction={handleUIAction}
+              />
+            )}
+            
+            <div ref={messagesEndRef} />
+          </div>
+          
+          {/* Sidebar per componenti UI */}
+          {showSidebar && (
+            <div className="chat-sidebar">
+              {enableDynamicComponents && (
+                <DynamicUIRenderer 
+                  components={uiComponents} 
+                  placement="sidebar"
+                  onAction={handleUIAction}
+                />
+              )}
+            </div>
+          )}
+        </div>
+        
+        {/* Componenti UI in basso */}
+        {enableDynamicComponents && (
+          <div className="components-bottom">
+            <DynamicUIRenderer 
+              components={uiComponents} 
+              placement="bottom"
+              onAction={handleUIAction}
+            />
+          </div>
+        )}
+        
+        {/* Suggerimenti */}
+        {enableSuggestions && suggestedPrompts.length > 0 && (
+          <div className="suggested-prompts">
+            {suggestedPrompts.map((prompt, index) => (
+              <button 
+                key={index} 
+                className="suggestion-btn"
+                onClick={() => handleSuggestionClick(prompt)}
+              >
+                {prompt}
+              </button>
+            ))}
+          </div>
+        )}
+        
+        {/* Area input */}
+        <div className="chat-input-container">
+          <input
+            type="text"
+            value={inputValue}
+            onChange={handleInputChange}
+            onKeyDown={handleKeyDown}
+            placeholder="Scrivi un messaggio..."
+            disabled={isTyping}
+            className="chat-input"
           />
+          <button 
+            onClick={handleSendMessage} 
+            disabled={isTyping || inputValue.trim() === ''}
+            className="send-button"
+          >
+            Invia
+          </button>
         </div>
+        
+        {/* Azioni disponibili */}
+        {availableActions.length > 0 && (
+          <div className="available-actions">
+            {availableActions.map((action, index) => (
+              <button 
+                key={index}
+                className="action-btn"
+                onClick={() => handleUIAction(action.type, action.payload)}
+              >
+                {action.title}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
-      
-      {/* Bottom UI components */}
-      <div className="components-bottom">
-        <DynamicUIRenderer 
-          components={uiComponents} 
-          placement="bottom"
-          onAction={handleUIAction}
-        />
-      </div>
-      
-      {/* Suggested prompts */}
-      {suggestedPrompts.length > 0 && (
-        <div className="suggested-prompts">
-          {suggestedPrompts.map((prompt, index) => (
-            <button 
-              key={index} 
-              className="suggestion-btn"
-              onClick={() => handleSuggestionClick(prompt)}
-            >
-              {prompt}
-            </button>
-          ))}
-        </div>
-      )}
-      
-      {/* Input area */}
-      <div className="chat-input-container">
-        <input
-          type="text"
-          value={inputValue}
-          onChange={handleInputChange}
-          onKeyDown={handleKeyDown}
-          placeholder="Scrivi un messaggio..."
-          disabled={isTyping}
-          className="chat-input"
-        />
-        <button 
-          onClick={handleSendMessage} 
-          disabled={isTyping || inputValue.trim() === ''}
-          className="send-button"
-        >
-          Invia
-        </button>
-      </div>
-      
-      {/* Available actions */}
-      {availableActions.length > 0 && (
-        <div className="available-actions">
-          {availableActions.map((action, index) => (
-            <button 
-              key={index}
-              className="action-btn"
-              onClick={() => handleUIAction(action.type, action.payload)}
-            >
-              {action.title}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-};
+    );
+  };
 
+  // Alla fine del file ChatInterface.tsx, dopo la definizione del componente
 export default ChatInterface;

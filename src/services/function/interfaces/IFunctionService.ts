@@ -2,6 +2,18 @@
  * Interface for function management service
  */
 export interface IFunctionService {
+
+  /**
+     * Register a new function
+     */
+    areCustomFunctionsLoaded(): boolean;
+
+    /**
+     * Register a new function
+     * @param functionName Function definition object
+     */
+
+    getFunctionDataEndpoints(functionName: string): any;
     /**
      * Register a new function
      * @param functionDef Function definition object
