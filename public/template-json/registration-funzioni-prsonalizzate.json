@@ -1,0 +1,26 @@
+[
+    {
+      "name": "get_customer_orders",
+      "description": "Recupera lo storico ordini di un cliente",
+      "endpoint": "https://api.tuodominio.com/customer/orders",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "description": "ID dell'utente"
+          },
+          "limit": {
+            "type": "number",
+            "description": "Numero massimo di ordini da recuperare"
+          }
+        },
+        "required": ["userId"]
+      },
+      "uiMetadata": {
+        "displayType": "card",
+        "cardTemplate": "orders-history",
+        "refreshRate": "on-demand"
+      }
+    }
+  ]

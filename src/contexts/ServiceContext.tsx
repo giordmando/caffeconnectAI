@@ -3,70 +3,93 @@ import { IAIService } from '../services/ai/interfaces/IAIService';
 import { IFunctionService } from '../services/function/interfaces/IFunctionService';
 import { IUserContextService } from '../services/user/interfaces/IUserContextService';
 import { AIService } from '../services/ai/AIService';
-import { functionService } from '../services/function/FunctionService';
+import { functionRegistry } from '../services/function/FunctionRegistry';
 import { userContextService } from '../services/user/UserContextService';
 import { AIProviderConfig } from '../types/AIProvider';
 import { useLocalStorage } from '../hooks/useLocalStorage';
+import { configManager } from '../config/ConfigManager';
 
-// Define the context type
+// Definizione tipo contesto
 interface ServiceContextType {
   aiService: IAIService;
   functionService: IFunctionService;
   userService: IUserContextService;
   currentProvider: string;
   changeAIProvider: (provider: string, config: AIProviderConfig) => void;
+  refreshServices: () => void;
 }
 
-// Create context with default undefined value
+// Crea contesto con valore predefinito undefined
 const ServiceContext = createContext<ServiceContextType | undefined>(undefined);
 
-// Provider props interface
+// Interfaccia props provider
 interface ServiceProviderProps {
   children: React.ReactNode;
 }
 
 /**
- * Provider component that makes services available to all children
+ * Provider che rende disponibili i servizi a tutti i componenti figli
  */
 export const ServiceProvider: React.FC<ServiceProviderProps> = ({ children }) => {
-  // Load saved configuration from localStorage
+  // Carica configurazione salvata da localStorage
   const [savedConfig] = useLocalStorage<{
     provider: string;
     config: AIProviderConfig;
   }>('cafeconnect-ai-config', {
-    provider: 'mockai',
+    provider: configManager.getSection('ai').defaultProvider,
     config: {
-      apiKey: 'mock-key',
-      model: 'mockai-sim'
+      apiKey: '',
+      model: configManager.getSection('ai').providers[configManager.getSection('ai').defaultProvider].defaultModel
     }
   });
   
-  // Track current provider for UI display
+  // Traccia provider corrente per visualizzazione UI
   const [currentProvider, setCurrentProvider] = useState(savedConfig.provider);
   
-  // Create AIService instance with the saved config
-  const aiService = useMemo(() => {
+  // Crea istanza AIService con la configurazione salvata
+  const [aiService, setAIService] = useState(() => {
     return new AIService(
       savedConfig.provider,
       savedConfig.config,
-      functionService,
+      functionRegistry,
       { enableFunctionCalling: true }
     );
-  }, []);
+  });
   
-  // Function to change the AI provider
+  // Funzione per cambiare il provider AI
   const changeAIProvider = (provider: string, config: AIProviderConfig) => {
     aiService.changeProvider(provider, config);
     setCurrentProvider(provider);
   };
   
-  // Memoize the context value to prevent unnecessary re-renders
+  // Funzione per aggiornare i servizi dopo cambio configurazione
+  const refreshServices = () => {
+    // Ricarica la configurazione AI dalla configurazione globale
+    const aiConfig = configManager.getSection('ai');
+    
+    // Crea un nuovo AIService con la configurazione aggiornata
+    const newAIService = new AIService(
+      aiConfig.defaultProvider,
+      {
+        apiKey: savedConfig.config.apiKey, // Mantieni la API key esistente
+        model: aiConfig.providers[aiConfig.defaultProvider].defaultModel
+      },
+      functionRegistry,
+      { enableFunctionCalling: true }
+    );
+    
+    setAIService(newAIService);
+    setCurrentProvider(aiConfig.defaultProvider);
+  };
+  
+  // Memoizza il valore del contesto per evitare render non necessari
   const contextValue = useMemo(() => ({
     aiService,
-    functionService,
+    functionService: functionRegistry,
     userService: userContextService,
     currentProvider,
-    changeAIProvider
+    changeAIProvider,
+    refreshServices
   }), [aiService, currentProvider]);
   
   return (
@@ -77,13 +100,13 @@ export const ServiceProvider: React.FC<ServiceProviderProps> = ({ children }) =>
 };
 
 /**
- * Custom hook to use the service context
+ * Hook personalizzato per utilizzare il contesto dei servizi
  */
 export const useServices = (): ServiceContextType => {
   const context = useContext(ServiceContext);
   
   if (context === undefined) {
-    throw new Error('useServices must be used within a ServiceProvider');
+    throw new Error('useServices deve essere utilizzato all\'interno di un ServiceProvider');
   }
   
   return context;

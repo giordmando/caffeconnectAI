@@ -17,11 +17,12 @@ export const DynamicUIFactory: React.FC<{
   
   switch (type) {
     case 'loyaltyCard':
+      console.log("######################## Rendering LoyaltyCard component with data:", data);
       return <LoyaltyCard 
-        points={data.points} 
-        tier={data.tier} 
-        nextTier={data.nextTier} 
-        history={data.history} 
+        points={data.data.points} 
+        tier={data.data.tier} 
+        nextTier={data.data.nextTier} 
+        history={data.data.history} 
         id={id}
         onAction={onAction}
       />;

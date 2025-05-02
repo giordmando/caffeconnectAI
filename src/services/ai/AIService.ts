@@ -49,6 +49,25 @@ export class AIService implements IAIService {
     
     console.log(`AI service initialized with provider: ${this.provider.name}`);
   }
+
+  /**
+   * Get suggested prompts based on the user context
+   */
+  async getSuggestedPrompts(userContext: UserContext): Promise<string[]> {
+    try {
+      // Generate suggested prompts using the UIComponentGenerator
+      const suggestedPrompts = this.uiComponentGenerator.getSuggestedPrompts(userContext);
+
+      // Return the generated prompts
+      return suggestedPrompts;
+    } catch (error) {
+      console.error('Error generating suggested prompts:', error);
+
+      // Fallback to default prompts in case of an error
+      return ['Come posso aiutarti?', 'Mostrami i prodotti disponibili', 'Quali sono le tue funzionalità?'];
+    }
+  }
+
   
   /**
    * Get the current provider name

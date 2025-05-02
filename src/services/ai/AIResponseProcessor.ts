@@ -27,8 +27,9 @@ export class AIResponseProcessor {
     
     // Add function call message to conversation
     const functionCallMessage: Message = {
-      role: 'function',
+      role: 'assistant',
       content: '',
+      name: functionName,
       functionCall: {
         name: functionName,
         arguments: functionCall.arguments
@@ -40,7 +41,8 @@ export class AIResponseProcessor {
     
     // Execute function (real or mock based on mode)
     let functionResult;
-    if (isMockMode) {
+    const functionmeta = this.functionService.getFunctionDataEndpoints(functionName);
+    if (isMockMode && (!functionmeta && !this.functionService.areCustomFunctionsLoaded())) {
       functionResult = await mockFunctionExecution(functionName, args);
     } else {
       functionResult = await this.functionService.executeFunction(functionName, args);
@@ -50,6 +52,7 @@ export class AIResponseProcessor {
     const functionResultMessage: Message = {
       role: 'function',
       content: '',
+      name: functionName,
       functionResult: {
         name: functionName,
         result: JSON.stringify(functionResult)
@@ -80,16 +83,18 @@ export class AIResponseProcessor {
    * Generate a mock response based on function result
    */
   private generateMockResponseForFunction(functionName: string, functionResult: any): string {
+    const data = functionResult.data?.data ?? functionResult.data;
+    console.log('Mock data:', data);
     if (functionName === 'get_user_loyalty_points' && functionResult.success) {
-      const data = functionResult.data;
+      // Mock data for loyalty points
       return `Hai accumulato ${data.points} punti fedeltà e sei nel livello ${data.tier}. Ti mancano ${data.nextTier.pointsNeeded} punti per raggiungere il livello ${data.nextTier.name}.`;
     } 
     else if (functionName === 'get_user_preferences' && functionResult.success) {
-      const data = functionResult.data;
+      // Mock data for user preferences
       return `In base alle tue preferenze, noto che apprezzi ${data.favoriteDrinks.join(' e ')} da bere e ${data.favoriteFood.join(' e ')} da mangiare. Di solito visiti il nostro locale al mattino.`;
     }
     else if (functionName === 'get_menu_recommendations' && functionResult.success) {
-      const data = functionResult.data;
+      // Mock data for menu recommendations
       const items = data.recommendations.map((r: any) => r.name).join(', ');
       let timeOfDay;
       if (typeof functionResult.args === 'string') {

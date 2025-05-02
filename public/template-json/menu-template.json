@@ -1,0 +1,19 @@
+{
+    "menuItems": [
+      {
+        "id": "string",
+        "name": "string",
+        "category": "string",
+        "subcategory": "string",
+        "timeOfDay": ["morning", "afternoon", "evening"],
+        "price": number,
+        "description": "string",
+        "ingredients": ["string"],
+        "preferences": ["string"],
+        "imageUrl": "string",
+        "allergens": ["string"],
+        "dietaryInfo": ["string"],
+        "popularity": number
+      }
+    ]
+  }
