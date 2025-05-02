@@ -8,6 +8,8 @@ import { userContextService } from '../services/user/UserContextService';
 import { AIProviderConfig } from '../types/AIProvider';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 import { configManager } from '../config/ConfigManager';
+// Importa AIConversationManager
+import { AIConversationManager } from '../services/ai/AIConversationManager';
 
 // Definizione tipo contesto
 interface ServiceContextType {
@@ -48,13 +50,24 @@ export const ServiceProvider: React.FC<ServiceProviderProps> = ({ children }) =>
   
   // Crea istanza AIService con la configurazione salvata
   const [aiService, setAIService] = useState(() => {
-    return new AIService(
+    const baseService = new AIService(
       savedConfig.provider,
       savedConfig.config,
       functionRegistry,
       { enableFunctionCalling: true }
     );
+    
+    // Decide se usare il manager avanzato o il servizio base
+    const useAdvancedFunctionSupport = configManager.getSection('ai').enableAdvancedFunctionSupport || false;
+    
+    if (useAdvancedFunctionSupport) {
+      return new AIConversationManager(baseService, functionRegistry);
+    } else {
+      return baseService;
+    }
+    
   });
+
   
   // Funzione per cambiare il provider AI
   const changeAIProvider = (provider: string, config: AIProviderConfig) => {

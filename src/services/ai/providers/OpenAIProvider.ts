@@ -155,21 +155,58 @@ export class OpenAIProvider implements IAIProvider, IMessageProvider, IStreamPro
    * Helper method to call OpenAI Chat Completions API
    */
   private async callCompletionsAPI(messages: any[], options?: any): Promise<any> {
-    const requestBody: any = {
-      model: this.model,
-      messages,
-      ...options
-    };
     
-    // Aggiungi functions se presenti nelle opzioni
-    if (options?.functions) {
-      requestBody.functions = options.functions;
-      
-      if (options.function_call) {
-        requestBody.function_call = options.function_call;
-      }
+    // Estrai il contesto, se presente
+    const context = options?.context;
+
+   // Crea una copia delle messages per non modificare l'originale
+  const formattedMessages = [...messages];
+  
+  // Se abbiamo informazioni di contesto, aggiungiamole al prompt di sistema
+  if (context) {
+    // Cerca un messaggio di sistema esistente
+    const systemMessageIndex = formattedMessages.findIndex(m => m.role === 'system');
+    
+    // Crea una stringa con le informazioni di contesto
+    const contextInfo = `
+Contesto attuale:
+- UserId: ${context.userId}
+- Momento della giornata: ${context.timeOfDay}
+- Ora: ${context.currentTime}
+- Data: ${context.date}
+${context.userContext ? `- Preferenze utente: ${JSON.stringify(context.userContext.preferences || [])}` : ''}
+${context.userContext?.dietaryRestrictions?.length > 0 ? `- Restrizioni alimentari: ${context.userContext.dietaryRestrictions.join(', ')}` : ''}
+`;
+    
+    if (systemMessageIndex >= 0) {
+      // Aggiungi il contesto al messaggio di sistema esistente
+      formattedMessages[systemMessageIndex].content += '\n\n' + contextInfo;
+    } else {
+      // Crea un nuovo messaggio di sistema con il contesto
+      formattedMessages.unshift({
+        role: 'system',
+        content: contextInfo,
+        timestamp: Date.now()
+      });
     }
+  }
+
+  const requestBody: any = {
+    model: this.model,
+    messages: formattedMessages,
+    ...options
+  };
+  // Aggiungi functions se presenti nelle opzioni
+  if (options?.functions) {
+    requestBody.functions = options.functions;
     
+    if (options.function_call) {
+      requestBody.function_call = options.function_call;
+    }
+  }
+  if (options?.context) {
+    delete requestBody.context;
+  }
     const response = await fetch(`${this.baseUrl}/chat/completions`, {
       method: 'POST',
       headers: {

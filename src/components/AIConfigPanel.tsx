@@ -67,14 +67,19 @@ const AIConfigPanel: React.FC<AIConfigPanelProps> = ({ onClose }) => {
     // Select first available model for the new provider
     setModel(getModelOptions(newProvider)[0].value);
   };
-  
+  // Aggiungi stato per l'opzione avanzata
+  const [enableAdvancedFunctionSupport, setEnableAdvancedFunctionSupport] = useState(
+    savedConfig.config.options?.enableAdvancedFunctionSupport || false
+  );
   // Handle form submission
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
     const config: AIProviderConfig = {
       apiKey,
-      model
+      model,
+      options: {
+        enableAdvancedFunctionSupport: enableAdvancedFunctionSupport
+      }
     };
     
     // Save to localStorage
@@ -169,6 +174,18 @@ const AIConfigPanel: React.FC<AIConfigPanelProps> = ({ onClose }) => {
           )}
         </div>
         
+        <div className="form-check">
+          <input
+            type="checkbox"
+            id="advancedFunctionSupport"
+            checked={enableAdvancedFunctionSupport}
+            onChange={(e) => setEnableAdvancedFunctionSupport(e.target.checked)}
+            className="form-check-input"
+          />
+          <label className="form-check-label" htmlFor="advancedFunctionSupport">
+            Abilita supporto avanzato alle funzioni (ciclo di chiamate multiple)
+          </label>
+        </div>
         {/* Checkbox for testing mode without API key */}
         <div className="form-check">
           <input

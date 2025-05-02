@@ -1,4 +1,5 @@
-;
+// src/services/ai/interfaces/IAIService.ts
+
 import { UserContext } from '../../../types/UserContext';
 import { AIProviderConfig } from '../../../types/AIProvider';
 import { Message } from '../../../types/Message';
@@ -8,6 +9,7 @@ import { AIResponse } from '../../../types/AIResponse';
  * Core AI service interface with high-level operations
  */
 export interface IAIService {
+  getCompletion(conversation: Message[], userContext: UserContext): Promise<any>;
   /**
    * Send a message to the AI and get a response
    * @param message User message text
@@ -15,6 +17,14 @@ export interface IAIService {
    * @returns Promise resolving to the AI response
    */
   sendMessage(message: string, userContext: UserContext): Promise<AIResponse>;
+  
+  /**
+   * Send a message with advanced function support (multiple function calls)
+   * @param message User message text
+   * @param userContext Context about the user
+   * @returns Promise resolving to the AI response
+   */
+  sendMessageWithFunctionSupport(message: string, userContext: UserContext): Promise<AIResponse>;
   
   /**
    * Get the conversation history
@@ -39,10 +49,24 @@ export interface IAIService {
    * @param config Provider configuration
    */
   changeProvider(provider: string, config: AIProviderConfig): void;
-
-
-  // Nuovo metodo da aggiungere
-  getSuggestedPrompts(userContext: UserContext): Promise<string[]>;
   
+  /**
+   * Get suggested prompts based on user context
+   * @param userContext The user context
+   * @returns Promise resolving to array of suggested prompts
+   */
+  getSuggestedPrompts(userContext: UserContext): Promise<string[]>;
+
+  /**
+ * Add a message to the conversation
+ * @param message The message to add
+ */
+  addMessageToConversation(message: Message): void;
+
+  /**
+   * Set the entire conversation
+   * @param messages The new conversation messages
+   */
+  setConversation(messages: Message[]): void;
 
 }

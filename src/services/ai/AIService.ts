@@ -10,6 +10,7 @@ import { AIProviderConfig } from '../../types/AIProvider';
 import { AIMessageFormatter } from './AIMessageFormatter';
 import { AIResponseProcessor } from './AIResponseProcessor';
 import { UIComponentGenerator } from '../ui/UIComponentGenerator';
+import { getTimeOfDay } from '../../utils/timeContext';
 
 /**
  * Main AI service implementation
@@ -186,11 +187,54 @@ export class AIService implements IAIService {
   }
   
   /**
+ * Basic implementation of function support that falls back to regular sendMessage
+ * Subclasses can override this with more advanced implementations
+ */
+  async sendMessageWithFunctionSupport(message: string, userContext: UserContext): Promise<AIResponse> {
+    // Implementazione base che riutilizza il metodo standard
+    console.log("Using basic function support implementation");
+    return this.sendMessage(message, userContext);
+  }
+
+ /**
+ * Get a completion from the AI provider without processing
+ * @param messages The conversation messages
+ * @returns Promise resolving to the raw completion
+ */
+async getCompletion(messages: Message[], userContext: UserContext): Promise<any> {
+  if (!this.provider || !('sendCompletionRequest' in this.provider)) {
+    throw new Error('Current provider does not support completion requests');
+  }
+  
+  // Ottieni il momento della giornata
+  const timeOfDay = getTimeOfDay();
+  
+  // Crea l'oggetto contesto
+  const context = {
+    userId: userContext.userId,
+    timeOfDay: timeOfDay,
+    currentTime: new Date().toLocaleTimeString('it-IT', {hour: '2-digit', minute: '2-digit'}),
+    date: new Date().toLocaleDateString('it-IT'),
+    userContext: userContext  // Passa l'intero oggetto UserContext
+  };
+  
+  const functionCallingProvider = this.provider as IFunctionCallingProvider;
+  return await functionCallingProvider.sendCompletionRequest(
+    messages,
+    {
+      functions: this.functionService.getFunctionsForAI(),
+      context: context
+    }
+  );
+}
+
+  /**
    * Get the conversation history
    */
   getConversationHistory(): Message[] {
     // Filter out system messages
-    return this.conversation.filter(m => m.role !== 'system');
+    //return this.conversation.filter(m => m.role !== 'system');
+    return this.conversation;
   }
   
   /**
@@ -209,4 +253,28 @@ export class AIService implements IAIService {
     this.provider = AIProviderFactory.createProvider(provider, config);
     console.log(`AI provider changed to: ${this.provider.name}`);
   }
+
+  /**
+   * Add a message to the conversation
+   * @param message The message to add
+   */
+  addMessageToConversation(message: Message): void {
+    this.conversation.push(message);
+  }
+
+  /**
+   * Set the entire conversation
+   * @param messages The new conversation messages
+   */
+  setConversation(messages: Message[]): void {
+    // Mantieni il messaggio di sistema se presente
+    const systemMessage = this.conversation.find(m => m.role === 'system');
+    
+    if (systemMessage) {
+      this.conversation = [systemMessage, ...messages.filter(m => m.role !== 'system')];
+    } else {
+      this.conversation = [...messages];
+    }
+  }
+
 }
