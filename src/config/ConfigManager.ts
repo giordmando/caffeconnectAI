@@ -45,6 +45,7 @@ export interface AppConfig {
       defaultModel: string;
     }>;
     systemPrompt: string;
+    enableAdvancedFunctionSupport: boolean; // Nuova proprietà
   };
   
   // Configurazione menu/prodotti
@@ -281,7 +282,8 @@ LINEE GUIDA:
 7. Se ritieni che una funzione possa fornire informazioni utili, chiamala proattivamente.
 
 Il nostro menu e i prodotti cambiano durante la giornata, quindi fai attenzione al contesto temporale.
-`
+`,
+enableAdvancedFunctionSupport: true // Nuova proprietà
       },
       catalog: {
         enableLocalData: true,

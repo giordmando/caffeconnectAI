@@ -1,6 +1,7 @@
 import { IAIProvider, IMessageProvider, IStreamProvider, IFunctionCallingProvider } from './interfaces/IAIProvider';
 import { MockAIProvider } from './providers/MockAIProvider';
 import { AIProviderConfig } from '../../types/AIProvider';
+import { OpenAIProvider } from './providers/OpenAIProvider';
 
 // Import other providers 
 // import { OpenAIProvider } from './providers/OpenAIProvider';
@@ -17,8 +18,8 @@ export class AIProviderFactory {
   static createProvider(type: string, config: AIProviderConfig): IAIProvider {
     switch(type.toLowerCase()) {
       // Uncomment when implementing these providers
-      // case 'openai':
-      //   return new OpenAIProvider(config);
+      case 'openai':
+         return new OpenAIProvider(config);
       // case 'claude':
       //   return new ClaudeProvider(config);
       // case 'gemini':

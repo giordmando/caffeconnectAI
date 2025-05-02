@@ -52,9 +52,6 @@ export class AppInitializer {
         console.log('Using default configuration');
       }
       
-      // Fase 2: Registra provider AI
-      this.registerAIProviders();
-      
       // Fase 3: Inizializza registro funzioni
       functionRegistry.setisInitialized(false);
       await functionRegistry.initialize();
@@ -66,7 +63,8 @@ export class AppInitializer {
   
       // Fase 4: Inizializza catalogo
       await catalogService.initialize();
-      
+      // Fase 2: Registra provider AI
+      this.registerAIProviders();
       // Fase 5: Inizializza tema
       // (Già fatto nel costruttore del ThemeService)
       

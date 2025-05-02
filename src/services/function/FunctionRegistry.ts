@@ -125,6 +125,7 @@ export class FunctionRegistry implements IFunctionService {
     console.log(`Executing function: ${functionName}`, parameters);
     
     if (!this.hasFunction(functionName)) {
+      console.error(`Function "${functionName}" not found`);
       return {
         success: false,
         error: `Function "${functionName}" not found.`
