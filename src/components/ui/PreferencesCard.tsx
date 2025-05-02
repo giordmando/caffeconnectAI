@@ -23,7 +23,7 @@ export const PreferencesCard: React.FC<PreferencesCardProps> = ({
   onAction
 }) => {
   const { favoriteDrinks, favoriteFood, dietaryRestrictions, usualVisitTime, lastOrderedItems } = preferences;
-  
+
   /**
    * TODO spostare in a translation file
    * Traduzione dei momenti della giornata in italiano

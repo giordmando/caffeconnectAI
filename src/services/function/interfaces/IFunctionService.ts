@@ -3,6 +3,7 @@
  */
 export interface IFunctionService {
 
+
   /**
      * Register a new function
      */
@@ -14,6 +15,7 @@ export interface IFunctionService {
      */
 
     getFunctionDataEndpoints(functionName: string): any;
+
     /**
      * Register a new function
      * @param functionDef Function definition object

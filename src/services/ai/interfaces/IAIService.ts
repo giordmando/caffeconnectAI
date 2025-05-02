@@ -40,7 +40,9 @@ export interface IAIService {
    */
   changeProvider(provider: string, config: AIProviderConfig): void;
 
+
   // Nuovo metodo da aggiungere
   getSuggestedPrompts(userContext: UserContext): Promise<string[]>;
   
+
 }

@@ -1,5 +1,6 @@
 import { IAIService } from './interfaces/IAIService';
 import { IAIProvider, IMessageProvider, IStreamProvider, IFunctionCallingProvider } from './interfaces/IAIProvider';
+import { AIProviderFactory } from './AIProviderFactory';
 import { IUIComponentGenerator } from './interfaces/IUIComponentGenerator';
 import { IFunctionService } from '../function/interfaces/IFunctionService';
 import { Message } from '../../types/Message';
@@ -9,7 +10,6 @@ import { AIProviderConfig } from '../../types/AIProvider';
 import { AIMessageFormatter } from './AIMessageFormatter';
 import { AIResponseProcessor } from './AIResponseProcessor';
 import { UIComponentGenerator } from '../ui/UIComponentGenerator';
-import { AIProviderFactory } from './AIProviderRegistry';
 
 /**
  * Main AI service implementation
@@ -49,6 +49,7 @@ export class AIService implements IAIService {
     
     console.log(`AI service initialized with provider: ${this.provider.name}`);
   }
+
   /**
    * Get suggested prompts based on the user context
    */
@@ -66,6 +67,7 @@ export class AIService implements IAIService {
       return ['Come posso aiutarti?', 'Mostrami i prodotti disponibili', 'Quali sono le tue funzionalità?'];
     }
   }
+
   
   /**
    * Get the current provider name
