@@ -32,7 +32,7 @@ import React, { useState, useEffect, useRef } from 'react';
     const [availableActions, setAvailableActions] = useState<any[]>([]);
     
     // Ottieni servizi
-    const { aiService, userService } = useServices();
+    const { aiService, userService, suggestionService } = useServices();
     
     // Ottieni contesto utente
     const userContext = userService.getUserContext();
@@ -59,7 +59,7 @@ import React, { useState, useEffect, useRef } from 'react';
             
             // Ottieni suggerimenti iniziali
             if (enableSuggestions) {
-              const initialSuggestions = await aiService.getSuggestedPrompts(userContext);
+              const initialSuggestions = await suggestionService.getSuggestedPrompts(messages[messages.length - 1], userContext);
               setSuggestedPrompts(initialSuggestions);
             }
           } else {
@@ -85,7 +85,7 @@ import React, { useState, useEffect, useRef } from 'react';
           }
           
           // Aggiorna contesto utente
-          userService.addInteraction("Initial welcome message");
+            userService.addInteraction(welcomeMessage || "Initial welcome message");
         } catch (error) {
           console.error('Error loading welcome message:', error);
           
@@ -101,7 +101,8 @@ import React, { useState, useEffect, useRef } from 'react';
       };
       
       loadWelcomeMessage();
-    }, [aiService, userService, userContext, welcomeMessage, enableDynamicComponents, enableSuggestions]);
+    }, [aiService, userService, userContext, welcomeMessage, enableDynamicComponents, enableSuggestions, suggestionService, 
+      messages]);
     
     // Auto-scroll quando arrivano nuovi messaggi
     useEffect(() => {

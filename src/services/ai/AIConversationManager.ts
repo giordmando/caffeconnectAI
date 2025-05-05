@@ -10,6 +10,8 @@ import { UIComponentGenerator } from '../ui/UIComponentGenerator';
 // Aggiunta all'inizio del file AIConversationManager.ts
 import { FunctionCallProcessor } from './FunctionCallProcessor';
 import { IFunctionService } from '../function/interfaces/IFunctionService';
+import { ISuggestionService } from '../action/interfaces/ISuggestionService';
+import { IActionService } from '../action/interfaces/IActionService';
 
 
 
@@ -23,13 +25,18 @@ export class AIConversationManager implements IAIService {
     private maxFunctionCalls: number = 5;
     // Aggiunta alle proprietà della classe
     private functionCallProcessor: FunctionCallProcessor;
+    private readonly suggestionService: ISuggestionService;
+    private readonly actionService: IActionService;
 
 
     // Aggiunta al costruttore
-    constructor(baseService: IAIService, functionService: IFunctionService) {
+    constructor(baseService: IAIService, functionService: IFunctionService, suggestionService: ISuggestionService,
+      actionService: IActionService) {
         this.baseService = baseService;
         this.uiComponentGenerator = new UIComponentGenerator();
         this.functionCallProcessor = new FunctionCallProcessor(functionService);
+        this.suggestionService = suggestionService;
+        this.actionService = actionService;
     }
 
     async getCompletion(messages: Message[], userContext:UserContext): Promise<any> {
@@ -72,12 +79,6 @@ export class AIConversationManager implements IAIService {
     this.baseService.resetConversation();
   }
   
-  /**
-   * Get suggested prompts (delegates to base service)
-   */
-  async getSuggestedPrompts(userContext: UserContext): Promise<string[]> {
-    return this.baseService.getSuggestedPrompts(userContext);
-  }
   
   /**
    * Simple message sending (delegates to advanced implementation)
@@ -178,10 +179,10 @@ export class AIConversationManager implements IAIService {
         conversation
       );
       
-      const suggestedPrompts = await this.baseService.getSuggestedPrompts(userContext);
-      
-      const availableActions = this.uiComponentGenerator.generateAvailableActions(
-        aiMessage!,
+      // Usa i nuovi servizi
+      const suggestedPrompts = await this.suggestionService.getSuggestedPrompts(aiMessage!, userContext);
+      const availableActions = await this.actionService.generateAvailableActions(
+        aiMessage!, 
         userContext
       );
       

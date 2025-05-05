@@ -1,7 +1,3 @@
-// src/config/ConfigManager.ts
-import { AIProviderConfig } from '../types/AIProvider';
-import { FunctionDefinition } from '../types/Function';
-
 /**
  * Interfaccia per la configurazione dell'applicazione
  */
@@ -92,17 +88,13 @@ export class ConfigManager {
   private config: AppConfig;
   private isLoaded: boolean = false;
   
-  private constructor() {
-    // Inizializza con configurazione di default
-    this.config = this.getDefaultConfig();
+  private constructor(initialConfig?: Partial<AppConfig>) {
+    this.config = this.mergeWithDefault(initialConfig || {});
   }
   
-  /**
-   * Ottiene l'istanza singleton
-   */
-  public static getInstance(): ConfigManager {
+  public static getInstance(initialConfig?: Partial<AppConfig>): ConfigManager {
     if (!ConfigManager.instance) {
-      ConfigManager.instance = new ConfigManager();
+      ConfigManager.instance = new ConfigManager(initialConfig);
     }
     return ConfigManager.instance;
   }
