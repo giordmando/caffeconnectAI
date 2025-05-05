@@ -75,25 +75,3 @@ export class AIProviderRegistry {
 
 // Esporta l'istanza singleton
 export const aiProviderRegistry = AIProviderRegistry.getInstance();
-
-// Esempio di registrazione di provider aggiuntivi:
-// (Questi dovrebbero essere implementati in moduli separati e registrati all'avvio dell'app)
-
-// import { OpenAIProvider } from './providers/OpenAIProvider';
-// aiProviderRegistry.registerProvider('openai', (config) => new OpenAIProvider(config));
-
-// import { ClaudeProvider } from './providers/ClaudeProvider';
-// aiProviderRegistry.registerProvider('claude', (config) => new ClaudeProvider(config));
-
-// Aggiorniamo la factory per utilizzare il registry
-export class AIProviderFactory {
-  /**
-   * Crea un provider AI basato sul tipo e la configurazione
-   * @param type Tipo di provider
-   * @param config Configurazione del provider
-   * @returns Istanza del provider AI
-   */
-  static createProvider(type: string, config: AIProviderConfig): IAIProvider {
-    return aiProviderRegistry.createProvider(type, config);
-  }
-}

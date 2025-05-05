@@ -169,14 +169,14 @@ export class OpenAIProvider implements IAIProvider {
     
     // Crea una stringa con le informazioni di contesto
     const contextInfo = `
-Contesto attuale:
-- UserId: ${context.userId}
-- Momento della giornata: ${context.timeOfDay}
-- Ora: ${context.currentTime}
-- Data: ${context.date}
-${context.userContext ? `- Preferenze utente: ${JSON.stringify(context.userContext.preferences || [])}` : ''}
-${context.userContext?.dietaryRestrictions?.length > 0 ? `- Restrizioni alimentari: ${context.userContext.dietaryRestrictions.join(', ')}` : ''}
-`;
+  Contesto attuale:
+  - UserId: ${context.userId}
+  - Momento della giornata: ${context.timeOfDay}
+  - Ora: ${context.currentTime}
+  - Data: ${context.date}
+  ${context.userContext ? `- Preferenze utente: ${JSON.stringify(context.userContext.preferences || [])}` : ''}
+  ${context.userContext?.dietaryRestrictions?.length > 0 ? `- Restrizioni alimentari: ${context.userContext.dietaryRestrictions.join(', ')}` : ''}
+  `;
     
     if (systemMessageIndex >= 0) {
       // Aggiungi il contesto al messaggio di sistema esistente
@@ -222,5 +222,11 @@ ${context.userContext?.dietaryRestrictions?.length > 0 ? `- Restrizioni alimenta
     }
     
     return await response.json();
+  }
+  getConfig(): any {
+    return {
+      useMockFunctions: false,
+      // altre opzioni specifiche...
+    };
   }
 }

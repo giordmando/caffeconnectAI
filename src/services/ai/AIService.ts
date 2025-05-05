@@ -33,6 +33,7 @@ export class AIService implements IAIService {
   constructor(
     provider: IAIProvider,
     functionService: IFunctionService,
+    responseProcessor: AIResponseProcessor,
     uiComponentGenerator: IUIComponentGenerator,
     suggestionService: ISuggestionService,
     actionService: IActionService,
@@ -45,7 +46,7 @@ export class AIService implements IAIService {
     this.enableFunctionCalling = options.enableFunctionCalling ?? true;
     this.uiComponentGenerator = uiComponentGenerator || new UIComponentGenerator();
     this.messageFormatter = new AIMessageFormatter();
-    this.responseProcessor = new AIResponseProcessor(functionService);
+    this.responseProcessor = responseProcessor;
     this.suggestionService = suggestionService;
     this.actionService = actionService;
     
@@ -108,8 +109,7 @@ export class AIService implements IAIService {
           // Process function call
           aiMessage = await this.responseProcessor.processFunctionCall(
             openAIResponse.function_call,
-            this.conversation,
-            this.isMockProvider()
+            this.conversation
           );
         } else {
           // Regular response
@@ -151,8 +151,7 @@ export class AIService implements IAIService {
       // Track user interaction
       this.responseProcessor.trackUserInteraction(
         message, 
-        userContext.userId, 
-        this.isMockProvider()
+        userContext.userId
       );
       
       return {

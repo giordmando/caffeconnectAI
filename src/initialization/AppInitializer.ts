@@ -4,7 +4,7 @@ import { aiProviderRegistry } from '../services/ai/AIProviderRegistry';
 import { functionRegistry } from '../services/function/FunctionRegistry';
 import { catalogService } from '../services/catalog/CatalogService';
 import { themeService } from '../services/theme/ThemeService';
-import { registerOpenAIProvider } from '../services/ai/providers/registerOpenAI';
+import { registerAllProviders } from '../services/ai/providers/registerAllProviders';
 import { registerComponents } from '../components/ui/registry/ComponentRegistration';
 
 // Importazioni opzionali per provider AI
@@ -114,7 +114,7 @@ export class AppInitializer {
   private registerAIProviders(): void {
     // Già registrato il MockAIProvider in AIProviderRegistry
     // Registra il provider OpenAI
-    registerOpenAIProvider();
+    registerAllProviders();
     // Registra provider AI aggiuntivi
     // Qui andrebbero registrati i provider personalizzati
     

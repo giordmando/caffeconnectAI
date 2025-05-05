@@ -125,8 +125,7 @@ export class AIConversationManager implements IAIService {
           // Process the function call
           const functionResultMessage = await this.functionCallProcessor.processFunctionCall(
             completion.function_call,
-            conversation,
-            this.isMockMode()
+            conversation
           );
           
           // Add function call and result to the actual conversation
@@ -213,12 +212,5 @@ export class AIConversationManager implements IAIService {
     }
   }
 
-  /**
- * Check if we're using a mock provider
- */
- private isMockMode(): boolean {
-    return this.baseService.getProviderName().toLowerCase().includes('mock');
-  }
-  
-  
+ 
 }

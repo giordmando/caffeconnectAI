@@ -82,11 +82,6 @@ export const mockApiGetProducts = async (category?: string): Promise<Product[]> 
   
   await new Promise(resolve => setTimeout(resolve, 400));
   
-  // Simula un errore casuale in 10% dei casi per testare la gestione degli errori
-  if (Math.random() < 0.1) {
-    throw new Error('Errore di rete simulato durante il recupero dei prodotti');
-  }
-  
   const allProducts = productsData as Product[];
   
   // Se è specificata una categoria, filtra i risultati

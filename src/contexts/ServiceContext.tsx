@@ -17,6 +17,8 @@ import { UIComponentGenerator } from '../services/ui/UIComponentGenerator';
 import { SuggestionServiceFactory } from '../services/action/SuggestionServiceFactory';
 import { ActionServiceFactory } from '../services/action/ActionServiceFactory';
 import { catalogService } from '../services/catalog/CatalogService';
+import { FunctionExecutionStrategyFactory } from '../services/function/FunctionExecutionStrategyFactory';
+import { AIResponseProcessor } from '../services/ai/AIResponseProcessor';
 
 
 // Definizione tipo contesto
@@ -66,6 +68,15 @@ export const ServiceProvider: React.FC<ServiceProviderProps> = ({ children }) =>
       savedConfig.config
     );
 
+    // Crea la strategia appropriata
+    const executionStrategy = FunctionExecutionStrategyFactory.createStrategy(
+      aiProvider,
+      functionRegistry
+    );
+
+    // Crea il processor con la strategia
+    const responseProcessor = new AIResponseProcessor(functionRegistry, executionStrategy);
+
     // Crea istanza UIComponentGenerator
     const uiComponentGenerator = new UIComponentGenerator();
     
@@ -88,6 +99,7 @@ export const ServiceProvider: React.FC<ServiceProviderProps> = ({ children }) =>
     const baseService = new AIService(
       aiProvider,
       functionRegistry,
+      responseProcessor,
       uiComponentGenerator,
       suggestionService,
       actionService
@@ -121,7 +133,14 @@ export const ServiceProvider: React.FC<ServiceProviderProps> = ({ children }) =>
     // Crea nuovi servizi basati sul nuovo provider
     const businessType = configManager.getSection('business').type;
     const uiComponentGenerator = new UIComponentGenerator();
-    
+
+    // Crea la strategia appropriata
+    const executionStrategy = FunctionExecutionStrategyFactory.createStrategy(
+      aiProvider,
+      functionRegistry
+    );
+    // Crea il processor con la strategia
+    const responseProcessor = new AIResponseProcessor(functionRegistry, executionStrategy);
     const suggestionService = SuggestionServiceFactory.createService(
       businessType,
       catalogService,
@@ -139,6 +158,7 @@ export const ServiceProvider: React.FC<ServiceProviderProps> = ({ children }) =>
     const baseService = new AIService(
       aiProvider,
       functionRegistry,
+      responseProcessor,
       uiComponentGenerator,
       suggestionService,
       actionService

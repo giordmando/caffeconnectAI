@@ -1,34 +1,20 @@
+import { aiProviderRegistry } from './AIProviderRegistry';
 import { IAIProvider } from './interfaces/IAIProvider';
-import { MockAIProvider } from './providers/MockAIProvider';
 import { AIProviderConfig } from '../../types/AIProvider';
-import { OpenAIProvider } from './providers/OpenAIProvider';
 
-// Import other providers 
-// import { OpenAIProvider } from './providers/OpenAIProvider';
-// import { ClaudeProvider } from './providers/ClaudeProvider';
-// import { GeminiProvider } from './providers/GeminiProvider';
-
-/**
- * Factory for creating AI provider instances
- */
 export class AIProviderFactory {
   /**
-   * Create a provider instance based on type and configuration
+   * Crea un provider AI basato sul tipo e la configurazione
+   * Utilizza il registry per la creazione effettiva
    */
   static createProvider(type: string, config: AIProviderConfig): IAIProvider {
-    switch(type.toLowerCase()) {
-      // Uncomment when implementing these providers
-      case 'openai':
-         return new OpenAIProvider(config);
-      // case 'claude':
-      //   return new ClaudeProvider(config);
-      // case 'gemini':
-      //   return new GeminiProvider(config);
-      case 'mockai':
-        return new MockAIProvider(config);
-      default:
-        console.warn(`Provider ${type} not supported, using MockAI as fallback`);
-        return new MockAIProvider(config);
-    }
+    return aiProviderRegistry.createProvider(type, config);
+  }
+  
+  /**
+   * Registra un nuovo provider nel registry
+   */
+  static registerProvider(type: string, factoryFn: (config: AIProviderConfig) => IAIProvider): void {
+    aiProviderRegistry.registerProvider(type, factoryFn);
   }
 }

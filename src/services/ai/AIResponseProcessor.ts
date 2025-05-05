@@ -1,15 +1,17 @@
 import { Message } from '../../types/Message';
-import { mockFunctionExecution } from '../../api/mockFunctionService';
 import { IFunctionService } from '../function/interfaces/IFunctionService';
+import { IFunctionExecutionStrategy } from '../function/interfaces/IFunctionExecutionStrategy';
 
 /**
  * Service responsible for processing AI responses and handling function calls
  */
 export class AIResponseProcessor {
   private functionService: IFunctionService;
-  
-  constructor(functionService: IFunctionService) {
+  private executionStrategy: IFunctionExecutionStrategy;
+
+  constructor(functionService: IFunctionService, executionStrategy: IFunctionExecutionStrategy) {
     this.functionService = functionService;
+    this.executionStrategy = executionStrategy;
   }
   
   /**
@@ -17,8 +19,7 @@ export class AIResponseProcessor {
    */
   async processFunctionCall(
     functionCall: any, 
-    conversation: Message[],
-    isMockMode: boolean
+    conversation: Message[]
   ): Promise<Message> {
     const functionName = functionCall.name;
     const args = JSON.parse(functionCall.arguments);
@@ -40,13 +41,15 @@ export class AIResponseProcessor {
     conversation.push(functionCallMessage);
     
     // Execute function (real or mock based on mode)
-    let functionResult;
+  
     const functionmeta = this.functionService.getFunctionDataEndpoints(functionName);
-    if (isMockMode && (!functionmeta && !this.functionService.areCustomFunctionsLoaded())) {
-      functionResult = await mockFunctionExecution(functionName, args);
-    } else {
-      functionResult = await this.functionService.executeFunction(functionName, args);
-    }
+    //if (isMockMode && (!functionmeta && !this.functionService.areCustomFunctionsLoaded())) {
+    //  functionResult = await mockFunctionExecution(functionName, args);
+    //} else {
+    //  functionResult = await this.functionService.executeFunction(functionName, args);
+    //}
+
+    const functionResult = await this.executionStrategy.executeFunction(functionName, args);
     
     // Add function result message
     const functionResultMessage: Message = {
@@ -61,22 +64,14 @@ export class AIResponseProcessor {
     };
     
     conversation.push(functionResultMessage);
-    
-    // Generate a response based on function result in mock mode
-    if (isMockMode) {
-      const mockResponse = this.generateMockResponseForFunction(functionName, functionResult);
-      return {
-        role: 'assistant',
-        content: mockResponse,
-        timestamp: Date.now()
-      };
-    }
-    
+
+    const mockResponse = this.generateMockResponseForFunction(functionName, functionResult);
     return {
       role: 'assistant',
-      content: 'Function executed successfully',
+      content: mockResponse,
       timestamp: Date.now()
     };
+    
   }
   
   /**
@@ -84,7 +79,6 @@ export class AIResponseProcessor {
    */
   private generateMockResponseForFunction(functionName: string, functionResult: any): string {
     const data = functionResult.data?.data ?? functionResult.data;
-    console.log('Mock data:', data);
     if (functionName === 'get_user_loyalty_points' && functionResult.success) {
       // Mock data for loyalty points
       return `Hai accumulato ${data.points} punti fedeltà e sei nel livello ${data.tier}. Ti mancano ${data.nextTier.pointsNeeded} punti per raggiungere il livello ${data.nextTier.name}.`;
@@ -134,26 +128,18 @@ export class AIResponseProcessor {
   async trackUserInteraction(
     message: string, 
     userId: string, 
-    isMockMode: boolean
   ): Promise<void> {
     try {
-      if (isMockMode) {
-        await mockFunctionExecution('track_user_action', {
-          userId,
-          actionType: 'interaction',
-          itemId: 'chat-message',
-          itemType: 'conversation',
-          metadata: { message }
-        });
-      } else {
-        await this.functionService.executeFunction('track_user_action', {
-          userId,
-          actionType: 'interaction',
-          itemId: 'chat-message',
-          itemType: 'conversation',
-          metadata: { message }
-        });
+      const args = {
+        userId,
+        actionType: 'interaction',
+        itemId: 'chat-message',
+        itemType: 'conversation',
+        metadata: { message }
       }
+
+      this.executionStrategy.executeFunction('track_user_action', args);
+    
     } catch (error) {
       console.warn('Error tracking interaction:', error);
       // Don't block the flow in case of tracking error

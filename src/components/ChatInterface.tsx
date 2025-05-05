@@ -101,8 +101,7 @@ import React, { useState, useEffect, useRef } from 'react';
       };
       
       loadWelcomeMessage();
-    }, [aiService, userService, userContext, welcomeMessage, enableDynamicComponents, enableSuggestions, suggestionService, 
-      messages]);
+    }, [aiService, userService, userContext, welcomeMessage, enableDynamicComponents, enableSuggestions, suggestionService]);
     
     // Auto-scroll quando arrivano nuovi messaggi
     useEffect(() => {

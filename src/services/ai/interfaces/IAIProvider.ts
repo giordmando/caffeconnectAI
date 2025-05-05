@@ -31,4 +31,7 @@ export interface IAIProvider {
    * @returns Promise resolving to the AI response
    */
   sendCompletionRequest(messages: Message[], options?: any): Promise<any>;
+
+    // Metodo opzionale per ottenere la configurazione
+    getConfig?(): any;
 }

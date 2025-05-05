@@ -2,7 +2,6 @@
 
 import { Message } from '../../types/Message';
 import { IFunctionService } from '../function/interfaces/IFunctionService';
-import { FunctionDefinition, FunctionCallResult } from '../../types/Function';
 
 /**
  * Service responsible for processing function calls
