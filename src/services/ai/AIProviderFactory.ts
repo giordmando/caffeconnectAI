@@ -1,4 +1,4 @@
-import { IAIProvider, IMessageProvider, IStreamProvider, IFunctionCallingProvider } from './interfaces/IAIProvider';
+import { IAIProvider } from './interfaces/IAIProvider';
 import { MockAIProvider } from './providers/MockAIProvider';
 import { AIProviderConfig } from '../../types/AIProvider';
 import { OpenAIProvider } from './providers/OpenAIProvider';

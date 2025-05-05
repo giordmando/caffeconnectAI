@@ -49,13 +49,7 @@ export interface IAIService {
    * @param config Provider configuration
    */
   changeProvider(provider: string, config: AIProviderConfig): void;
-  
-  /**
-   * Get suggested prompts based on user context
-   * @param userContext The user context
-   * @returns Promise resolving to array of suggested prompts
-   */
-  getSuggestedPrompts(userContext: UserContext): Promise<string[]>;
+
 
   /**
  * Add a message to the conversation

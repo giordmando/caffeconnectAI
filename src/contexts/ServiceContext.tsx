@@ -10,6 +10,14 @@ import { useLocalStorage } from '../hooks/useLocalStorage';
 import { configManager } from '../config/ConfigManager';
 // Importa AIConversationManager
 import { AIConversationManager } from '../services/ai/AIConversationManager';
+import { ISuggestionService } from '../services/action/interfaces/ISuggestionService';
+import { IActionService } from '../services/action/interfaces/IActionService';
+import { AIProviderFactory } from '../services/ai/AIProviderFactory';
+import { UIComponentGenerator } from '../services/ui/UIComponentGenerator';
+import { SuggestionServiceFactory } from '../services/action/SuggestionServiceFactory';
+import { ActionServiceFactory } from '../services/action/ActionServiceFactory';
+import { catalogService } from '../services/catalog/CatalogService';
+
 
 // Definizione tipo contesto
 interface ServiceContextType {
@@ -17,6 +25,8 @@ interface ServiceContextType {
   functionService: IFunctionService;
   userService: IUserContextService;
   currentProvider: string;
+  suggestionService: ISuggestionService;
+  actionService: IActionService;
   changeAIProvider: (provider: string, config: AIProviderConfig) => void;
   refreshServices: () => void;
 }
@@ -48,30 +58,111 @@ export const ServiceProvider: React.FC<ServiceProviderProps> = ({ children }) =>
   // Traccia provider corrente per visualizzazione UI
   const [currentProvider, setCurrentProvider] = useState(savedConfig.provider);
   
-  // Crea istanza AIService con la configurazione salvata
-  const [aiService, setAIService] = useState(() => {
-    const baseService = new AIService(
+  // Creiamo i servizi principali
+  const [services, setServices] = useState(() => {
+    // Crea il provider AI
+    const aiProvider = AIProviderFactory.createProvider(
       savedConfig.provider,
-      savedConfig.config,
+      savedConfig.config
+    );
+
+    // Crea istanza UIComponentGenerator
+    const uiComponentGenerator = new UIComponentGenerator();
+    
+    // Crea i servizi di suggerimento e azione usando le factory
+    const businessType = configManager.getSection('business').type;
+    const suggestionService = SuggestionServiceFactory.createService(
+      businessType,
+      catalogService,  // Questo dovrebbe essere definito globalmente o iniettato
       functionRegistry,
-      { enableFunctionCalling: true }
+      aiProvider
+    );
+    
+    const actionService = ActionServiceFactory.createService(
+      businessType,
+      catalogService,  // Questo dovrebbe essere definito globalmente o iniettato
+      aiProvider
+    );
+    
+    // Crea il servizio AI base
+    const baseService = new AIService(
+      aiProvider,
+      functionRegistry,
+      uiComponentGenerator,
+      suggestionService,
+      actionService
     );
     
     // Decide se usare il manager avanzato o il servizio base
     const useAdvancedFunctionSupport = configManager.getSection('ai').enableAdvancedFunctionSupport || false;
     
-    if (useAdvancedFunctionSupport) {
-      return new AIConversationManager(baseService, functionRegistry);
-    } else {
-      return baseService;
-    }
+    const aiService = useAdvancedFunctionSupport
+      ? new AIConversationManager(
+          baseService,
+          functionRegistry,
+          suggestionService,
+          actionService
+        )
+      : baseService;
     
+    return {
+      aiService,
+      suggestionService,
+      actionService
+    };
   });
 
   
   // Funzione per cambiare il provider AI
   const changeAIProvider = (provider: string, config: AIProviderConfig) => {
-    aiService.changeProvider(provider, config);
+    // Crea nuovo provider
+    const aiProvider = AIProviderFactory.createProvider(provider, config);
+    
+    // Crea nuovi servizi basati sul nuovo provider
+    const businessType = configManager.getSection('business').type;
+    const uiComponentGenerator = new UIComponentGenerator();
+    
+    const suggestionService = SuggestionServiceFactory.createService(
+      businessType,
+      catalogService,
+      functionRegistry,
+      aiProvider
+    );
+    
+    const actionService = ActionServiceFactory.createService(
+      businessType,
+      catalogService,
+      aiProvider
+    );
+    
+    // Crea nuovo servizio AI
+    const baseService = new AIService(
+      aiProvider,
+      functionRegistry,
+      uiComponentGenerator,
+      suggestionService,
+      actionService
+    );
+    
+    // Decide se usare il manager avanzato
+    const useAdvancedFunctionSupport = configManager.getSection('ai').enableAdvancedFunctionSupport || false;
+    
+    const aiService = useAdvancedFunctionSupport
+      ? new AIConversationManager(
+          baseService,
+          functionRegistry,
+          suggestionService,
+          actionService
+        )
+      : baseService;
+    
+    // Aggiorna i servizi
+    setServices({
+      aiService,
+      suggestionService,
+      actionService
+    });
+    
     setCurrentProvider(provider);
   };
   
@@ -80,30 +171,27 @@ export const ServiceProvider: React.FC<ServiceProviderProps> = ({ children }) =>
     // Ricarica la configurazione AI dalla configurazione globale
     const aiConfig = configManager.getSection('ai');
     
-    // Crea un nuovo AIService con la configurazione aggiornata
-    const newAIService = new AIService(
+    // Crea un nuovo provider con la configurazione aggiornata
+    changeAIProvider(
       aiConfig.defaultProvider,
       {
         apiKey: savedConfig.config.apiKey, // Mantieni la API key esistente
         model: aiConfig.providers[aiConfig.defaultProvider].defaultModel
-      },
-      functionRegistry,
-      { enableFunctionCalling: true }
+      }
     );
-    
-    setAIService(newAIService);
-    setCurrentProvider(aiConfig.defaultProvider);
   };
   
   // Memoizza il valore del contesto per evitare render non necessari
   const contextValue = useMemo(() => ({
-    aiService,
+    aiService: services.aiService,
     functionService: functionRegistry,
     userService: userContextService,
+    suggestionService: services.suggestionService,
+    actionService: services.actionService,
     currentProvider,
     changeAIProvider,
     refreshServices
-  }), [aiService, currentProvider]);
+  }), [services, currentProvider, refreshServices]);
   
   return (
     <ServiceContext.Provider value={contextValue}>

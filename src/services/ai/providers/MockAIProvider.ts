@@ -1,12 +1,12 @@
-import { IMessageProvider, IStreamProvider, IFunctionCallingProvider } from '../interfaces/IAIProvider';
 import { AIProviderConfig } from '../../../types/AIProvider';
 import { Message } from '../../../types/Message';
+import { IAIProvider } from '../interfaces/IAIProvider';
 
 /**
  * Mock AI provider for testing without real API calls
  * Implements all provider interfaces for full compatibility
  */
-export class MockAIProvider implements IMessageProvider, IStreamProvider, IFunctionCallingProvider {
+export class MockAIProvider implements IAIProvider {
   name = 'Mock AI';
   
   constructor(config: AIProviderConfig) {

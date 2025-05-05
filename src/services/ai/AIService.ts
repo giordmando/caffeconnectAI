@@ -1,5 +1,5 @@
 import { IAIService } from './interfaces/IAIService';
-import { IAIProvider, IMessageProvider, IStreamProvider, IFunctionCallingProvider } from './interfaces/IAIProvider';
+import { IAIProvider } from './interfaces/IAIProvider';
 import { AIProviderFactory } from './AIProviderFactory';
 import { IUIComponentGenerator } from './interfaces/IUIComponentGenerator';
 import { IFunctionService } from '../function/interfaces/IFunctionService';
@@ -11,6 +11,10 @@ import { AIMessageFormatter } from './AIMessageFormatter';
 import { AIResponseProcessor } from './AIResponseProcessor';
 import { UIComponentGenerator } from '../ui/UIComponentGenerator';
 import { getTimeOfDay } from '../../utils/timeContext';
+import { ISuggestionService } from '../action/interfaces/ISuggestionService';
+import { IActionService } from '../action/interfaces/IActionService';
+
+
 
 /**
  * Main AI service implementation
@@ -23,21 +27,27 @@ export class AIService implements IAIService {
   private uiComponentGenerator: IUIComponentGenerator;
   private messageFormatter: AIMessageFormatter;
   private responseProcessor: AIResponseProcessor;
-  
+  private suggestionService: ISuggestionService;
+  private actionService: IActionService;
+
   constructor(
-    provider: string,
-    providerConfig: AIProviderConfig,
+    provider: IAIProvider,
     functionService: IFunctionService,
+    uiComponentGenerator: IUIComponentGenerator,
+    suggestionService: ISuggestionService,
+    actionService: IActionService,
     options: {
       enableFunctionCalling?: boolean;
     } = {}
   ) {
-    this.provider = AIProviderFactory.createProvider(provider, providerConfig);
+    this.provider = provider;
     this.functionService = functionService;
     this.enableFunctionCalling = options.enableFunctionCalling ?? true;
-    this.uiComponentGenerator = new UIComponentGenerator();
+    this.uiComponentGenerator = uiComponentGenerator || new UIComponentGenerator();
     this.messageFormatter = new AIMessageFormatter();
     this.responseProcessor = new AIResponseProcessor(functionService);
+    this.suggestionService = suggestionService;
+    this.actionService = actionService;
     
     // Initialize conversation with system prompt
     const functionDescriptions = this.functionService.getAllFunctions()
@@ -49,24 +59,6 @@ export class AIService implements IAIService {
     ];
     
     console.log(`AI service initialized with provider: ${this.provider.name}`);
-  }
-
-  /**
-   * Get suggested prompts based on the user context
-   */
-  async getSuggestedPrompts(userContext: UserContext): Promise<string[]> {
-    try {
-      // Generate suggested prompts using the UIComponentGenerator
-      const suggestedPrompts = this.uiComponentGenerator.getSuggestedPrompts(userContext);
-
-      // Return the generated prompts
-      return suggestedPrompts;
-    } catch (error) {
-      console.error('Error generating suggested prompts:', error);
-
-      // Fallback to default prompts in case of an error
-      return ['Come posso aiutarti?', 'Mostrami i prodotti disponibili', 'Quali sono le tue funzionalità?'];
-    }
   }
 
   
@@ -103,7 +95,7 @@ export class AIService implements IAIService {
     try {
       // Send to AI provider
       if (this.enableFunctionCalling && 'sendCompletionRequest' in this.provider) {
-        const functionCallingProvider = this.provider as IFunctionCallingProvider;
+        const functionCallingProvider = this.provider;
         const openAIResponse = await functionCallingProvider.sendCompletionRequest(
           this.conversation,
           {
@@ -129,7 +121,7 @@ export class AIService implements IAIService {
         }
       } else {
         // Use basic message provider
-        const messageProvider = this.provider as IMessageProvider;
+        const messageProvider = this.provider;
         const content = await messageProvider.sendMessage(message);
         
         aiMessage = {
@@ -142,17 +134,19 @@ export class AIService implements IAIService {
       // Add AI response to conversation
       this.conversation.push(aiMessage);
       
-      // Generate UI components, suggestions and available actions
-      const uiComponents = this.uiComponentGenerator.generateUIComponents(
-        aiMessage, 
-        userContext,
-        this.conversation
-      );
-      const suggestedPrompts = this.uiComponentGenerator.getSuggestedPrompts(userContext);
-      const availableActions = this.uiComponentGenerator.generateAvailableActions(
-        aiMessage, 
-        userContext
-      );
+      // Ottenimento parallelo di componenti UI, suggerimenti e azioni
+      const [uiComponents, suggestedPrompts, availableActions] = await Promise.all([
+        this.uiComponentGenerator.generateUIComponents(
+          aiMessage, 
+          userContext,
+          this.conversation
+        ),
+        this.suggestionService.getSuggestedPrompts(aiMessage, userContext),
+        this.actionService.generateAvailableActions(
+          aiMessage, 
+          userContext
+        )
+      ]);
       
       // Track user interaction
       this.responseProcessor.trackUserInteraction(
@@ -218,7 +212,7 @@ async getCompletion(messages: Message[], userContext: UserContext): Promise<any>
     userContext: userContext  // Passa l'intero oggetto UserContext
   };
   
-  const functionCallingProvider = this.provider as IFunctionCallingProvider;
+  const functionCallingProvider = this.provider;
   return await functionCallingProvider.sendCompletionRequest(
     messages,
     {

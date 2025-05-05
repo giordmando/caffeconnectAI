@@ -4,12 +4,13 @@ import { Product } from '../../types/Product';
 import { configManager } from '../../config/ConfigManager';
 import { getTimeOfDay } from '../../utils/timeContext';
 import { mockApiGetMenuItems, mockApiGetProducts } from '../../api/mockApi';
+import { ICatalogService } from './interfaces/ICatalogService';
 
 /**
  * Servizio per gestire il catalogo di menu e prodotti
  * Supporta caricamento da API o dati locali
  */
-export class CatalogService {
+export class CatalogService implements ICatalogService{
   private static instance: CatalogService;
   private menuItems: MenuItem[] = [];
   private products: Product[] = [];

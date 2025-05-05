@@ -1,5 +1,5 @@
 // src/services/ai/providers/OpenAIProvider.ts
-import { IAIProvider, IMessageProvider, IStreamProvider, IFunctionCallingProvider } from '../interfaces/IAIProvider';
+import { IAIProvider} from '../interfaces/IAIProvider';
 import { AIProviderConfig } from '../../../types/AIProvider';
 import { Message } from '../../../types/Message';
 
@@ -7,7 +7,7 @@ import { Message } from '../../../types/Message';
  * OpenAI Provider per CaféConnect AI
  * Implementa tutte le interfacce per massima compatibilità
  */
-export class OpenAIProvider implements IAIProvider, IMessageProvider, IStreamProvider, IFunctionCallingProvider {
+export class OpenAIProvider implements IAIProvider {
   name = 'OpenAI';
   private apiKey: string;
   private model: string;
