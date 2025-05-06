@@ -4,6 +4,11 @@ import React, { useState, useEffect, useRef } from 'react';
   import { useServices } from '../contexts/ServiceContext';
   import { DynamicUIRenderer } from './ui/DynamicUIRenderer';
   import { configManager } from '../config/ConfigManager';
+import { SimpleStorageService } from '../services/analytics/SimpleStorageService';
+import { SimpleConsentService } from '../services/analytics/SimpleConsentService';
+import { SimpleConversationTracker } from '../services/analytics/SimpleConversationTracker';
+import { ConsentLevel } from '../services/analytics/types';
+import { SimpleConsentBanner } from './SimpleConsentBanner';
   
   interface ChatInterfaceProps {
     welcomeMessage?: string;
@@ -12,6 +17,14 @@ import React, { useState, useEffect, useRef } from 'react';
     enableDynamicComponents?: boolean;
     maxRecommendations?: number;
   }
+
+  // Inizializza servizi
+  const storageService = new SimpleStorageService();
+  const consentService = new SimpleConsentService();
+  const conversationTracker = new SimpleConversationTracker(
+    storageService,
+    consentService
+  );
   
   /**
    * Interfaccia di chat principale
@@ -39,7 +52,8 @@ import React, { useState, useEffect, useRef } from 'react';
     
     // Riferimento al container dei messaggi per l'auto-scroll
     const messagesEndRef = useRef<null | HTMLDivElement>(null);
-    
+    const [conversationId, setConversationId] = useState<string | null>(null);
+
     // Carica messaggio di benvenuto iniziale
     useEffect(() => {
       const loadWelcomeMessage = async () => {
@@ -108,6 +122,38 @@ import React, { useState, useEffect, useRef } from 'react';
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages, uiComponents]);
     
+      // Inizializza la conversazione
+    useEffect(() => {
+      const initConversation = async () => {
+        const newConversationId = await conversationTracker.startConversation();
+        setConversationId(newConversationId);
+      };
+      
+      initConversation();
+      
+      // Pulisci alla chiusura
+      return () => {
+        if (conversationId) {
+          conversationTracker.endConversation(conversationId);
+        }
+      };
+    }, []);
+
+    // Gestione consenso
+    const handleConsentChange = (level: ConsentLevel) => {
+      console.log(`Consenso aggiornato: ${level}`);
+      
+      // Se cambiano di livello, aggiorna il welcomeMessage
+      if (level === ConsentLevel.ANALYTICS) {
+        // Ottieni contesto utente per personalizzazione
+        conversationTracker.getUserContext().then(context => {
+          if (context.topTopics?.length > 0) {
+            // Usa il contesto per personalizzare il messaggio
+            // Esempio implementativo
+          }
+        });
+      }
+    };
     // Gestione invio messaggio
     const handleSendMessage = async () => {
       if (inputValue.trim() === '' || isTyping) return;
@@ -123,19 +169,49 @@ import React, { useState, useEffect, useRef } from 'react';
       setInputValue('');
       setIsTyping(true);
       
+      // Traccia messaggio utente
+      if (conversationId) {
+        await conversationTracker.trackEvent({
+          type: 'message',
+          conversationId,
+          data: {
+            role: 'user',
+            content: inputValue
+          },
+          timestamp: Date.now()
+        });
+      }
+    
       // Aggiorna interazioni utente
       userService.addInteraction(inputValue);
       
       try {
-        // Invia messaggio all'AI
-        const response = await aiService.sendMessage(
-          inputValue, 
-          userContext
-        );
+        let aiContext = {};
+        if (consentService.hasConsent(ConsentLevel.ANALYTICS)) {
+          aiContext = await conversationTracker.getUserContext();
+        }
         
+         // Extend UserContext to include aiContext
+         const extendedContext = { ...userContext, aiContext };
+         // Invia messaggio all'AI
+         const response = await aiService.sendMessage(
+           inputValue, 
+           extendedContext
+         );
         // Aggiorna messaggi con la risposta dell'AI
         setMessages(prev => [...prev, response.message]);
-        
+        // Traccia risposta AI
+        if (conversationId) {
+          await conversationTracker.trackEvent({
+            type: 'message',
+            conversationId,
+            data: {
+              role: 'assistant',
+              content: response.message.content
+            },
+            timestamp: Date.now()
+          });
+        }
         // Aggiorna componenti UI se presenti e abilitati
         if (response.uiComponents && enableDynamicComponents) {
           setUIComponents(prev => [
@@ -335,6 +411,10 @@ import React, { useState, useEffect, useRef } from 'react';
             ))}
           </div>
         )}
+        <SimpleConsentBanner 
+          consentService={consentService}
+          onConsentChange={handleConsentChange}
+        />
       </div>
     );
   };
