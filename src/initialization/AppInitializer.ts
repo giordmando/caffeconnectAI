@@ -4,12 +4,7 @@ import { aiProviderRegistry } from '../services/ai/AIProviderRegistry';
 import { functionRegistry } from '../services/function/FunctionRegistry';
 import { catalogService } from '../services/catalog/CatalogService';
 import { themeService } from '../services/theme/ThemeService';
-import { registerAllProviders } from '../services/ai/providers/registerAllProviders';
 import { registerComponents } from '../components/ui/registry/ComponentRegistration';
-
-// Importazioni opzionali per provider AI
-// import { OpenAIProvider } from '../services/ai/providers/OpenAIProvider';
-// import { ClaudeProvider } from '../services/ai/providers/ClaudeProvider';
 
 /**
  * Classe per inizializzare l'applicazione in modo ordinato
@@ -51,6 +46,22 @@ export class AppInitializer {
       } else {
         console.log('Using default configuration');
       }
+
+      // NUOVO: Controlla se esistono configurazioni utente in localStorage
+      try {
+        const savedAIConfig = localStorage.getItem('cafeconnect-ai-config');
+        if (savedAIConfig) {
+          const config = JSON.parse(savedAIConfig);
+          // Aggiorna la sezione AI nella configurazione globale
+          configManager.updateSection('ai', {
+            defaultProvider: config.provider
+          });
+          console.log('Applied user AI configuration from localStorage');
+        }
+      } catch (e) {
+        console.error('Error applying localStorage AI config:', e);
+      }
+
       // Ottieni configurazioni
       const businessConfig = configManager.getSection('business');
       // Fase 3: Inizializza registro funzioni
@@ -64,8 +75,6 @@ export class AppInitializer {
   
       // Fase 4: Inizializza catalogo
       await catalogService.initialize();
-      // Fase 2: Registra provider AI
-      this.registerAIProviders();
 
     // Crea un provider AI dedicato per suggerimenti e azioni
     const aiProvider = aiProviderRegistry.getRegisteredProviders()[0];
@@ -106,23 +115,6 @@ export class AppInitializer {
    */
   public isAppInitialized(): boolean {
     return this.isInitialized;
-  }
-  
-  /**
-   * Registra provider AI disponibili
-   */
-  private registerAIProviders(): void {
-    // Già registrato il MockAIProvider in AIProviderRegistry
-    // Registra il provider OpenAI
-    registerAllProviders();
-    // Registra provider AI aggiuntivi
-    // Qui andrebbero registrati i provider personalizzati
-    
-    // Esempio:
-    // aiProviderRegistry.registerProvider('openai', (config) => new OpenAIProvider(config));
-    // aiProviderRegistry.registerProvider('claude', (config) => new ClaudeProvider(config));
-    
-    console.log('AI providers registered');
   }
   
   /**

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useMemo } from 'react';
+import React, { createContext, useContext, useState, useMemo, useEffect } from 'react';
 import { IAIService } from '../services/ai/interfaces/IAIService';
 import { IFunctionService } from '../services/function/interfaces/IFunctionService';
 import { IUserContextService } from '../services/user/interfaces/IUserContextService';
@@ -19,6 +19,7 @@ import { ActionServiceFactory } from '../services/action/ActionServiceFactory';
 import { catalogService } from '../services/catalog/CatalogService';
 import { FunctionExecutionStrategyFactory } from '../services/function/FunctionExecutionStrategyFactory';
 import { AIResponseProcessor } from '../services/ai/AIResponseProcessor';
+import { registerAllProviders } from '../services/ai/providers/registerAllProviders';
 
 
 // Definizione tipo contesto
@@ -45,6 +46,13 @@ interface ServiceProviderProps {
  * Provider che rende disponibili i servizi a tutti i componenti figli
  */
 export const ServiceProvider: React.FC<ServiceProviderProps> = ({ children }) => {
+
+  // Registra tutti i provider prima di creare i servizi
+
+  // Assicurati che i provider siano registrati
+  registerAllProviders();
+
+
   // Carica configurazione salvata da localStorage
   const [savedConfig] = useLocalStorage<{
     provider: string;
@@ -232,3 +240,4 @@ export const useServices = (): ServiceContextType => {
   
   return context;
 };
+

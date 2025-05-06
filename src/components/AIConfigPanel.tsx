@@ -29,7 +29,10 @@ const AIConfigPanel: React.FC<AIConfigPanelProps> = ({ onClose }) => {
   const [provider, setProvider] = useState(savedConfig.provider);
   const [apiKey, setApiKey] = useState(savedConfig.config.apiKey);
   const [model, setModel] = useState(savedConfig.config.model);
-  
+  // Aggiungi questo stato insieme agli altri stati esistenti
+  const [useMockFunctions, setUseMockFunctions] = useState(
+    savedConfig.config.options?.useMockFunctions || false
+  );
   // Get model options based on provider
   const getModelOptions = (provider: string) => {
     switch (provider) {
@@ -78,7 +81,8 @@ const AIConfigPanel: React.FC<AIConfigPanelProps> = ({ onClose }) => {
       apiKey,
       model,
       options: {
-        enableAdvancedFunctionSupport: enableAdvancedFunctionSupport
+        enableAdvancedFunctionSupport: enableAdvancedFunctionSupport,
+        useMockFunctions // Aggiungi questa nuova opzione
       }
     };
     
@@ -186,24 +190,21 @@ const AIConfigPanel: React.FC<AIConfigPanelProps> = ({ onClose }) => {
             Abilita supporto avanzato alle funzioni (ciclo di chiamate multiple)
           </label>
         </div>
-        {/* Checkbox for testing mode without API key */}
         <div className="form-check">
-          <input
-            type="checkbox"
-            id="mockMode"
-            checked={provider === 'mockai'}
-            onChange={(e) => {
-              if (e.target.checked) {
-                setProvider('mockai');
-                setModel('mockai-sim');
-              }
-            }}
-            className="form-check-input"
-          />
-          <label className="form-check-label" htmlFor="mockMode">
-            Usa modalità demo (con provider MockAI)
-          </label>
-        </div>
+        <input
+          type="checkbox"
+          id="useMockFunctions"
+          checked={useMockFunctions}
+          onChange={(e) => setUseMockFunctions(e.target.checked)}
+          className="form-check-input"
+        />
+        <label className="form-check-label" htmlFor="useMockFunctions">
+          Usa funzioni mock (per testing e sviluppo)
+        </label>
+        <small className="form-text text-muted d-block mt-1">
+          Attiva questa opzione per usare dati simulati anziché chiamare API reali
+        </small>
+      </div>
         
         <div className="form-actions">
           <button type="submit" className="btn btn-primary">

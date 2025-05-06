@@ -71,13 +71,6 @@ export class AIService implements IAIService {
   }
   
   /**
-   * Check if the current provider is a mock
-   */
-  private isMockProvider(): boolean {
-    return this.provider.providerName() === 'Mock AI';
-  }
-  
-  /**
    * Send a message to the AI and get a response
    */
   async sendMessage(message: string, userContext: UserContext): Promise<AIResponse> {
@@ -243,7 +236,20 @@ async getCompletion(messages: Message[], userContext: UserContext): Promise<any>
    * Change the AI provider
    */
   changeProvider(provider: string, config: AIProviderConfig): void {
-    this.provider = AIProviderFactory.createProvider(provider, config);
+    // Preserva le opzioni configurate dall'utente
+    const currentOptions = this.provider.getConfig?.() || {};
+    
+    // Crea il nuovo provider con le opzioni aggiornate
+  this.provider = AIProviderFactory.createProvider(provider, {
+    ...config,
+    options: {
+      ...config.options,
+      // Preserva l'opzione useMockFunctions se non specificata
+      useMockFunctions: config.options?.useMockFunctions !== undefined 
+        ? config.options.useMockFunctions 
+        : currentOptions.useMockFunctions
+    }
+  });
     console.log(`AI provider changed to: ${this.provider.name}`);
   }
 

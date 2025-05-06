@@ -1,6 +1,5 @@
 // src/services/function/FunctionRegistry.ts
 import { FunctionDefinition, FunctionCallResult } from '../../types/Function';
-import { mockFunctionExecution } from '../../api/mockFunctionService';
 import { configManager } from '../../config/ConfigManager';
 import { IFunctionService } from './interfaces/IFunctionService';
 
@@ -114,13 +113,11 @@ export class FunctionRegistry implements IFunctionService {
    * Esegue una funzione
    * @param functionName Nome della funzione
    * @param parameters Parametri della funzione
-   * @param useMock Usa l'implementazione mock
    * @returns Risultato dell'esecuzione della funzione
    */
   public async executeFunction(
     functionName: string, 
-    parameters: any, 
-    useMock: boolean = false
+    parameters: any
   ): Promise<FunctionCallResult> {
     console.log(`Executing function: ${functionName}`, parameters);
     
@@ -132,21 +129,6 @@ export class FunctionRegistry implements IFunctionService {
       };
     }
     
-    if (useMock) {
-      // Usa l'implementazione mock
-      try {
-        const result = await mockFunctionExecution(functionName, parameters);
-        return {
-          success: true,
-          data: result
-        };
-      } catch (error) {
-        return {
-          success: false,
-          error: error instanceof Error ? error.message : String(error)
-        };
-      }
-    }
     // Controlla se esiste un endpoint esterno per questa funzione
     if (this.functionDataEndpoints[functionName]) {
       try {

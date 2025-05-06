@@ -12,16 +12,18 @@ export class OpenAIProvider implements IAIProvider {
   private apiKey: string;
   private model: string;
   private baseUrl: string = 'https://api.openai.com/v1';
+  private options: any;
   
   constructor(config: AIProviderConfig) {
     this.apiKey = config.apiKey;
     this.model = config.model || 'gpt-3.5-turbo';
+    this.options = config.options || {}; // Salva le opzioni
     
     // Override base URL se specificato nelle opzioni
     if (config.options?.baseUrl) {
       this.baseUrl = config.options.baseUrl;
     }
-    
+
     console.log(`OpenAI provider initialized with model: ${this.model}`);
   }
   
@@ -225,7 +227,7 @@ export class OpenAIProvider implements IAIProvider {
   }
   getConfig(): any {
     return {
-      useMockFunctions: false,
+      useMockFunctions: this.options?.useMockFunctions || false,
       // altre opzioni specifiche...
     };
   }

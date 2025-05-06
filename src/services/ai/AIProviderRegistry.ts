@@ -1,7 +1,6 @@
 // src/services/ai/AIProviderRegistry.ts
 import { IAIProvider } from './interfaces/IAIProvider';
 import { AIProviderConfig } from '../../types/AIProvider';
-import { MockAIProvider } from './providers/MockAIProvider';
 
 type AIProviderFactoryType = (config: AIProviderConfig) => IAIProvider;
 
@@ -13,10 +12,7 @@ export class AIProviderRegistry {
   private static instance: AIProviderRegistry;
   private providerFactories: Map<string, AIProviderFactoryType> = new Map();
   
-  private constructor() {
-    // Registra il provider mock di default
-    this.registerProvider('mockai', (config) => new MockAIProvider(config));
-  }
+  private constructor() {}
   
   /**
    * Ottiene l'istanza singleton
@@ -49,7 +45,7 @@ export class AIProviderRegistry {
     
     if (!factory) {
       console.warn(`Provider ${providerId} not found, using MockAI as fallback`);
-      return new MockAIProvider(config);
+      throw new Error(`Provider ${providerId} not found, unable to create instance.`);
     }
     
     return factory(config);

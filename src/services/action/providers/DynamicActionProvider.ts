@@ -54,7 +54,7 @@ export class DynamicActionProvider implements IActionProvider {
   ): string {
     const businessConfig = configManager.getSection('business');
     
-    return `Data la seguente risposta dell'AI ad un utente di ${businessConfig.name} (${businessConfig.type}):
+    const prompt = `Data la seguente risposta dell'AI ad un utente di ${businessConfig.name} (${businessConfig.type}):
     
 "${messageContent}"
 
@@ -71,6 +71,7 @@ ${products.map(product => `- ${product.name}`).join('\n')}
 
 Rispondi SOLO con un array JSON di oggetti azione, ciascuno con i campi "type", "title" e "payload".
 Esempio: [{"type": "view_item", "title": "Vedi Cappuccino", "payload": {"id": "coffee-2", "type": "menuItem"}}]`;
+return prompt;
   }
   
   private parseActions(response: string): any[] {

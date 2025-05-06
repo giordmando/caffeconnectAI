@@ -58,7 +58,7 @@ export class DynamicSuggestionProvider implements ISuggestionProvider {
     categories: { menu: string[], products: string[] },
     availableFunctions: string[]
   ): string {
-    return `Genera 6-8 suggerimenti pertinenti per un utente di ${businessConfig.name}, che è un ${businessConfig.type}.
+    const prompt = `Genera 3-5 suggerimenti pertinenti per un utente di ${businessConfig.name}, che è un ${businessConfig.type}.
 Orario attuale: ${timeOfDay}
 Categorie menu disponibili: ${categories.menu.join(', ')}
 Categorie prodotti disponibili: ${categories.products.join(', ')}
@@ -71,8 +71,16 @@ Informazioni utente:
 - Restrizioni alimentari: ${userContext.dietaryRestrictions.join(', ') || 'Nessuna'}
 - Ultima visita: ${userContext.lastVisit || 'Prima visita'}
 
+Non includere informazioni generiche o non pertinenti.
+Non includere nomi delle funzioni o dettagli tecnici.
+Assicurati che i suggerimenti siano pratici e pertinenti al contesto attuale.
+Sono suggerimenti di prompt che l'untente deve proprorre all'AI, per aiutare l'utente su cosa chiedere. 
+I suggerimenti devono essere formulati come domande o richieste che l'utente può porre all'AI esempio:
+"Quali sono i piatti del giorno?" o "Puoi consigliarmi un cocktail?".
+Cerca di essere sintetico e chiaro.
 Rispondi SOLO con un array JSON di stringhe, ciascuna rappresentante un suggerimento rilevante.
 Esempio: ["Suggerimento 1", "Suggerimento 2", "Suggerimento 3"]`;
+return prompt;
   }
   
   private parseSuggestions(response: string): string[] {

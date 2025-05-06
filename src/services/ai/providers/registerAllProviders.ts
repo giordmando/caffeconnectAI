@@ -8,6 +8,7 @@ export function registerAllProviders(): void {
   registerMockAIProvider();
   registerOpenAIProvider();
   // Altri provider...
+  console.log('AI providers registered from registerAllProviders.ts');
 }
 
 export function registerMockAIProvider(): void {

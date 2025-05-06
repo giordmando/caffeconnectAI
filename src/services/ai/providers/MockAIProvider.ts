@@ -8,8 +8,10 @@ import { IAIProvider } from '../interfaces/IAIProvider';
  */
 export class MockAIProvider implements IAIProvider {
   name = 'Mock AI';
-  
+  private options: any;
+
   constructor(config: AIProviderConfig) {
+    this.options = config.options || {}; // Salva le opzioni
     console.log('Provider Mock AI initialized with config:', config);
   }
   
@@ -177,7 +179,10 @@ export class MockAIProvider implements IAIProvider {
 
   getConfig(): any {
     return { 
-      useMockFunctions: true,
+      // Nella modalità mock, manteniamo l'opzione configurata dall'utente
+      useMockFunctions: this.options?.useMockFunctions !== undefined 
+        ? this.options.useMockFunctions 
+        : true, // Default a true per il provider mock
       // altre opzioni specifiche...
     };
   }
