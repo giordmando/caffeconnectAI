@@ -1,7 +1,9 @@
 // src/services/analytics/SimpleConsentService.ts
-import { ConsentLevel } from './types';
 
-export class SimpleConsentService {
+import { ConsentLevel } from './types';
+import { IConsentService } from './interfaces/IConsentService';
+
+export class SimpleConsentService implements IConsentService {
   private consentKey = 'user_consent_level';
   private timestampKey = 'consent_timestamp';
   
@@ -26,7 +28,6 @@ export class SimpleConsentService {
     return timestamp ? parseInt(timestamp, 10) : null;
   }
   
-  // Verifica se il consenso è sufficiente per una particolare operazione
   hasConsent(requiredLevel: ConsentLevel): boolean {
     const currentLevel = this.getConsentLevel();
     const levels = {

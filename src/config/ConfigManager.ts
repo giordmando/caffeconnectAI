@@ -77,6 +77,24 @@ export interface AppConfig {
     maxRecommendations: number;
     welcomeMessage: string;
   };
+
+  privacy: {
+    enabled: boolean;
+    bannerTitle: string;
+    bannerMessage: string;
+    additionalInfo: string;
+    policyLink: string;
+    consentLabels: {
+      minimal: string;
+      functional: string;
+      analytics: string;
+    };
+    consentDescriptions: {
+      minimal: string;
+      functional: string;
+      analytics: string;
+    };
+  };
 }
 
 /**
@@ -308,6 +326,23 @@ enableAdvancedFunctionSupport: true // Nuova proprietà
         showSidebar: true,
         maxRecommendations: 3,
         welcomeMessage: 'Benvenuto a {business.name}! Come posso aiutarti oggi?'
+      },
+      privacy: {
+        enabled: true,
+        bannerTitle: 'Preferenze privacy',
+        bannerMessage: 'Utilizziamo i dati di conversazione per migliorare il nostro assistente AI. Scegli il livello di condivisione dati che preferisci:',
+        additionalInfo: 'Con "Tutto" ci aiuti a personalizzare meglio le risposte in base alle tue preferenze.',
+        policyLink: '',
+        consentLabels: {
+          minimal: 'Solo essenziali',
+          functional: 'Funzionali',
+          analytics: 'Tutto (consigliato)'
+        },
+        consentDescriptions: {
+          minimal: 'Raccogliamo solo i dati essenziali per il funzionamento dell\'app.',
+          functional: 'Permette di memorizzare le conversazioni per migliorare l\'esperienza.',
+          analytics: 'Ci permette di analizzare le conversazioni per personalizzare le risposte.'
+        }
       }
     };
   }

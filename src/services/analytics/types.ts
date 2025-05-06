@@ -7,6 +7,7 @@ export enum ConsentLevel {
   
   export interface ConversationRecord {
     id: string;
+    userId?: string;
     startTime: Date;
     endTime?: Date;
     messages: {

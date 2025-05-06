@@ -199,7 +199,7 @@
   }
   
   .chat-sidebar {
-    width: 280px;
+    width: 30%;
     border-left: 1px solid var(--light-gray);
     padding: 16px;
     overflow-y: auto;
@@ -728,5 +728,211 @@
 
   .form-actions {
     flex-direction: column;
+  }
+}
+
+/* Stili per il banner di consenso privacy */
+.consent-banner {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background-color: rgba(255, 255, 255, 0.95);
+  border-top: 3px solid var(--primary-color);
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+  transition: transform 0.3s ease-in-out;
+  font-family: 'Inter', sans-serif;
+}
+
+.consent-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 16px 24px;
+}
+
+.consent-banner h3 {
+  color: var(--primary-color);
+  margin: 0 0 12px 0;
+  font-weight: 600;
+  font-size: 18px;
+}
+
+.consent-banner p {
+  margin: 0 0 16px 0;
+  color: var(--dark-gray);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.consent-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.consent-buttons button {
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-weight: 500;
+  font-size: 14px;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.btn-minimal {
+  background-color: var(--light-gray);
+  color: var(--dark-gray);
+  border: 1px solid var(--medium-gray);
+}
+
+.btn-minimal:hover {
+  background-color: #d1d8e2;
+}
+
+.btn-functional {
+  background-color: var(--info-color);
+  color: white;
+  border: none;
+}
+
+.btn-functional:hover {
+  background-color: #3a89c9;
+}
+
+.btn-analytics {
+  background-color: var(--primary-color);
+  color: white;
+  border: none;
+}
+
+.btn-analytics:hover {
+  background-color: var(--primary-light);
+}
+
+.consent-info {
+  font-size: 12px;
+  color: var(--medium-gray);
+  margin-top: 8px;
+  font-style: italic;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .consent-buttons {
+    flex-direction: column;
+  }
+  
+  .consent-buttons button {
+    width: 100%;
+  }
+  
+  .consent-content {
+    padding: 12px 16px;
+  }
+  
+  .consent-banner h3 {
+    font-size: 16px;
+  }
+}
+
+/* Animazione di entrata */
+@keyframes slide-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+.consent-banner {
+  animation: slide-up 0.5s ease-out forwards;
+}
+
+
+/* Stili per l'area di controllo fissa */
+.chat-container {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 120px); /* Altezza regolabile in base al header/footer */
+  position: relative;
+}
+
+.chat-layout {
+  flex-grow: 1;
+  overflow: hidden;
+  margin-bottom: 6px; /* Spazio tra i messaggi e l'area componenti bottom */
+}
+
+.chat-messages {
+  height: 100%;
+  overflow-y: auto;
+  padding-bottom: 20px; /* Spazio extra per non far sparire l'ultimo messaggio */
+}
+
+/* Area di scroll separata per i componenti bottom */
+.bottom-components-scroll-area {
+  max-height: 180px; /* Altezza massima per i componenti bottom */
+  overflow-y: auto;
+  margin-bottom: 10px;
+  padding-bottom: 5px;
+  border-bottom: 1px solid var(--light-gray);
+}
+
+/* Controlli fissi in fondo */
+.chat-controls-fixed {
+  position: sticky;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background-color: white;
+  box-shadow: 0 -4px 6px rgba(0, 0, 0, 0.05);
+  z-index: 10;
+  border-top: 1px solid var(--light-gray);
+}
+
+/* Suggerimenti */
+.suggested-prompts {
+  padding: 8px 16px;
+  background-color: rgba(247, 250, 252, 0.95);
+  border-bottom: 1px solid var(--light-gray);
+  white-space: nowrap;
+  overflow-x: auto;
+}
+
+/* Azioni disponibili */
+.available-actions {
+  padding: 8px 16px;
+  background-color: rgba(255, 255, 255, 0.95);
+  border-bottom: 1px solid var(--light-gray);
+  white-space: nowrap;
+  overflow-x: auto;
+}
+
+/* Input container */
+.chat-input-container {
+  padding: 12px 16px;
+  background-color: white;
+}
+
+/* Banner di consenso */
+.consent-banner {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 20; /* Più alto di chat-controls-fixed */
+}
+
+/* Media query per schermi piccoli */
+@media (max-width: 768px) {
+  .bottom-components-scroll-area {
+    max-height: 140px; /* Minore altezza su mobile */
+  }
+  
+  .chat-controls-fixed {
+    padding-bottom: env(safe-area-inset-bottom); /* Supporto per iPhone X+ */
   }
 }

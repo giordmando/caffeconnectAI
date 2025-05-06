@@ -18,7 +18,7 @@ const BusinessConfigPanel: React.FC<BusinessConfigPanelProps> = ({ onClose, onSa
   const [config, setConfig] = useState<AppConfig>(configManager.getConfig());
   
   // Stati per le diverse sezioni
-  const [activeTab, setActiveTab] = useState<'business'|'ai'|'catalog'|'functions'|'ui'>('business');
+  const [activeTab, setActiveTab] = useState<'business'|'ai'|'catalog'|'functions'|'ui'|'privacy'>('business');
   const [isDirty, setIsDirty] = useState(false);
   const [businessCategories, setBusinessCategories] = useState<string[]>([
     'cafe', 'restaurant', 'bar', 'store', 'hybrid'
@@ -211,6 +211,12 @@ const BusinessConfigPanel: React.FC<BusinessConfigPanelProps> = ({ onClose, onSa
           onClick={() => setActiveTab('ui')}
         >
           UI
+        </button>
+        <button 
+          className={activeTab === 'privacy' ? 'tab-active' : ''}
+          onClick={() => setActiveTab('privacy')}
+        >
+          Privacy
         </button>
       </div>
       
@@ -915,6 +921,172 @@ const BusinessConfigPanel: React.FC<BusinessConfigPanelProps> = ({ onClose, onSa
             </div>
           </div>
         )}
+        {activeTab === 'privacy' && (
+        <div className="tab-content">
+          <h3 className="section-title">Impostazioni Privacy</h3>
+          
+          <div className="form-group">
+            <label htmlFor="privacy-enabled">Abilita gestione consenso</label>
+            <div className="form-check">
+              <input
+                type="checkbox"
+                id="privacy-enabled"
+                checked={config.privacy?.enabled || false}
+                onChange={(e) => handleConfigChange('privacy', 'enabled', e.target.checked)}
+              />
+              <label htmlFor="privacy-enabled">Mostra banner consenso privacy</label>
+            </div>
+          </div>
+          
+          <h4>Livelli di consenso</h4>
+          
+          <div className="form-group">
+            <label htmlFor="minimal-consent-label">Etichetta consenso minimo</label>
+            <input
+              id="minimal-consent-label"
+              type="text"
+              value={config.privacy?.consentLabels?.minimal || 'Solo essenziali'}
+              onChange={(e) => handleConfigChange('privacy', 'consentLabels.minimal', e.target.value)}
+              placeholder="Etichetta per il consenso minimo"
+            />
+            <textarea
+              rows={2}
+              value={config.privacy?.consentDescriptions?.minimal || 'Raccogliamo solo i dati essenziali per il funzionamento dell\'app.'}
+              onChange={(e) => handleConfigChange('privacy', 'consentDescriptions.minimal', e.target.value)}
+              placeholder="Descrizione per il consenso minimo"
+              className="mt-2"
+            />
+          </div>
+          
+          <div className="form-group">
+            <label htmlFor="functional-consent-label">Etichetta consenso funzionale</label>
+            <input
+              id="functional-consent-label"
+              type="text"
+              value={config.privacy?.consentLabels?.functional || 'Funzionali'}
+              onChange={(e) => handleConfigChange('privacy', 'consentLabels.functional', e.target.value)}
+              placeholder="Etichetta per il consenso funzionale"
+            />
+            <textarea
+              rows={2}
+              value={config.privacy?.consentDescriptions?.functional || 'Permette di memorizzare le conversazioni per migliorare l\'esperienza.'}
+              onChange={(e) => handleConfigChange('privacy', 'consentDescriptions.functional', e.target.value)}
+              placeholder="Descrizione per il consenso funzionale"
+              className="mt-2"
+            />
+          </div>
+          
+          <div className="form-group">
+            <label htmlFor="analytics-consent-label">Etichetta consenso analitico</label>
+            <input
+              id="analytics-consent-label"
+              type="text"
+              value={config.privacy?.consentLabels?.analytics || 'Tutto (consigliato)'}
+              onChange={(e) => handleConfigChange('privacy', 'consentLabels.analytics', e.target.value)}
+              placeholder="Etichetta per il consenso analitico"
+            />
+            <textarea
+              rows={2}
+              value={config.privacy?.consentDescriptions?.analytics || 'Ci permette di analizzare le conversazioni per personalizzare le risposte.'}
+              onChange={(e) => handleConfigChange('privacy', 'consentDescriptions.analytics', e.target.value)}
+              placeholder="Descrizione per il consenso analitico"
+              className="mt-2"
+            />
+          </div>
+          
+          <h4>Banner Privacy</h4>
+          
+          <div className="form-group">
+            <label htmlFor="privacy-title">Titolo banner privacy</label>
+            <input
+              id="privacy-title"
+              type="text"
+              value={config.privacy?.bannerTitle || 'Preferenze privacy'}
+              onChange={(e) => handleConfigChange('privacy', 'bannerTitle', e.target.value)}
+              placeholder="Titolo del banner privacy"
+            />
+          </div>
+          
+          <div className="form-group">
+            <label htmlFor="privacy-message">Messaggio privacy</label>
+            <textarea
+              id="privacy-message"
+              rows={4}
+              value={config.privacy?.bannerMessage || 'Utilizziamo i dati di conversazione per migliorare il nostro assistente AI. Scegli il livello di condivisione dati che preferisci:'}
+              onChange={(e) => handleConfigChange('privacy', 'bannerMessage', e.target.value)}
+              placeholder="Messaggio del banner privacy"
+            />
+          </div>
+          
+          <div className="form-group">
+            <label htmlFor="privacy-info">Informazioni aggiuntive</label>
+            <textarea
+              id="privacy-info"
+              rows={3}
+              value={config.privacy?.additionalInfo || 'Con "Tutto" ci aiuti a personalizzare meglio le risposte in base alle tue preferenze.'}
+              onChange={(e) => handleConfigChange('privacy', 'additionalInfo', e.target.value)}
+              placeholder="Informazioni aggiuntive sulla privacy"
+            />
+          </div>
+          
+          <div className="form-group">
+            <label htmlFor="privacy-policy-link">Link alla policy privacy completa</label>
+            <input
+              id="privacy-policy-link"
+              type="text"
+              value={config.privacy?.policyLink || config.business.privacyPolicy || ''}
+              onChange={(e) => handleConfigChange('privacy', 'policyLink', e.target.value)}
+              placeholder="URL della privacy policy completa"
+            />
+          </div>
+          
+          <div className="theme-preview" style={{
+            backgroundColor: config.business.theme.backgroundColor,
+            color: config.business.theme.textColor,
+            borderColor: config.business.theme.primaryColor,
+            padding: '20px',
+            marginTop: '20px',
+            borderRadius: '8px'
+          }}>
+            <h3 style={{ color: config.business.theme.primaryColor }}>
+              {config.privacy?.bannerTitle || 'Preferenze privacy'}
+            </h3>
+            <p>{config.privacy?.bannerMessage || 'Utilizziamo i dati di conversazione per migliorare il nostro assistente AI.'}</p>
+            <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+              <button style={{ 
+                backgroundColor: '#e2e8f0', 
+                color: '#4a5568',
+                padding: '6px 12px',
+                borderRadius: '6px',
+                border: 'none'
+              }}>
+                {config.privacy?.consentLabels?.minimal || 'Solo essenziali'}
+              </button>
+              <button style={{ 
+                backgroundColor: '#4299e1', 
+                color: 'white',
+                padding: '6px 12px',
+                borderRadius: '6px',
+                border: 'none'
+              }}>
+                {config.privacy?.consentLabels?.functional || 'Funzionali'}
+              </button>
+              <button style={{ 
+                backgroundColor: config.business.theme.primaryColor, 
+                color: 'white',
+                padding: '6px 12px',
+                borderRadius: '6px',
+                border: 'none'
+              }}>
+                {config.privacy?.consentLabels?.analytics || 'Tutto (consigliato)'}
+              </button>
+            </div>
+            <p style={{ fontSize: '12px', marginTop: '10px', color: '#a0aec0' }}>
+              {config.privacy?.additionalInfo || 'Con "Tutto" ci aiuti a personalizzare meglio le risposte.'}
+            </p>
+          </div>
+        </div>
+      )}
       </div>
       
       <div className="form-actions">

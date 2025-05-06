@@ -9,7 +9,9 @@ import { SimpleConsentService } from '../services/analytics/SimpleConsentService
 import { SimpleConversationTracker } from '../services/analytics/SimpleConversationTracker';
 import { ConsentLevel } from '../services/analytics/types';
 import { SimpleConsentBanner } from './SimpleConsentBanner';
-  
+import { getConversationTracker } from '../services/analytics/setupAnalytics';
+import { IConversationTracker } from '../services/analytics/interfaces/IConversationTracker';
+
   interface ChatInterfaceProps {
     welcomeMessage?: string;
     showSidebar?: boolean;
@@ -53,7 +55,8 @@ import { SimpleConsentBanner } from './SimpleConsentBanner';
     // Riferimento al container dei messaggi per l'auto-scroll
     const messagesEndRef = useRef<null | HTMLDivElement>(null);
     const [conversationId, setConversationId] = useState<string | null>(null);
-
+    const conversationTracker = useRef<IConversationTracker>(getConversationTracker());
+  
     // Carica messaggio di benvenuto iniziale
     useEffect(() => {
       const loadWelcomeMessage = async () => {
@@ -122,38 +125,64 @@ import { SimpleConsentBanner } from './SimpleConsentBanner';
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages, uiComponents]);
     
-      // Inizializza la conversazione
-    useEffect(() => {
-      const initConversation = async () => {
-        const newConversationId = await conversationTracker.startConversation();
+    // Inizializza la conversazione
+  useEffect(() => {
+    const initConversation = async () => {
+      try {
+        const newConversationId = await conversationTracker.current.startConversation();
         setConversationId(newConversationId);
-      };
-      
-      initConversation();
-      
-      // Pulisci alla chiusura
-      return () => {
-        if (conversationId) {
-          conversationTracker.endConversation(conversationId);
-        }
-      };
-    }, []);
-
-    // Gestione consenso
-    const handleConsentChange = (level: ConsentLevel) => {
-      console.log(`Consenso aggiornato: ${level}`);
-      
-      // Se cambiano di livello, aggiorna il welcomeMessage
-      if (level === ConsentLevel.ANALYTICS) {
-        // Ottieni contesto utente per personalizzazione
-        conversationTracker.getUserContext().then(context => {
-          if (context.topTopics?.length > 0) {
-            // Usa il contesto per personalizzare il messaggio
-            // Esempio implementativo
-          }
-        });
+      } catch (error) {
+        console.error('Errore nell\'inizializzazione della conversazione:', error);
       }
     };
+    
+    initConversation();
+    
+    // Pulisci alla chiusura
+    return () => {
+      if (conversationId) {
+        conversationTracker.current.endConversation(conversationId)
+          .catch(error => console.error('Errore nella chiusura conversazione:', error));
+      }
+    };
+  }, []);
+
+  // Traccia i messaggi
+  const trackMessage = async (message: any, role: 'user' | 'assistant') => {
+    if (!conversationId) return;
+    
+    try {
+      await conversationTracker.current.trackEvent({
+        type: 'message',
+        conversationId,
+        data: {
+          role,
+          content: message
+        },
+        timestamp: Date.now()
+      });
+    } catch (error) {
+      console.error('Errore nel tracciamento messaggio:', error);
+    }
+  };
+  // Gestione consenso
+  const handleConsentChange = async (level: ConsentLevel) => {
+    console.log(`Consenso aggiornato: ${level}`);
+    
+    // Se cambiano di livello, aggiorna il welcomeMessage
+    if (level === ConsentLevel.ANALYTICS) {
+      try {
+        // Ottieni contesto utente per personalizzazione
+        const context = await conversationTracker.current.getUserContext();
+        if (context.topTopics?.length > 0) {
+          // Usa il contesto per personalizzare il messaggio
+          // Esempio implementativo
+        }
+      } catch (error) {
+        console.error('Errore nel recupero del contesto utente:', error);
+      }
+    }
+  };
     // Gestione invio messaggio
     const handleSendMessage = async () => {
       if (inputValue.trim() === '' || isTyping) return;
@@ -170,55 +199,40 @@ import { SimpleConsentBanner } from './SimpleConsentBanner';
       setIsTyping(true);
       
       // Traccia messaggio utente
-      if (conversationId) {
-        await conversationTracker.trackEvent({
-          type: 'message',
-          conversationId,
-          data: {
-            role: 'user',
-            content: inputValue
-          },
-          timestamp: Date.now()
-        });
-      }
+    await trackMessage(inputValue, 'user');
+  
+    // Aggiorna interazioni utente
+    userService.addInteraction(inputValue);
     
-      // Aggiorna interazioni utente
-      userService.addInteraction(inputValue);
-      
+    try {
+      let aiContext = {};
+      // Ottieni contesto dalle conversazioni solo se abilitato
       try {
-        let aiContext = {};
-        if (consentService.hasConsent(ConsentLevel.ANALYTICS)) {
-          aiContext = await conversationTracker.getUserContext();
-        }
-        
-         // Extend UserContext to include aiContext
-         const extendedContext = { ...userContext, aiContext };
-         // Invia messaggio all'AI
-         const response = await aiService.sendMessage(
-           inputValue, 
-           extendedContext
-         );
-        // Aggiorna messaggi con la risposta dell'AI
-        setMessages(prev => [...prev, response.message]);
-        // Traccia risposta AI
-        if (conversationId) {
-          await conversationTracker.trackEvent({
-            type: 'message',
-            conversationId,
-            data: {
-              role: 'assistant',
-              content: response.message.content
-            },
-            timestamp: Date.now()
-          });
-        }
+        aiContext = await conversationTracker.current.getUserContext();
+      } catch (error) {
+        console.error('Errore nel recupero del contesto:', error);
+      }
+      
+      // Extend UserContext to include aiContext
+      const extendedContext = { ...userContext, aiContext };
+      // Invia messaggio all'AI
+      const response = await aiService.sendMessage(
+        inputValue, 
+        extendedContext
+      );
+      
+      // Aggiorna messaggi con la risposta dell'AI
+      setMessages(prev => [...prev, response.message]);
+      
+      // Traccia risposta AI
+      await trackMessage(response.message.content, 'assistant');
         // Aggiorna componenti UI se presenti e abilitati
-        if (response.uiComponents && enableDynamicComponents) {
-          setUIComponents(prev => [
-            ...(response.uiComponents ?? []).slice(0, maxRecommendations),
-            ...prev.slice(0, 5 - Math.min(maxRecommendations, response.uiComponents?.length || 0)) // Mantieni solo i più recenti
-          ]);
-        }
+      if (response.uiComponents && enableDynamicComponents) {
+        setUIComponents(prev => [
+          ...(response.uiComponents ?? []).slice(0, maxRecommendations),
+          ...prev.slice(0, 5 - Math.min(maxRecommendations, response.uiComponents?.length || 0)) // Mantieni solo i più recenti
+        ]);
+      }
         
         // Aggiorna suggerimenti se abilitati
         if (response.suggestedPrompts && enableSuggestions) {
@@ -351,66 +365,70 @@ import { SimpleConsentBanner } from './SimpleConsentBanner';
           )}
         </div>
         
-        {/* Componenti UI in basso */}
-        {enableDynamicComponents && (
-          <div className="components-bottom">
-            <DynamicUIRenderer 
-              components={uiComponents} 
-              placement="bottom"
-              onAction={handleUIAction}
-            />
-          </div>
-        )}
-        
-        {/* Suggerimenti */}
-        {enableSuggestions && suggestedPrompts.length > 0 && (
-          <div className="suggested-prompts">
-            {suggestedPrompts.map((prompt, index) => (
-              <button 
-                key={index} 
-                className="suggestion-btn"
-                onClick={() => handleSuggestionClick(prompt)}
-              >
-                {prompt}
-              </button>
-            ))}
-          </div>
-        )}
-        
-        {/* Area input */}
-        <div className="chat-input-container">
-          <input
-            type="text"
-            value={inputValue}
-            onChange={handleInputChange}
-            onKeyDown={handleKeyDown}
-            placeholder="Scrivi un messaggio..."
-            disabled={isTyping}
-            className="chat-input"
-          />
-          <button 
-            onClick={handleSendMessage} 
-            disabled={isTyping || inputValue.trim() === ''}
-            className="send-button"
-          >
-            Invia
-          </button>
+        {/* Componenti UI bottom, mosse in un contenitore a parte */}
+        <div className="bottom-components-scroll-area">
+          {enableDynamicComponents && (
+            <div className="components-bottom">
+              <DynamicUIRenderer 
+                components={uiComponents} 
+                placement="bottom"
+                onAction={handleUIAction}
+              />
+            </div>
+          )}
         </div>
-        
-        {/* Azioni disponibili */}
-        {availableActions.length > 0 && (
-          <div className="available-actions">
-            {availableActions.map((action, index) => (
-              <button 
-                key={index}
-                className="action-btn"
-                onClick={() => handleUIAction(action.type, action.payload)}
-              >
-                {action.title}
-              </button>
-            ))}
+        {/* Area input fissata in fondo - sempre visibile */}
+        <div className="chat-controls-fixed">
+          {/* Suggerimenti */}
+          {enableSuggestions && suggestedPrompts.length > 0 && (
+            <div className="suggested-prompts">
+              {suggestedPrompts.map((prompt, index) => (
+                <button 
+                  key={index} 
+                  className="suggestion-btn"
+                  onClick={() => handleSuggestionClick(prompt)}
+                >
+                  {prompt}
+                </button>
+              ))}
+            </div>
+          )}
+          
+          {/* Azioni disponibili */}
+          {availableActions.length > 0 && (
+            <div className="available-actions">
+              {availableActions.map((action, index) => (
+                <button 
+                  key={index}
+                  className="action-btn"
+                  onClick={() => handleUIAction(action.type, action.payload)}
+                >
+                  {action.title}
+                </button>
+              ))}
+            </div>
+          )}
+          
+          {/* Area input */}
+          <div className="chat-input-container">
+            <input
+              type="text"
+              value={inputValue}
+              onChange={handleInputChange}
+              onKeyDown={handleKeyDown}
+              placeholder="Scrivi un messaggio..."
+              disabled={isTyping}
+              className="chat-input"
+            />
+            <button 
+              onClick={handleSendMessage} 
+              disabled={isTyping || inputValue.trim() === ''}
+              className="send-button"
+            >
+              Invia
+            </button>
           </div>
-        )}
+        </div>
         <SimpleConsentBanner 
           consentService={consentService}
           onConsentChange={handleConsentChange}

@@ -52,7 +52,6 @@ export const ServiceProvider: React.FC<ServiceProviderProps> = ({ children }) =>
   // Assicurati che i provider siano registrati
   registerAllProviders();
 
-
   // Carica configurazione salvata da localStorage
   const [savedConfig] = useLocalStorage<{
     provider: string;
