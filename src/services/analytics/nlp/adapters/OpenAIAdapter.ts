@@ -24,6 +24,22 @@ export class OpenAIAdapter implements INLPProviderAdapter {
     if (options?.customModels?.[AnalysisType.INTENT]) {
       this.model = options.customModels[AnalysisType.INTENT];
     }
+    if (options?.customModels?.[AnalysisType.SENTIMENT]) {
+      this.model = options.customModels[AnalysisType.SENTIMENT];
+    }
+    if (options?.customModels?.[AnalysisType.ENTITY]) {
+      this.model = options.customModels[AnalysisType.ENTITY];
+    }       
+    if (options?.customModels?.[AnalysisType.KEYWORD]) {
+      this.model = options.customModels[AnalysisType.KEYWORD];
+    }
+    if (options?.customModels?.[AnalysisType.TOPIC]) {
+      this.model = options.customModels[AnalysisType.TOPIC];
+    }
+    if (options?.customModels?.[AnalysisType.LANGUAGE]) {
+      this.model = options.customModels[AnalysisType.LANGUAGE];
+    }
+    
   }
   
   getSupportedAnalysisTypes(): AnalysisType[] {

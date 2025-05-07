@@ -55,7 +55,14 @@ import { IConversationTracker } from '../services/analytics/interfaces/IConversa
     // Riferimento al container dei messaggi per l'auto-scroll
     const messagesEndRef = useRef<null | HTMLDivElement>(null);
     const [conversationId, setConversationId] = useState<string | null>(null);
-    const conversationTracker = useRef<IConversationTracker>(getConversationTracker());
+    const conversationTracker = useRef<IConversationTracker | null>(null);
+
+    useEffect(() => {
+      const initializeTracker = async () => {
+        conversationTracker.current = await getConversationTracker();
+      };
+      initializeTracker();
+    }, []);
   
     // Carica messaggio di benvenuto iniziale
     useEffect(() => {
@@ -129,8 +136,13 @@ import { IConversationTracker } from '../services/analytics/interfaces/IConversa
   useEffect(() => {
     const initConversation = async () => {
       try {
-        const newConversationId = await conversationTracker.current.startConversation();
-        setConversationId(newConversationId);
+        if (conversationTracker.current) {
+          const newConversationId = await conversationTracker.current.startConversation();
+          setConversationId(newConversationId);
+        } else {
+          console.error('conversationTracker is not initialized.');
+        }
+        
       } catch (error) {
         console.error('Errore nell\'inizializzazione della conversazione:', error);
       }
@@ -141,8 +153,12 @@ import { IConversationTracker } from '../services/analytics/interfaces/IConversa
     // Pulisci alla chiusura
     return () => {
       if (conversationId) {
-        conversationTracker.current.endConversation(conversationId)
-          .catch(error => console.error('Errore nella chiusura conversazione:', error));
+        if (conversationTracker.current) {
+          conversationTracker.current.endConversation(conversationId)
+            .catch(error => console.error('Errore nella chiusura conversazione:', error));
+        } else {
+          console.error('conversationTracker is not initialized.');
+        }
       }
     };
   }, []);
@@ -152,15 +168,19 @@ import { IConversationTracker } from '../services/analytics/interfaces/IConversa
     if (!conversationId) return;
     
     try {
-      await conversationTracker.current.trackEvent({
-        type: 'message',
-        conversationId,
-        data: {
-          role,
-          content: message
-        },
-        timestamp: Date.now()
-      });
+      if (conversationTracker.current) {
+        await conversationTracker.current.trackEvent({
+          type: 'message',
+          conversationId,
+          data: {
+            role,
+            content: message
+          },
+          timestamp: Date.now()
+        });
+      } else {
+        console.error('conversationTracker is not initialized.');
+      }
     } catch (error) {
       console.error('Errore nel tracciamento messaggio:', error);
     }
@@ -173,7 +193,9 @@ import { IConversationTracker } from '../services/analytics/interfaces/IConversa
     if (level === ConsentLevel.ANALYTICS) {
       try {
         // Ottieni contesto utente per personalizzazione
-        const context = await conversationTracker.current.getUserContext();
+        const context = conversationTracker.current 
+          ? await conversationTracker.current.getUserContext() 
+          : null;
         if (context.topTopics?.length > 0) {
           // Usa il contesto per personalizzare il messaggio
           // Esempio implementativo
@@ -208,7 +230,11 @@ import { IConversationTracker } from '../services/analytics/interfaces/IConversa
       let aiContext = {};
       // Ottieni contesto dalle conversazioni solo se abilitato
       try {
-        aiContext = await conversationTracker.current.getUserContext();
+        if (conversationTracker.current) {
+          aiContext = await conversationTracker.current.getUserContext();
+        } else {
+          console.error('conversationTracker is not initialized.');
+        }
       } catch (error) {
         console.error('Errore nel recupero del contesto:', error);
       }

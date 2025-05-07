@@ -3,15 +3,28 @@
 import { ConversationRecord, BaseEvent, ConsentLevel } from './types';
 import { IStorageService } from './interfaces/IStorageService';
 import { IConsentService } from './interfaces/IConsentService';
-import { INLPService } from './interfaces/INLPService';
+import { INLPService } from './nlp/interfaces/INLPService';
 import { IConversationTracker } from './interfaces/IConversationTracker';
+import { AnalysisType } from './nlp/interfaces/INLPService';
 
+/**
+ * Tracker di conversazione avanzato con integrazione NLP
+ * Estende le funzionalità base con analisi NLP delle conversazioni
+ */
 export class EnhancedConversationTracker implements IConversationTracker {
+  protected storage: IStorageService;
+  protected consentService: IConsentService;
+  protected nlpService?: INLPService;
+
   constructor(
-    private storage: IStorageService,
-    private consentService: IConsentService,
-    private nlpService?: INLPService
-  ) {}
+    storage: IStorageService,
+    consentService: IConsentService,
+    nlpService?: INLPService
+  ) {
+    this.storage = storage;
+    this.consentService = consentService;
+    this.nlpService = nlpService;
+  }
 
   getConsentService(): IConsentService {
     return this.consentService;
@@ -62,14 +75,11 @@ export class EnhancedConversationTracker implements IConversationTracker {
           timestamp: event.timestamp
         });
         
-        // Estrai e salva intenti/topic solo con consenso analitico
-        if (hasAnalyticsConsent && event.data.role === 'user' && event.data.content) {
-          if (this.nlpService) {
-            await this.analyzeWithNLP(event.data.content, conversation);
-          } else {
-            this.extractBasicTopics(event.data.content, conversation);
-          }
+        // Analizza e aggiorna intenti/topic solo con consenso analitico e se il messaggio è dell'utente
+        if (hasAnalyticsConsent && event.data.role === 'user' && event.data.content && this.nlpService) {
+          await this.enhanceWithNLP(event.data.content, conversation);
         }
+  
       }
       
       // Salva conversazione aggiornata
@@ -110,53 +120,51 @@ export class EnhancedConversationTracker implements IConversationTracker {
   }
   
   // Metodi privati
-  private async analyzeWithNLP(text: string, conversation: ConversationRecord): Promise<void> {
+  
+  /**
+   * Utilizza il servizio NLP per analizzare il testo e migliorare i metadati della conversazione
+   * @param text Testo da analizzare
+   * @param conversation Conversazione da aggiornare
+   */
+  private async enhanceWithNLP(text: string, conversation: ConversationRecord): Promise<void> {
     if (!this.nlpService) return;
     
     try {
+      // Esegui analisi NLP
       const analysis = await this.nlpService.analyzeText(text);
       
-      // Aggiungi nuovi intenti non duplicati
-      analysis.intents.forEach(intent => {
-        if (!conversation.intents.includes(intent)) {
-          conversation.intents.push(intent);
-        }
-      });
+      // Estrai e aggiungi intenti
+      if (analysis[AnalysisType.INTENT]?.length > 0) {
+        analysis[AnalysisType.INTENT].forEach(intent => {
+          const intentName = intent.name || intent.category;
+          if (intentName && !conversation.intents.includes(intentName)) {
+            conversation.intents.push(intentName);
+          }
+        });
+      }
       
-      // Aggiungi nuovi topic non duplicati
-      analysis.topics.forEach(topic => {
-        if (!conversation.topics.includes(topic)) {
-          conversation.topics.push(topic);
-        }
-      });
+      // Estrai e aggiungi topic
+      if (analysis[AnalysisType.TOPIC]?.length > 0) {
+        analysis[AnalysisType.TOPIC].forEach(topic => {
+          const topicName = topic.name;
+          if (topicName && !conversation.topics.includes(topicName)) {
+            conversation.topics.push(topicName);
+          }
+        });
+      }
+      
+      // Possibile espansione: aggiungere altre tipologie di analisi
     } catch (error) {
-      console.error('Errore nell\'analisi NLP:', error);
-      // Fallback all'estrazione base
-      this.extractBasicTopics(text, conversation);
+      console.error('Errore durante l\'analisi NLP:', error);
+      // In caso di errore, non blocchiamo il flusso
     }
   }
   
-  private extractBasicTopics(message: string, conversation: ConversationRecord): void {
-    const foodKeywords = ['caffè', 'cappuccino', 'espresso', 'cornetto', 'panino', 'colazione', 'pranzo'];
-    const intentKeywords = ['ordina', 'consiglia', 'menu', 'prezzo', 'orari'];
-    
-    const lowerMessage = message.toLowerCase();
-    
-    // Cerca topic
-    foodKeywords.forEach(keyword => {
-      if (lowerMessage.includes(keyword) && !conversation.topics.includes(keyword)) {
-        conversation.topics.push(keyword);
-      }
-    });
-    
-    // Cerca intenti
-    intentKeywords.forEach(keyword => {
-      if (lowerMessage.includes(keyword) && !conversation.intents.includes(keyword)) {
-        conversation.intents.push(keyword);
-      }
-    });
-  }
-  
+  /**
+   * Aggrega i dati delle conversazioni per generare un contesto utente
+   * @param conversations Elenco di conversazioni
+   * @returns Contesto utente aggregato
+   */
   private aggregateUserContext(conversations: ConversationRecord[]): any {
     // Estrai topic frequenti
     const topicCounts: Record<string, number> = {};
