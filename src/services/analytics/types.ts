@@ -18,6 +18,7 @@ export enum ConsentLevel {
     }[];
     intents: string[];
     topics: string[];
+    lastUpdated?: Date; // Added optional lastUpdated property
   }
   
   export interface BaseEvent {
