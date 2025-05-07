@@ -57,6 +57,7 @@ export const LoyaltyCard: React.FC<LoyaltyCardProps> = ({
         <div className="points-label">punti</div>
       </div>
       
+      
       <div className="next-tier">
         <p>Ti mancano <strong>{nextTier.pointsNeeded} punti</strong> per raggiungere {nextTier.name}</p>
         <div className="progress-bar">
@@ -65,8 +66,7 @@ export const LoyaltyCard: React.FC<LoyaltyCardProps> = ({
             style={{ width: `${progressPercentage}%` }}
           ></div>
         </div>
-      </div>
-      
+      </div>      
       {history && history.length > 0 && (
         <div className="loyalty-history">
           <h4 className="history-title">Attività recenti</h4>

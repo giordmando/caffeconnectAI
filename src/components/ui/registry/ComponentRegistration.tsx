@@ -1,3 +1,4 @@
+// src/components/ui/registry/ComponentRegistration.tsx
 import React from 'react';
 import { uiComponentRegistry } from './UIComponentRegistry';
 import { LoyaltyCard } from '../LoyaltyCard';
@@ -10,46 +11,57 @@ export function registerComponents(): void {
   
   // Registra LoyaltyCard component
   uiComponentRegistry.register('loyaltyCard', (component, onAction) => {
-    console.log(component);
+    console.log("Registering LoyaltyCard with data:", component.data);
+    // Aggiungiamo controlli per evitare errori
+    const data = component.data || {};
     return (
       <LoyaltyCard 
-        points={component.data.points} 
-        tier={component.data.tier} 
-        nextTier={component.data.nextTier} 
-        history={component.data.history} 
+        points={data.points || 0} 
+        tier={data.tier || 'Bronze'} 
+        nextTier={data.nextTier || { name: 'Silver', pointsNeeded: 100 }} 
+        history={data.history || []} 
         id={component.id}
         onAction={onAction}
       />
     );
   });
   
-  // Registra MenuCarousel component - assicurati che questo sia presente
-  uiComponentRegistry.register('menuCarousel', (component, onAction) => (
-    <MenuCarousel 
-      recommendations={component.data.recommendations} 
-      timeOfDay={component.data.timeOfDay} 
-      id={component.id}
-      onAction={onAction}
-    />
-  ));
+  // Registra MenuCarousel component
+  uiComponentRegistry.register('menuCarousel', (component, onAction) => {
+    const data = component.data || {};
+    return (
+      <MenuCarousel 
+        recommendations={data.recommendations || []} 
+        timeOfDay={data.timeOfDay || 'morning'} 
+        id={component.id}
+        onAction={onAction}
+      />
+    );
+  });
   
   // Registra ProductCarousel component
-  uiComponentRegistry.register('productCarousel', (component, onAction) => (
-    <ProductCarousel 
-      recommendations={component.data.recommendations} 
-      id={component.id}
-      onAction={onAction}
-    />
-  ));
+  uiComponentRegistry.register('productCarousel', (component, onAction) => {
+    const data = component.data || {};
+    return (
+      <ProductCarousel 
+        recommendations={data.recommendations || []} 
+        id={component.id}
+        onAction={onAction}
+      />
+    );
+  });
   
   // Registra PreferencesCard component
-  uiComponentRegistry.register('preferencesCard', (component, onAction) => (
-    <PreferencesCard 
-      preferences={component.data.preferences} 
-      id={component.id}
-      onAction={onAction}
-    />
-  ));
+  uiComponentRegistry.register('preferencesCard', (component, onAction) => {
+    const data = component.data || {};
+    return (
+      <PreferencesCard 
+        preferences={data.preferences || {}} 
+        id={component.id}
+        onAction={onAction}
+      />
+    );
+  });
   
   console.log("UI components registered successfully!");
 }

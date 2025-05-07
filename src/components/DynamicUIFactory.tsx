@@ -1,4 +1,4 @@
-// Placeholder for DynamicUIFactory component
+// src/components/DynamicUIFactory.tsx
 import React from 'react';
 import { LoyaltyCard } from './ui/LoyaltyCard';
 import { MenuCarousel } from './ui/MenuCarousel';
@@ -15,14 +15,22 @@ export const DynamicUIFactory: React.FC<{
 }> = ({ component, onAction }) => {
   const { type, data, id } = component;
   
+  // Debug per comprendere la struttura dei dati
+  console.log(`Rendering component of type: ${type}`);
+  console.log("Component data structure:", JSON.stringify(data, null, 2));
+  
   switch (type) {
     case 'loyaltyCard':
-      console.log("######################## Rendering LoyaltyCard component with data:", data);
+      // Assicuriamoci che i dati siano strutturati correttamente
+      // Verifichiamo se i dati sono contenuti in un campo data o direttamente nell'oggetto
+      const loyaltyData = data.data ? data.data : data;
+      console.log("Processed loyalty data:", loyaltyData);
+      
       return <LoyaltyCard 
-        points={data.data.points} 
-        tier={data.data.tier} 
-        nextTier={data.data.nextTier} 
-        history={data.data.history} 
+        points={loyaltyData.points} 
+        tier={loyaltyData.tier} 
+        nextTier={loyaltyData.nextTier} 
+        history={loyaltyData.history} 
         id={id}
         onAction={onAction}
       />;
@@ -59,7 +67,7 @@ export const DynamicUIFactory: React.FC<{
       
     default:
       console.warn(`Tipo di componente UI sconosciuto: ${type}`);
-      return <div className="error-component">Componente non supportato</div>;
+      return <div className="error-component">Componente non supportato: {type}</div>;
   }
 };
 
