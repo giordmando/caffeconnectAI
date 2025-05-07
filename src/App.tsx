@@ -7,7 +7,7 @@ import { appInitializer } from './initialization/AppInitializer';
 import { configManager, interpolateConfig } from './config/ConfigManager';
 import LoadingScreen from './components/LoadingScreen';
 import './styles/App.css';
-import EnhancedChatInterface from './components/EnhancedChatInterface';
+import ImprovedChatInterface from './components/ui/ImprovedChatInterface';
 
 
 /**
@@ -113,13 +113,11 @@ function App() {
       <main className="app-main">
         {/* Utilizziamo il nuovo EnhancedChatInterface al posto del ChatInterface standard */}
         {appConfig.ui.enableNLP ? (
-          <EnhancedChatInterface 
+          <ImprovedChatInterface 
             welcomeMessage={welcomeMessage}
             showSidebar={appConfig.ui.showSidebar}
             enableSuggestions={appConfig.ui.enableSuggestions}
-            enableDynamicComponents={appConfig.ui.enableDynamicComponents}
             enableNLP={appConfig.ui.enableNLP}
-            maxRecommendations={appConfig.ui.maxRecommendations}
           />
         ) : (
           <ChatInterface 

@@ -11,14 +11,16 @@
 }
 
 .carousel-header {
-  padding: 12px 16px;
-  background-color: var(--primary-color);
-  color: white;
+  margin-bottom: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .carousel-header h3 {
   font-size: 16px;
-  font-weight: 500;
+  font-weight: 600;
+  color: var(--primary-color);
   margin: 0;
 }
 
@@ -26,9 +28,9 @@
   display: flex;
   overflow-x: auto;
   gap: 16px;
-  padding: 16px;
+  padding: 8px 0;
   scroll-snap-type: x mandatory;
-  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
 }
 
 .carousel-items::-webkit-scrollbar {
@@ -46,25 +48,19 @@
 }
 
 /* Menu Item Card */
-.menu-item-card,
-.product-item-card {
-  min-width: 240px;
-  max-width: 240px;
-  border-radius: 8px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  overflow: hidden;
-  position: relative;
-  cursor: pointer;
+.product-item-card,
+.menu-item-card {
+  min-width: 220px;
   scroll-snap-align: start;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
-  border: 1px solid var(--light-gray);
-  background-color: white;
 }
 
-.menu-item-card:hover,
-.product-item-card:hover {
+.product-item-card:hover,
+.menu-item-card:hover {
   transform: translateY(-4px);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
 }
 
 .item-image {
@@ -164,71 +160,95 @@
   color: var(--medium-gray);
 }
 
-/* Loyalty Card */
+/* Stili migliorati per la Loyalty Card */
 .loyalty-card {
   background-color: white;
   border-radius: 12px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   overflow: hidden;
+  transition: all 0.3s ease;
+  margin-bottom: 16px;
+  width: 100%;
+  max-width: 320px; /* Limita la larghezza massima */
 }
 
+/* Quando posizionata nella sidebar */
+.chat-sidebar .loyalty-card {
+  max-width: 100%; /* Occupa tutta la larghezza della sidebar */
+}
+
+/* Intestazione più compatta */
 .loyalty-header {
   background: linear-gradient(to right, var(--primary-color), var(--primary-light));
   color: white;
-  padding: 16px;
+  padding: 12px 16px;
   position: relative;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .loyalty-header h3 {
   margin: 0;
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 500;
 }
 
 .tier-badge {
-  position: absolute;
-  top: 12px;
-  right: 12px;
   background-color: rgba(255, 255, 255, 0.3);
   border-radius: 12px;
-  padding: 4px 10px;
+  padding: 3px 10px;
   font-size: 12px;
   font-weight: 500;
 }
 
+/* Contenuto più compatto */
 .loyalty-points {
   display: flex;
-  flex-direction: column;
+  justify-content: space-between;
   align-items: center;
-  padding: 24px 16px;
+  padding: 16px;
+  border-bottom: 1px solid var(--light-gray);
+}
+
+.points-info {
+  display: flex;
+  flex-direction: column;
 }
 
 .points-value {
-  font-size: 40px;
+  font-size: 32px;
   font-weight: 700;
   color: var(--primary-color);
   line-height: 1;
 }
 
 .points-label {
-  font-size: 14px;
+  font-size: 12px;
   color: var(--medium-gray);
   margin-top: 4px;
 }
 
+/* Sezione prossimo livello */
 .next-tier {
-  padding: 0 16px 16px;
-  text-align: center;
-  font-size: 14px;
+  padding: 12px 16px;
+  font-size: 13px;
   color: var(--dark-gray);
 }
 
+.next-tier-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
 .progress-bar {
-  height: 8px;
+  height: 6px;
   width: 100%;
   background-color: var(--light-gray);
-  border-radius: 4px;
-  margin: 8px 0;
+  border-radius: 3px;
+  margin: 6px 0;
   overflow: hidden;
 }
 
@@ -238,23 +258,47 @@
   transition: width 0.3s ease;
 }
 
+/* Sezione storico opzionale e collassabile */
 .loyalty-history {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease;
+}
+
+.loyalty-history.expanded {
+  max-height: 200px;
   border-top: 1px solid var(--light-gray);
-  padding: 16px;
+  padding: 12px 16px;
+}
+
+.history-toggle {
+  width: 100%;
+  background: none;
+  border: none;
+  text-align: center;
+  font-size: 12px;
+  color: var(--medium-gray);
+  padding: 6px;
+  cursor: pointer;
+}
+
+.history-toggle:hover {
+  background-color: rgba(0, 0, 0, 0.03);
 }
 
 .history-title {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
   color: var(--dark-gray);
-  margin: 0 0 12px 0;
+  margin: 0 0 8px 0;
 }
 
 .history-item {
   display: flex;
   justify-content: space-between;
-  margin-bottom: 8px;
-  font-size: 13px;
+  align-items: center;
+  margin-bottom: 6px;
+  font-size: 12px;
 }
 
 .history-date {
@@ -263,84 +307,62 @@
 
 .history-points {
   font-weight: 500;
-}
-
-.history-reason {
-  color: var(--dark-gray);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: 200px;
-}
-
-/* Preferences Card */
-.preferences-card {
-  background-color: white;
-  border-radius: 12px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  overflow: hidden;
-}
-
-.preferences-header {
-  background-color: var(--primary-color);
-  color: white;
-  padding: 12px 16px;
-}
-
-.preferences-header h3 {
-  margin: 0;
-  font-size: 16px;
-  font-weight: 500;
-}
-
-.preferences-content {
-  padding: 16px;
-}
-
-.preferences-section {
-  margin-bottom: 16px;
-}
-
-.preferences-section h4 {
-  font-size: 14px;
-  color: var(--dark-gray);
-  margin: 0 0 8px 0;
-  font-weight: 500;
-}
-
-.preferences-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.preference-tag {
-  background-color: var(--bg-color);
-  border-radius: 12px;
-  padding: 4px 10px;
-  font-size: 13px;
   color: var(--primary-color);
 }
 
-.last-orders {
-  list-style: none;
-  padding: 0;
-  margin: 0;
+/* Stili per il componente collassabile */
+.collapsible-loyalty-card .loyalty-content {
+  max-height: 1000px;
+  transition: max-height 0.3s ease;
+  overflow: hidden;
 }
 
-.last-order-item {
+.collapsible-loyalty-card.collapsed .loyalty-content {
+  max-height: 0;
+}
+
+.loyalty-collapse-button {
+  position: absolute;
+  right: 10px;
+  top: 10px;
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: white;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
   display: flex;
-  justify-content: space-between;
-  padding: 6px 0;
-  border-bottom: 1px solid var(--light-gray);
-  font-size: 13px;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 14px;
 }
 
-.last-order-item:last-child {
-  border-bottom: none;
+/* Modifiche al layout generale per migliorare l'esperienza con Loyalty Card */
+.chat-sidebar {
+  min-width: 280px;
+  padding: 16px;
+  background-color: #f8fafc;
 }
 
-.last-order-date {
-  color: var(--medium-gray);
-  font-size: 12px;
+.main-chat-section {
+  flex: 1;
+  min-width: 0;
+}
+
+@media (max-width: 768px) {
+  .chat-layout {
+    flex-direction: column;
+  }
+  
+  .chat-sidebar {
+    width: 100%;
+    max-height: 250px;
+    overflow-y: auto;
+    border-top: 1px solid var(--light-gray);
+  }
+  
+  .loyalty-card {
+    max-width: 100%;
+  }
 }
