@@ -6,6 +6,7 @@ export class SimpleStorageService {
   
   async saveConversation(record: ConversationRecord): Promise<void> {
     try {
+      console.log(`Salvataggio conversazione ${record.id}:`, record);
       // Carica conversazioni esistenti
       const records = this.getRecordsFromStorage();
       
@@ -13,12 +14,18 @@ export class SimpleStorageService {
       const existingIndex = records.findIndex(r => r.id === record.id);
       if (existingIndex >= 0) {
         records[existingIndex] = record;
+        console.log(`Aggiornato record esistente: ${record.id}`);
       } else {
         records.push(record);
+        console.log(`Aggiunto nuovo record: ${record.id}`);
       }
       
       // Salva in localStorage
       localStorage.setItem(this.storageKey, JSON.stringify(records));
+      console.log(`Salvati ${records.length} record in localStorage`);
+      
+      // Verifica che il salvataggio sia avvenuto correttamente
+      this.verifyStorage(record.id);
     } catch (error) {
       console.error('Errore nel salvataggio conversazione:', error);
     }
@@ -36,9 +43,11 @@ export class SimpleStorageService {
   private getRecordsFromStorage(): ConversationRecord[] {
     try {
       const data = localStorage.getItem(this.storageKey);
-      return data ? JSON.parse(data) : [];
+      const records = data ? JSON.parse(data) : [];
+      console.log(`Recuperati ${records.length} record dal localStorage`);
+      return records;
     } catch (error) {
-      console.error('Errore nel recupero conversazioni:', error);
+      console.error('Errore nel recupero dei record da localStorage:', error);
       return [];
     }
   }
@@ -57,6 +66,40 @@ export class SimpleStorageService {
       localStorage.setItem(this.storageKey, JSON.stringify(filteredRecords));
     } catch (error) {
       console.error('Errore nella pulizia conversazioni:', error);
+    }
+  }
+
+
+  private verifyStorage(id: string): void {
+    try {
+      // Verifica che il record sia stato salvato correttamente
+      const data = localStorage.getItem(this.storageKey);
+      if (!data) {
+        console.error('Errore: nessun dato trovato in localStorage dopo il salvataggio');
+        return;
+      }
+      
+      const records = JSON.parse(data);
+      const record = records.find((r: any) => r.id === id);
+      
+      if (!record) {
+        console.error(`Errore: record ${id} non trovato dopo il salvataggio`);
+      } else {
+        console.log(`Verifica completata: record ${id} salvato correttamente`);
+        
+        // Verifica che i dati importanti siano presenti
+        if (record.messages && record.messages.length === 0) {
+          console.warn(`Attenzione: il record ${id} non ha messaggi`);
+        }
+        if (record.intents && record.intents.length === 0) {
+          console.warn(`Attenzione: il record ${id} non ha intenti`);
+        }
+        if (record.topics && record.topics.length === 0) {
+          console.warn(`Attenzione: il record ${id} non ha topic`);
+        }
+      }
+    } catch (error) {
+      console.error('Errore nella verifica del salvataggio:', error);
     }
   }
 }

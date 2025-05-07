@@ -5,6 +5,7 @@ import { SimpleConsentService } from './SimpleConsentService';
 import { IConversationTracker } from './interfaces/IConversationTracker';
 import { TrackerFactory } from './factory/TrackerFactory';
 import { nlpConfiguration } from './nlp/NLPConfiguration';
+import { SimpleStorageService } from './SimpleStorageService';
 
 // Funzione per inizializzare i servizi di analisi
 export async function setupAnalytics(): Promise<IConversationTracker> {
@@ -14,7 +15,9 @@ export async function setupAnalytics(): Promise<IConversationTracker> {
     : StorageType.LOCAL;
     
   // Crea i servizi
-  const storageService = StorageServiceFactory.createStorageService(storageType);
+  /** TODO: Solo per testing ripristinare  StorageServiceFactory*/
+  //const storageService = StorageServiceFactory.createStorageService(storageType);
+  const storageService = new SimpleStorageService();
   const consentService = new SimpleConsentService();
   // Inizializza il servizio NLP
   await nlpConfiguration.initialize();

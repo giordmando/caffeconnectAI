@@ -4,9 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
   import { useServices } from '../contexts/ServiceContext';
   import { DynamicUIRenderer } from './ui/DynamicUIRenderer';
   import { configManager } from '../config/ConfigManager';
-import { SimpleStorageService } from '../services/analytics/SimpleStorageService';
 import { SimpleConsentService } from '../services/analytics/SimpleConsentService';
-import { SimpleConversationTracker } from '../services/analytics/SimpleConversationTracker';
 import { ConsentLevel } from '../services/analytics/types';
 import { SimpleConsentBanner } from './SimpleConsentBanner';
 import { getConversationTracker } from '../services/analytics/setupAnalytics';
@@ -21,12 +19,7 @@ import { IConversationTracker } from '../services/analytics/interfaces/IConversa
   }
 
   // Inizializza servizi
-  const storageService = new SimpleStorageService();
   const consentService = new SimpleConsentService();
-  const conversationTracker = new SimpleConversationTracker(
-    storageService,
-    consentService
-  );
   
   /**
    * Interfaccia di chat principale
@@ -394,7 +387,7 @@ import { IConversationTracker } from '../services/analytics/interfaces/IConversa
         {/* Componenti UI bottom, mosse in un contenitore a parte */}
         <div className="bottom-components-scroll-area">
           {enableDynamicComponents && (
-            <div className="components-bottom">
+            <div className="sidebar">
               <DynamicUIRenderer 
                 components={uiComponents} 
                 placement="bottom"
