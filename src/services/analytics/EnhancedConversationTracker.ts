@@ -55,35 +55,72 @@ export class EnhancedConversationTracker implements IConversationTracker {
   async trackEvent(event: BaseEvent): Promise<void> {
     // Esci subito se non c'è consenso funzionale
     if (!this.consentService.hasConsent(ConsentLevel.FUNCTIONAL)) {
+      console.log('Evento non tracciato per mancanza di consenso');
       return;
     }
     
     try {
+      console.log(`Tracciamento evento ${event.type} per conversazione ${event.conversationId}`);
+      
       // Recupera conversazione
       const conversation = await this.storage.getConversation(event.conversationId);
-      if (!conversation) return;
+      if (!conversation) {
+        console.error(`Conversazione ${event.conversationId} non trovata`);
+        return;
+      }
       
       // Aggiungi evento in base al tipo
       if (event.type === 'message') {
         const hasAnalyticsConsent = this.consentService.hasConsent(ConsentLevel.ANALYTICS);
         
+        console.log(`Tracciamento messaggio con consenso analitico: ${hasAnalyticsConsent}`);
+        
+        // Determina se abbiamo dati NLP nel messaggio
+        const hasNLPData = event.data.nlpData && Object.keys(event.data.nlpData).length > 0;
+        
+        // Aggiungi il messaggio alla conversazione
         conversation.messages.push({
           id: `msg_${Date.now()}`,
           role: event.data.role,
           // Salva contenuto solo se c'è consenso analitico
-          content: hasAnalyticsConsent ? event.data.content : undefined,
+          content: hasAnalyticsConsent ? event.data.content : "Messaggio non salvato (consenso insufficiente)",
           timestamp: event.timestamp
         });
         
         // Analizza e aggiorna intenti/topic solo con consenso analitico e se il messaggio è dell'utente
-        if (hasAnalyticsConsent && event.data.role === 'user' && event.data.content && this.nlpService) {
-          await this.enhanceWithNLP(event.data.content, conversation);
+        if (hasAnalyticsConsent && event.data.role === 'user') {
+          if (hasNLPData) {
+            console.log('Il messaggio contiene dati NLP, li usiamo direttamente');
+            
+            // Aggiungi intenti dai dati NLP
+            if (event.data.nlpData.intents && event.data.nlpData.intents.length > 0) {
+              event.data.nlpData.intents.forEach((intent: any) => {
+                const intentName = intent.name || intent.category;
+                if (intentName && !conversation.intents.includes(intentName)) {
+                  conversation.intents.push(intentName);
+                }
+              });
+            }
+            
+            // Aggiungi topic dai dati NLP
+            if (event.data.nlpData.topics && event.data.nlpData.topics.length > 0) {
+              event.data.nlpData.topics.forEach((topic: any) => {
+                const topicName = topic.name;
+                if (topicName && !conversation.topics.includes(topicName)) {
+                  conversation.topics.push(topicName);
+                }
+              });
+            }
+          } else if (this.nlpService) {
+            console.log('Analisi NLP del testo del messaggio...');
+            await this.enhanceWithNLP(event.data.content, conversation);
+          }
         }
-  
       }
       
       // Salva conversazione aggiornata
       await this.storage.saveConversation(conversation);
+      console.log(`Evento ${event.type} tracciato con successo`);
     } catch (error) {
       console.error('Errore nel tracciamento evento:', error);
     }

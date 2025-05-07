@@ -1,5 +1,5 @@
   // src/types/UserContext.ts
-  import { UserPreference } from './UserPreference';
+import { UserPreference } from './UserPreference';
   
   export interface UserContext {
     userId: string;

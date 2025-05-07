@@ -7,6 +7,8 @@ import { appInitializer } from './initialization/AppInitializer';
 import { configManager, interpolateConfig } from './config/ConfigManager';
 import LoadingScreen from './components/LoadingScreen';
 import './styles/App.css';
+import EnhancedChatInterface from './components/EnhancedChatInterface';
+
 
 /**
  * Componente principale dell'applicazione
@@ -109,13 +111,25 @@ function App() {
       </header>
       
       <main className="app-main">
-        <ChatInterface 
-          welcomeMessage={welcomeMessage}
-          showSidebar={appConfig.ui.showSidebar}
-          enableSuggestions={appConfig.ui.enableSuggestions}
-          enableDynamicComponents={appConfig.ui.enableDynamicComponents}
-          maxRecommendations={appConfig.ui.maxRecommendations}
-        />
+        {/* Utilizziamo il nuovo EnhancedChatInterface al posto del ChatInterface standard */}
+        {appConfig.ui.enableNLP ? (
+          <EnhancedChatInterface 
+            welcomeMessage={welcomeMessage}
+            showSidebar={appConfig.ui.showSidebar}
+            enableSuggestions={appConfig.ui.enableSuggestions}
+            enableDynamicComponents={appConfig.ui.enableDynamicComponents}
+            enableNLP={appConfig.ui.enableNLP}
+            maxRecommendations={appConfig.ui.maxRecommendations}
+          />
+        ) : (
+          <ChatInterface 
+            welcomeMessage={welcomeMessage}
+            showSidebar={appConfig.ui.showSidebar}
+            enableSuggestions={appConfig.ui.enableSuggestions}
+            enableDynamicComponents={appConfig.ui.enableDynamicComponents}
+            maxRecommendations={appConfig.ui.maxRecommendations}
+          />
+        )}
       </main>
       
       <footer className="app-footer">

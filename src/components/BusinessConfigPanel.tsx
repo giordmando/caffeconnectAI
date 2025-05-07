@@ -881,6 +881,21 @@ const BusinessConfigPanel: React.FC<BusinessConfigPanelProps> = ({ onClose, onSa
                 <label htmlFor="enable-dynamic-components">Abilita Componenti Dinamici</label>
               </div>
             </div>
+            <div className="form-group">
+              <div className="form-check">
+                <input
+                  type="checkbox"
+                  id="enable-nlp"
+                  checked={config.ui.enableNLP}
+                  onChange={(e) => handleConfigChange('ui', 'enableNLP', e.target.checked)}
+                />
+                <label htmlFor="enable-nlp">Abilita Analisi NLP</label>
+              </div>
+              <small className="form-text">
+                L'analisi NLP fornisce funzionalità avanzate come il rilevamento del sentiment, degli intenti e dei topic.
+                Richiede più risorse computazionali ma offre interazioni più intelligenti.
+              </small>
+            </div>
             
             <div className="form-group">
               <div className="form-check">

@@ -199,7 +199,7 @@
   }
   
   .chat-sidebar {
-    width: 30%;
+    width: 50%;
     border-left: 1px solid var(--light-gray);
     padding: 16px;
     overflow-y: auto;

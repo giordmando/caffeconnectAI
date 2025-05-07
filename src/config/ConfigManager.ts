@@ -73,6 +73,7 @@ export interface AppConfig {
   ui: {
     enableSuggestions: boolean;
     enableDynamicComponents: boolean;
+    enableNLP: true, // Abilita l'NLP di default
     showSidebar: boolean;
     maxRecommendations: number;
     welcomeMessage: string;
@@ -323,6 +324,7 @@ enableAdvancedFunctionSupport: true // Nuova proprietà
       ui: {
         enableSuggestions: true,
         enableDynamicComponents: true,
+        enableNLP: true, // Abilita l'NLP di default
         showSidebar: true,
         maxRecommendations: 3,
         welcomeMessage: 'Benvenuto a {business.name}! Come posso aiutarti oggi?'

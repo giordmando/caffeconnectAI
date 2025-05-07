@@ -1,0 +1,258 @@
+/* Stili per i componenti NLP */
+
+/* Stile generale per tutti i componenti NLP */
+.sentiment-indicator,
+.intent-suggestions,
+.topic-tags,
+.nlp-insights-card {
+  background-color: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  margin-bottom: 16px;
+  width: 100%;
+  transition: all 0.3s ease;
+}
+
+/* Stile per componenti collassabili */
+.collapsible-component {
+  border: 1px solid var(--light-gray);
+}
+
+.collapsible-header {
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background-color: var(--primary-color);
+  color: white;
+}
+
+.collapsible-header h4 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.collapsible-icon {
+  transition: transform 0.3s ease;
+}
+
+.collapsible-icon.collapsed {
+  transform: rotate(180deg);
+}
+
+.collapsible-content {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease;
+}
+
+.collapsible-content.expanded {
+  max-height: 500px; /* Valore sufficientemente grande */
+}
+
+/* Badge NLP */
+.nlp-badge {
+  background-color: #805ad5;
+  color: white;
+  border-radius: 12px;
+  padding: 2px 8px;
+  font-size: 10px;
+  margin-left: 8px;
+}
+
+/* Sentiment Indicator */
+.sentiment-indicator {
+  padding-bottom: 0; /* Rimosso padding per permettere collasso */
+}
+
+.sentiment-header {
+  background-color: var(--primary-color);
+  color: white;
+  padding: 10px 16px;
+}
+
+.sentiment-header h4 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.sentiment-content {
+  padding: 16px;
+}
+
+.sentiment-gauge {
+  height: 8px;
+  width: 100%;
+  background-color: var(--light-gray);
+  border-radius: 4px;
+  margin: 8px 0;
+  overflow: hidden;
+  position: relative;
+}
+
+.sentiment-level {
+  height: 100%;
+  background-color: var(--success-color);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.sentiment-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--medium-gray);
+  margin-top: 4px;
+}
+
+.sentiment-details {
+  margin-top: 12px;
+  display: flex;
+  justify-content: space-between;
+}
+
+.sentiment-score {
+  font-size: 13px;
+  color: var(--dark-gray);
+}
+
+/* Intent Suggestions */
+.intent-suggestions {
+  padding-bottom: 0; /* Rimosso padding per permettere collasso */
+}
+
+.intent-header {
+  background-color: var(--primary-color);
+  color: white;
+  padding: 10px 16px;
+}
+
+.intent-header h4 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.intent-list {
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 200px; /* Limite di altezza con scrolling */
+  overflow-y: auto;
+}
+
+.intent-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background-color: var(--bg-color);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.intent-item:hover {
+  background-color: var(--user-message-bg);
+}
+
+.intent-name {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.intent-confidence {
+  font-size: 12px;
+  color: var(--medium-gray);
+}
+
+/* Topic Tags */
+.topic-tags {
+  padding-bottom: 0; /* Rimosso padding per permettere collasso */
+}
+
+.topic-header {
+  background-color: var(--primary-color);
+  color: white;
+  padding: 10px 16px;
+}
+
+.topic-header h4 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.topic-list {
+  padding: 16px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.topic-tag {
+  background-color: var(--user-message-bg);
+  color: var(--primary-color);
+  font-size: 13px;
+  padding: 6px 12px;
+  border-radius: 16px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.topic-tag:hover {
+  background-color: var(--primary-light);
+  color: white;
+}
+
+/* Migliorie per i container dei componenti */
+.dynamic-ui-container {
+  margin-bottom: 24px; /* Più spazio tra gruppi di componenti */
+}
+
+.dynamic-ui-item {
+  margin-bottom: 16px; /* Più spazio tra componenti */
+}
+
+.dynamic-ui-bottom {
+  display: flex;
+  flex-wrap: wrap; /* Permette il wrapping su schermi piccoli */
+  gap: 16px;
+}
+
+.dynamic-ui-bottom .dynamic-ui-item {
+  min-width: 250px; /* Dimensione minima più ampia */
+  max-width: 350px; /* Limite massimo per evitare componenti troppo larghi */
+  flex: 1;
+}
+
+.dynamic-ui-sidebar .dynamic-ui-item {
+  margin-bottom: 24px; /* Più spazio verticale nella sidebar */
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .sentiment-details {
+    flex-direction: column;
+    gap: 6px;
+  }
+  
+  .topic-list {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 8px;
+    -webkit-overflow-scrolling: touch; /* Scrolling fluido su iOS */
+  }
+  
+  .topic-tag {
+    white-space: nowrap;
+  }
+  
+  .dynamic-ui-bottom .dynamic-ui-item {
+    min-width: 100%; /* Occupa tutta la larghezza su mobile */
+  }
+}
