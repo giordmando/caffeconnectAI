@@ -1,4 +1,3 @@
-// src/components/ui/registry/ComponentRegistration.tsx
 import React from 'react';
 import { uiComponentRegistry } from './UIComponentRegistry';
 import { LoyaltyCard } from '../LoyaltyCard';

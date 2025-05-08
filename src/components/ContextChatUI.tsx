@@ -89,8 +89,17 @@ const ChatInterface: React.FC = () => {
               placement="sidebar"
               onAction={handleUIAction}
             />
+            {/* Componenti NLP */}
+            {config.enableNLP && isNLPInitialized && nlpComponents.length > 0 && (
+              <NLPInsightsPanel 
+                components={nlpComponents}
+                placement="sidebar"
+                onAction={handleUIAction}
+              />
+            )}
           </div>
         )}
+        
       </div>
       
       {/* Componenti UI bottom */}
@@ -102,14 +111,6 @@ const ChatInterface: React.FC = () => {
             onAction={handleUIAction}
           />
         </div>
-      )}
-      
-      {/* Componenti NLP */}
-      {config.enableNLP && isNLPInitialized && nlpComponents.length > 0 && (
-        <NLPInsightsPanel 
-          components={nlpComponents}
-          onAction={handleUIAction}
-        />
       )}
       
       {/* Suggerimenti */}

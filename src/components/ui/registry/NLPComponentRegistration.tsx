@@ -69,7 +69,7 @@ export function registerNLPComponents(): void {
 export function extendComponentRegistration(): void {
   // Prima registra i componenti standard
   import('./ComponentRegistration').then(({ registerComponents }) => {
-    registerComponents();
+    //registerComponents();
     
     // Poi registra i componenti NLP
     registerNLPComponents();

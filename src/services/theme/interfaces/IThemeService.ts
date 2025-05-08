@@ -4,6 +4,8 @@ import { ThemeColors } from "./IThemeColors";
  * Interfaccia per il servizio di gestione del tema
  */
 export interface IThemeService {
+  initialize(): Promise<void>;
+
   /**
    * Ottiene il tema corrente
    */

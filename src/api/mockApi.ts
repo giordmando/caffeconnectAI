@@ -14,9 +14,6 @@ import productsData from './mockData/products.json';
 export const mockApiGetMenuItems = async (): Promise<MenuItem[]> => {
   console.log('[Mock API] Recupero elementi menu');
   
-  // Simuliamo un ritardo di rete
-  await new Promise(resolve => setTimeout(resolve, 300));
-  
   // Filtriamo gli elementi in base all'orario del giorno
   const currentHour = new Date().getHours();
   let timeOfDay: string;
@@ -28,11 +25,6 @@ export const mockApiGetMenuItems = async (): Promise<MenuItem[]> => {
   } else {
     timeOfDay = 'evening';
   }
-  
-  // Simula un errore casuale in 10% dei casi per testare la gestione degli errori
-  //if (Math.random() < 0.1) {
-  //  throw new Error('Errore di rete simulato durante il recupero degli elementi menu');
-  //}
   
   // Converti i dati JSON in MenuItem[]
   return (menuItemsData.menuItems as MenuItem[])
@@ -46,13 +38,6 @@ export const mockApiGetMenuItems = async (): Promise<MenuItem[]> => {
 export const mockApiGetAllMenuItems = async (): Promise<MenuItem[]> => {
   console.log('[Mock API] Recupero tutti gli elementi menu');
   
-  await new Promise(resolve => setTimeout(resolve, 300));
-  
-  // Simula un errore casuale in 10% dei casi per testare la gestione degli errori
-  if (Math.random() < 0.1) {
-    throw new Error('Errore di rete simulato durante il recupero di tutti gli elementi menu');
-  }
-  
   return menuItemsData.menuItems as MenuItem[];
 };
 
@@ -63,8 +48,6 @@ export const mockApiGetAllMenuItems = async (): Promise<MenuItem[]> => {
  */
 export const mockApiGetMenuItemById = async (id: string): Promise<MenuItem | null> => {
   console.log(`[Mock API] Recupero elemento menu con ID: ${id}`);
-  
-  await new Promise(resolve => setTimeout(resolve, 200));
   
   const allItems = menuItemsData.menuItems as MenuItem[];
   const item = allItems.find(item => item.id === id);
@@ -79,8 +62,6 @@ export const mockApiGetMenuItemById = async (id: string): Promise<MenuItem | nul
  */
 export const mockApiGetProducts = async (category?: string): Promise<Product[]> => {
   console.log(`[Mock API] Recupero prodotti${category ? ' per categoria: ' + category : ''}`);
-  
-  await new Promise(resolve => setTimeout(resolve, 400));
   
   const allProducts = productsData as Product[];
   
@@ -100,8 +81,6 @@ export const mockApiGetProducts = async (category?: string): Promise<Product[]> 
 export const mockApiGetProductById = async (id: string): Promise<Product | null> => {
   console.log(`[Mock API] Recupero prodotto con ID: ${id}`);
   
-  await new Promise(resolve => setTimeout(resolve, 200));
-  
   const allProducts = productsData as Product[];
   const product = allProducts.find(product => product.id === id);
   
@@ -120,14 +99,6 @@ export const mockApiSubmitOrder = async (
 ): Promise<{orderId: string, success: boolean, message: string}> => {
   console.log(`[Mock API] Invio ordine per utente: ${userId}`, items);
   
-  // Simuliamo un ritardo più lungo per l'elaborazione dell'ordine
-  await new Promise(resolve => setTimeout(resolve, 800));
-  
-  // Simula un errore casuale in 15% dei casi
-  if (Math.random() < 0.15) {
-    throw new Error('Errore durante l\'elaborazione dell\'ordine');
-  }
-  
   // Genera un ID ordine casuale
   const orderId = 'ORD-' + Math.floor(Math.random() * 1000000).toString().padStart(6, '0');
   
@@ -145,8 +116,6 @@ export const mockApiSubmitOrder = async (
  */
 export const mockApiGetOrderHistory = async (userId: string): Promise<any[]> => {
   console.log(`[Mock API] Recupero storico ordini per utente: ${userId}`);
-  
-  await new Promise(resolve => setTimeout(resolve, 600));
   
   // Genera un numero casuale di ordini storici
   const numOrders = Math.floor(Math.random() * 5) + 3;
