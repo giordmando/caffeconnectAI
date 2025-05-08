@@ -22,6 +22,14 @@ export class ConfigManager implements IConfigManager{
     return ConfigManager.instance;
   }
   
+  public async initialize(configUrl?: string): Promise<void> {
+    if (configUrl) {
+      await this.loadConfig(configUrl);
+    } else {
+      this.loadLocalConfig({});
+    }
+  }
+  
   /**
    * Carica la configurazione da un endpoint remoto
    * @param configUrl URL dell'endpoint di configurazione

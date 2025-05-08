@@ -14,8 +14,6 @@ import { IAnalyticsService } from '../services/analytics/interfaces/IAnalyticsSe
 import { AIService } from '../services/ai/AIService';
 import { AIConversationManager } from '../services/ai/AIConversationManager';
 import { userContextService } from '../services/user/UserContextService';
-import { SuggestionService } from '../services/action/SuggestionService';
-import { ActionService } from '../services/action/ActionService';
 import { FunctionRegistry } from '../services/function/FunctionRegistry';
 import { catalogService } from '../services/catalog/CatalogService';
 import { SimpleConsentService } from '../services/analytics/SimpleConsentService';
@@ -24,12 +22,13 @@ import { NLPIntegrationService, nlpIntegrationService } from '../services/analyt
 import { configManager } from '../config/ConfigManager';
 import { themeService } from '../services/theme/ThemeService';
 import { AIProviderConfig } from '../types/AIProvider';
-import { SuggestionProviderFactory } from '../services/action/SuggestionProviderFactory';
-import { ActionProviderFactory } from '../services/action/ActionProviderFactory.ts';
 import { AIProviderFactory } from '../services/ai/AIProviderFactory';
 import { UIComponentGenerator } from '../services/ui/UIComponentGenerator';
 import { AIResponseProcessor } from '../services/ai/AIResponseProcessor';
 import { FunctionExecutionStrategyFactory } from '../services/function/FunctionExecutionStrategyFactory';
+import { registerAllProviders } from '../services/ai/providers/registerAllProviders';
+import { SuggestionServiceFactory } from '../services/action/SuggestionServiceFactory';
+import { ActionServiceFactory } from '../services/action/ActionServiceFactory';
 
 // Definizione dell'interfaccia per tutti i servizi - Con interfacce invece di implementazioni concrete
 export interface AppServices {
@@ -148,9 +147,9 @@ export const ServiceProvider: React.FC<{
       
       // 2. Inizializza i servizi di base in parallelo
       await Promise.all([
-        (services.themeService as any).initialize(),
+        services.themeService.initialize(),
         services.functionRegistry.initialize(),
-        (services.consentService as any).initialize()
+        //services.consentService.initialize()
       ]);
       
       // 3. Inizializza i servizi analitici
@@ -197,7 +196,8 @@ export const ServiceProvider: React.FC<{
           }
         };
       }
-      
+      // 1. Registra i provider PRIMA
+      registerAllProviders(); // ✅ importante che sia qui
       // Crea il provider AI utilizzando la factory
       const aiProvider = AIProviderFactory.createProvider(
         savedConfig.provider, 
@@ -215,28 +215,34 @@ export const ServiceProvider: React.FC<{
         services.functionRegistry, 
         executionStrategy
       );
-      
-      // Crea i componenti UI
-      const uiComponentGenerator = new UIComponentGenerator();
-      
       // Crea provider specifici per il business type
       const businessType = services.configManager.getSection('business').type;
-      const suggestionProvider = SuggestionProviderFactory.createProvider(
+      // Crea i componenti UI
+      const uiComponentGenerator = new UIComponentGenerator();
+
+      // Crea i servizi dipendenti
+
+      const suggestionService = SuggestionServiceFactory.createService(
         businessType,
         services.catalogService,
         services.functionRegistry,
-        aiProvider
-      );
-      
-      const actionProvider = ActionProviderFactory.createProvider(
+        aiProvider)
+
+      const actionService = ActionServiceFactory.createService(
         businessType,
         services.catalogService,
         aiProvider
       );
-      
-      // Crea i servizi dipendenti
-      const suggestionService = new SuggestionService(suggestionProvider);
-      const actionService = new ActionService(actionProvider);
+    
+      // IMPORTANTE: Aggiorna immediatamente i servizi prima di creare AIService
+      setServices(prevServices => ({
+        ...prevServices,
+        suggestionService,
+        actionService
+      }));
+
+      // Attendi che lo stato sia aggiornato
+      await new Promise(resolve => setTimeout(resolve, 0));
       
       // Crea il servizio AI base
       const baseAIService = new AIService(
@@ -316,7 +322,7 @@ export const ServiceProvider: React.FC<{
   
   return (
     <ServiceContext.Provider value={contextValue}>
-      {children}
+      {isInitialized ? children : <div>Loading services...</div>}
     </ServiceContext.Provider>
   );
 };

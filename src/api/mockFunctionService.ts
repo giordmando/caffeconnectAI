@@ -12,9 +12,6 @@
 export async function mockFunctionExecution(functionName: string, args: any): Promise<any> {
     console.log(`[MOCK] Esecuzione funzione: ${functionName}`, args);
     
-    // Introduci un ritardo simulato per rendere l'esperienza più realistica
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
     // Simula diverse funzioni
     switch (functionName) {
       case 'get_user_loyalty_points':

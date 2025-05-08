@@ -4,6 +4,9 @@ import { AppConfig } from "./IAppConfig";
  * Interfaccia per il gestore della configurazione dell'applicazione
  */
 export interface IConfigManager {
+
+  initialize(configUrl?: string): Promise<void>;
+
   /**
    * Carica la configurazione da un endpoint remoto
    * @param configUrl URL dell'endpoint di configurazione

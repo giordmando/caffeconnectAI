@@ -15,6 +15,9 @@ export class ThemeService implements IThemeService {
     this.applyThemeFromConfig();
   }
   
+  public async initialize(): Promise<void> {
+    this.applyThemeFromConfig();
+  }
   /**
    * Ottiene l'istanza singleton
    */

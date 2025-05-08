@@ -4,6 +4,7 @@ import { uiComponentRegistry } from '../registry/UIComponentRegistry';
 
 interface NLPInsightsPanelProps {
   components: UIComponent[];
+  placement: string;
   onAction?: (action: string, payload: any) => void;
 }
 
@@ -13,6 +14,7 @@ interface NLPInsightsPanelProps {
  */
 export const NLPInsightsPanel: React.FC<NLPInsightsPanelProps> = ({ 
   components, 
+  placement,
   onAction 
 }) => {
   const [isExpanded, setIsExpanded] = useState<boolean>(true);
@@ -35,8 +37,25 @@ export const NLPInsightsPanel: React.FC<NLPInsightsPanelProps> = ({
     setIsExpanded(!isExpanded);
   };
 
+   // Determine CSS class based on placement
+   let containerClassName = "dynamic-ui-container";
+  
+   switch (placement) {
+     case 'inline':
+       containerClassName += " dynamic-ui-inline";
+       break;
+     case 'bottom':
+       containerClassName += " dynamic-ui-bottom";
+       break;
+     case 'sidebar':
+       containerClassName += " dynamic-ui-sidebar";
+       break;
+     default:
+       containerClassName += " dynamic-ui-default";
+   }
+
   return (
-    <div className="nlp-insights-panel">
+    <div className={`nlp-insights-panel ${containerClassName}`}>
       <div className="panel-header" onClick={toggleExpand}>
         <h3>Analisi NLP</h3>
         <span className={`expand-icon ${isExpanded ? 'expanded' : 'collapsed'}`}>

@@ -286,6 +286,11 @@ export const ChatProvider: React.FC<{
     let nlpAnalysis = null;
     if (config.enableNLP && isNLPInitialized) {
       nlpAnalysis = await analyzeMessage(inputValue);
+      // 👇 Popola i componenti NLP qui
+      if (nlpAnalysis) {
+        const newNLPComponents = nlpIntegrationService.generateNLPBasedComponents(userMessage, nlpAnalysis);
+        setNLPComponents(newNLPComponents);
+      }
     }
     
     // Traccia messaggio utente
