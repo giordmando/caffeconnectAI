@@ -1,7 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
-import { ServiceProvider } from './contexts/ServiceProvider';
 import './styles/App.css';
 import './styles/carousel.css';
 import './styles/nlp.css'; // Importiamo i nuovi stili NLP
@@ -10,6 +9,7 @@ import { registerComponents } from './components/ui/registry/ComponentRegistrati
 // Aggiungi un controllo per verificare la registrazione
 import { isComponentRegistered } from './components/ui/registry/ComponentRegistration';
 import { extendComponentRegistration } from './components/ui/registry/NLPComponentRegistration';
+import { RootServiceProvider } from './contexts/RootServiceProvider';
 
 
 // Assicurati che i componenti siano registrati prima del render
@@ -26,9 +26,9 @@ console.log("MenuCarousel registrato?", isComponentRegistered('menuCarousel'));
 
 root.render(
   <React.StrictMode>
-    <ServiceProvider>
+    <RootServiceProvider>
       <App />
-    </ServiceProvider>
+    </RootServiceProvider>
   </React.StrictMode>
 );
 

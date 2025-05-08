@@ -256,10 +256,11 @@ export const ServiceProvider: React.FC<{
           enableFunctionCalling: true
         }
       );
-      
+
+
       // Decide se usare il manager avanzato in base alla configurazione
       const enableAdvancedFunctionSupport = savedConfig.config.options?.enableAdvancedFunctionSupport || false;
-      
+    
       // Crea il servizio AI appropriato (base o avanzato)
       const aiService: IAIService = enableAdvancedFunctionSupport
         ? new AIConversationManager(

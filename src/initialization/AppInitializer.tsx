@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { useServices } from '../contexts/ServiceProvider';
 import { configManager } from '../config/ConfigManager';
 import LoadingScreen from '../components/LoadingScreen';
+import { useServices } from '../contexts/RootServiceProvider';
 
 interface AppInitializerProps {
   children: React.ReactNode;

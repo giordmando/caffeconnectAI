@@ -21,13 +21,13 @@ export async function setupAnalytics(): Promise<IConversationTracker> {
     const storageService = StorageServiceFactory.createStorageService(storageType);
     const consentService = new SimpleConsentService();
     
-    // Se è disponibile il servizio avanzato, inizializzalo
-    if (storageService instanceof EnhancedStorageService && typeof storageService.initialize === 'function') {
+    // Se è il servizio avanzato, inizializzalo
+    if (storageService instanceof EnhancedStorageService) {
       try {
         await storageService.initialize();
-        console.log('Enhanced storage service initialized successfully');
+        console.log('Storage service initialized successfully');
       } catch (initError) {
-        console.warn('Error initializing enhanced storage service:', initError);
+        console.warn('Error initializing storage service:', initError);
         // Continua comunque, il servizio ha fallback interni
       }
     }
@@ -36,16 +36,14 @@ export async function setupAnalytics(): Promise<IConversationTracker> {
     let nlpService: INLPService | undefined = undefined;
     try {
       await nlpConfiguration.initialize();
-      // Usa type assertion per assicurarsi che il tipo sia corretto
       nlpService = nlpConfiguration.getOrchestrator() as INLPService;
       console.log('NLP service initialized successfully');
     } catch (error) {
       console.error('Error initializing NLP service:', error);
       // Continua senza NLP in caso di errore
-      nlpService = undefined;
     }
     
-    // Crea e restituisce il tracker avanzato con NLP
+    // Crea e restituisce il tracker
     return TrackerFactory.createTracker(
       storageService,
       consentService,
@@ -55,14 +53,14 @@ export async function setupAnalytics(): Promise<IConversationTracker> {
     console.error('Error setting up analytics:', error);
     
     // Fallback a servizi semplici in caso di errore
-    console.log('Falling back to simple services');
-    const simpleStorageService = StorageServiceFactory.createStorageService(StorageType.LOCAL);
+    console.log('Falling back to basic storage service');
+    const storageService = new EnhancedStorageService(); // Usa sempre EnhancedStorageService
     const consentService = new SimpleConsentService();
     
     return TrackerFactory.createTracker(
-      simpleStorageService,
+      storageService,
       consentService,
-      undefined  // Passa explicit undefined invece di null
+      undefined
     );
   }
 }
