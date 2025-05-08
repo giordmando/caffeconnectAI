@@ -3,6 +3,10 @@
  */
 export interface IFunctionService {
 
+  /**
+     * Inizializza il servizio di funzioni
+     */
+  initialize(): Promise<void>;
 
   /**
      * Register a new function

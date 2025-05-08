@@ -1,26 +1,12 @@
 // src/services/theme/ThemeService.ts
 import { configManager } from '../../config/ConfigManager';
-
-export interface ThemeColors {
-  primaryColor: string;
-  primaryLight: string;
-  secondaryColor: string;
-  bgColor: string;
-  textColor: string;
-  lightGray: string;
-  mediumGray: string;
-  darkGray: string;
-  successColor: string;
-  errorColor: string;
-  infoColor: string;
-  userMessageBg: string;
-  aiMessageBg: string;
-}
+import { ThemeColors } from './interfaces/IThemeColors';
+import { IThemeService } from './interfaces/IThemeService';
 
 /**
  * Servizio per gestire il tema dell'applicazione
  */
-export class ThemeService {
+export class ThemeService implements IThemeService {
   private static instance: ThemeService;
   private currentTheme: ThemeColors;
   

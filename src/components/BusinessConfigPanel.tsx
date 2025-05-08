@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { configManager, AppConfig } from '../config/ConfigManager';
 import { themeService } from '../services/theme/ThemeService';
 import { functionRegistry } from '../services/function/FunctionRegistry';
 import { catalogService } from '../services/catalog/CatalogService';
+import { AppConfig } from '../config/interfaces/IAppConfig';
+import { configManager } from '../config/ConfigManager';
 
 interface BusinessConfigPanelProps {
   onClose: () => void;

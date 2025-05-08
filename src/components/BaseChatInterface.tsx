@@ -1,45 +1,81 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { Message } from '../types/Message';
+import { UIComponent } from '../types/UI';
+import { useServices } from '../contexts/ServiceProvider';
+import { DynamicUIRenderer } from './ui/DynamicUIRenderer';
+import { IConversationTracker } from '../services/analytics/interfaces/IConversationTracker';
+import { getConversationTracker } from '../services/analytics/setupAnalytics';
 
-import { DynamicUIFactory } from '../DynamicUIFactory';
-import { Message } from '../../types/Message';
-import { useServices } from '../../contexts/ServiceContext';
-import { UIComponent } from '../../types/UI';
-import { getConversationTracker } from '../../services/analytics/setupAnalytics';
-import { IConversationTracker } from '../../services/analytics/interfaces/IConversationTracker';
-import { nlpIntegrationService } from '../../services/analytics/nlp/NLPIntegrationService';
-import { NLPInsightsPanel } from './nlp/NLPInsightsPanel';
-
-
-
-interface ImprovedChatInterfaceProps {
+export interface BaseChatInterfaceProps {
   welcomeMessage?: string;
   showSidebar?: boolean;
   enableSuggestions?: boolean;
+  enableDynamicComponents?: boolean;
   enableNLP?: boolean;
+  maxRecommendations?: number;
 }
 
-// Componente principale per l'interfaccia di chat
-function ImprovedChatInterface({ 
-  welcomeMessage, 
-  showSidebar = false,
+/**
+ * Componente base per le interfacce di chat
+ * Contiene la logica comune per gestire messaggi, input, UI dinamici e suggerimenti
+ */
+const BaseChatInterface: React.FC<BaseChatInterfaceProps> = ({
+  welcomeMessage,
+  showSidebar = true,
   enableSuggestions = true,
-  enableNLP = false
-}: ImprovedChatInterfaceProps) {
-  // Stati per gestire la conversazione e l'UI
+  enableDynamicComponents = true,
+  enableNLP = false,
+  maxRecommendations = 3
+}) => {
+  // Stati base comuni a tutte le implementazioni di chat
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState<string>('');
   const [isTyping, setIsTyping] = useState<boolean>(false);
   const [uiComponents, setUIComponents] = useState<UIComponent[]>([]);
   const [suggestedPrompts, setSuggestedPrompts] = useState<string[]>([]);
-  const [isNLPInitialized, setIsNLPInitialized] = useState<boolean>(false);
-  const [nlpComponents, setNLPComponents] = useState<UIComponent[]>([]);
-  // Riferimenti per la gestione dello scroll
+  const [conversationId, setConversationId] = useState<string | null>(null);
+
+  // Riferimenti
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
-  
+  const conversationTracker = useRef<IConversationTracker | null>(null);
+
   // Ottieni servizi dal contesto
   const { aiService, userService, suggestionService } = useServices();
   const userContext = userService.getUserContext();
-  
+
+  // Inizializza tracker conversazione
+  useEffect(() => {
+    const initializeTracker = async () => {
+      try {
+        const tracker = await getConversationTracker();
+        conversationTracker.current = tracker;
+        
+        if (tracker) {
+          const newConversationId = await tracker.startConversation();
+          setConversationId(newConversationId);
+          console.log(`Nuova conversazione inizializzata: ${newConversationId}`);
+        }
+      } catch (error) {
+        console.error('Errore nell\'inizializzazione del conversation tracker:', error);
+      }
+    };
+    
+    initializeTracker();
+    
+    // Cleanup alla chiusura
+    return () => {
+      if (conversationId && conversationTracker.current) {
+        conversationTracker.current.endConversation(conversationId)
+          .catch(error => console.error('Errore nella chiusura conversazione:', error));
+      }
+    };
+  }, []);
+
+  // Auto-scroll quando arrivano nuovi messaggi
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, uiComponents]);
+
   // Carica messaggio di benvenuto iniziale
   useEffect(() => {
     const loadWelcomeMessage = async () => {
@@ -47,6 +83,7 @@ function ImprovedChatInterface({
       
       try {
         if (welcomeMessage) {
+          // Crea messaggio assistente con il testo personalizzato
           const welcomeMsg: Message = {
             role: 'assistant',
             content: welcomeMessage,
@@ -55,11 +92,13 @@ function ImprovedChatInterface({
           
           setMessages([welcomeMsg]);
           
+          // Ottieni suggerimenti iniziali se abilitati
           if (enableSuggestions) {
             const initialSuggestions = await suggestionService.getSuggestedPrompts(welcomeMsg, userContext);
             setSuggestedPrompts(initialSuggestions);
           }
         } else {
+          // Chiedi all'IA un messaggio di benvenuto
           const response = await aiService.sendMessage(
             "Ciao! Sono nuovo qui.", 
             userContext
@@ -67,7 +106,7 @@ function ImprovedChatInterface({
           
           setMessages([response.message]);
           
-          if (response.uiComponents) {
+          if (response.uiComponents && enableDynamicComponents) {
             setUIComponents(response.uiComponents);
           }
           
@@ -76,10 +115,12 @@ function ImprovedChatInterface({
           }
         }
         
+        // Aggiorna contesto utente
         userService.addInteraction(welcomeMessage || "Initial welcome message");
       } catch (error) {
-        console.error('Error loading welcome message:', error);
+        console.error('Errore nel caricamento del messaggio di benvenuto:', error);
         
+        // Messaggio di fallback
         setMessages([{
           role: 'assistant',
           content: welcomeMessage || 'Benvenuto! Come posso aiutarti oggi?',
@@ -91,34 +132,27 @@ function ImprovedChatInterface({
     };
     
     loadWelcomeMessage();
-  }, [aiService, userService, userContext, welcomeMessage, enableSuggestions, suggestionService]);
-  
-  // Auto-scroll quando arrivano nuovi messaggi
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, uiComponents]);
-  
-  // Riferimento per il conversation tracker
-  const conversationTracker = useRef<IConversationTracker>(null);
+  }, [aiService, userService, userContext, welcomeMessage, enableDynamicComponents, enableSuggestions, suggestionService]);
 
-  useEffect(() => {
-    const initialize = async () => {
-      // Inizializza conversation tracker
-      conversationTracker.current = await getConversationTracker();
-      
-      try {
-        await nlpIntegrationService.initialize();
-        setIsNLPInitialized(nlpIntegrationService.isServiceInitialized());
-        console.log('NLP Service initialized successfully');
-      } catch (error) {
-        console.error('Error initializing NLP service:', error);
-        setIsNLPInitialized(false);
-      }
-    }
+  // Traccia i messaggi
+  const trackMessage = async (message: any, role: 'user' | 'assistant') => {
+    if (!conversationId || !conversationTracker.current) return;
     
-    initialize();
-  }, []);
-  
+    try {
+      await conversationTracker.current.trackEvent({
+        type: 'message',
+        conversationId,
+        data: {
+          role,
+          content: message
+        },
+        timestamp: Date.now()
+      });
+    } catch (error) {
+      console.error('Errore nel tracciamento messaggio:', error);
+    }
+  };
+
   // Gestione invio messaggio
   const handleSendMessage = async () => {
     if (inputValue.trim() === '' || isTyping) return;
@@ -134,28 +168,47 @@ function ImprovedChatInterface({
     setInputValue('');
     setIsTyping(true);
     
+    // Traccia messaggio utente
+    await trackMessage(inputValue, 'user');
+    
     // Aggiorna interazioni utente
     userService.addInteraction(inputValue);
     
     try {
+      // Preparazione del contesto esteso
+      let extendedContext: typeof userContext & { aiContext?: any } = { ...userContext };
+      
+      // Recupera contesto aggiuntivo se disponibile
+      try {
+        if (conversationTracker.current) {
+          const aiContext = await conversationTracker.current.getUserContext();
+          extendedContext = { ...extendedContext, aiContext };
+        }
+      } catch (error) {
+        console.error('Errore nel recupero del contesto:', error);
+      }
+      
       // Invia messaggio all'AI
       const response = await aiService.sendMessage(
         inputValue, 
-        userContext
+        extendedContext
       );
       
       // Aggiorna messaggi con la risposta dell'AI
       setMessages(prev => [...prev, response.message]);
       
-      // Aggiorna componenti UI
-      if (response.uiComponents) {
+      // Traccia risposta AI
+      await trackMessage(response.message.content, 'assistant');
+      
+      // Aggiorna componenti UI se presenti e abilitati
+      if (response.uiComponents && enableDynamicComponents) {
         setUIComponents(prev => [
-          ...(response.uiComponents || []),
-          ...prev.slice(0, 5 - Math.min(5, response.uiComponents?.length || 0))
+          ...(response.uiComponents ?? []).slice(0, maxRecommendations),
+          ...prev.slice(0, 5 - Math.min(maxRecommendations, response.uiComponents?.length || 0))
         ]);
       }
       
-      // Aggiorna suggerimenti
+      // Aggiorna suggerimenti se abilitati
       if (response.suggestedPrompts && enableSuggestions) {
         setSuggestedPrompts(response.suggestedPrompts);
       } else {
@@ -164,6 +217,7 @@ function ImprovedChatInterface({
     } catch (error) {
       console.error('Errore nella comunicazione con l\'AI:', error);
       
+      // Messaggio di errore
       setMessages(prev => [...prev, {
         role: 'assistant',
         content: 'Mi dispiace, ho avuto un problema nel processare la tua richiesta. Puoi riprovare?',
@@ -173,65 +227,53 @@ function ImprovedChatInterface({
     
     setIsTyping(false);
   };
-  
+
   // Gestione input utente
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setInputValue(e.target.value);
   };
-  
+
+  // Gestione tasto invio
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       handleSendMessage();
     }
   };
-  
-  // Gestione suggerimenti
+
+  // Gestione click suggerimento
   const handleSuggestionClick = (suggestion: string) => {
     setInputValue(suggestion);
     handleSendMessage();
   };
-  
-  // Gestione azioni UI
+
+  // Gestione azione UI
   const handleUIAction = (action: string, payload: any) => {
     console.log(`UI Action: ${action}`, payload);
     
+    // Logica di base per azioni comuni
     if (action === 'view_item') {
       alert(`Visualizzazione dettagli per: ${payload.id}`);
-    } else if (action === 'order_item') {
+    } else if (action === 'order_item' || action === 'buy_item') {
       alert(`Aggiunto al carrello: ${payload.id}`);
       
+      // Aggiorna preferenze utente
       userService.updatePreference({
         itemId: payload.id,
         itemType: payload.type,
-        rating: 4,
+        rating: 4, // Valore iniziale
         timestamp: Date.now()
       });
     }
-  };
-  
-  // Rendering dei componenti UI
-  const renderUIComponents = (components: UIComponent[], placement: string) => {
-    const filteredComponents = components.filter(comp => comp.placement === placement);
     
-    if (filteredComponents.length === 0) {
-      return null;
-    }
-    
-    return (
-      <div className={`dynamic-ui-${placement}`}>
-        {filteredComponents.map((components) => (
-          <div key={components.id} className="dynamic-ui-item">
-            <DynamicUIFactory component={components} onAction={handleUIAction} />
-          </div>
-        ))}
-      </div>
-    );
+    // Le implementazioni specifiche possono estendere questa logica
   };
-  
+
+  // Il rendering base è vuoto e deve essere sovrascritto dalle classi figlie
+  // Questo serve solo come template per la struttura comune
   return (
     <div className="chat-container">
       <div className="chat-header">
-        <h2>CaféConnect AI</h2>
+        <h2>Chat AI</h2>
         <div className="provider-badge">
           Powered by {aiService.getProviderName()}
         </div>
@@ -263,21 +305,39 @@ function ImprovedChatInterface({
           )}
           
           {/* Componenti UI inline */}
-          {renderUIComponents(uiComponents, 'inline')}
+          {enableDynamicComponents && (
+            <DynamicUIRenderer 
+              components={uiComponents} 
+              placement="inline"
+              onAction={handleUIAction}
+            />
+          )}
           
           <div ref={messagesEndRef} />
         </div>
         
         {/* Sidebar per componenti UI */}
-        {showSidebar && (
+        {showSidebar && enableDynamicComponents && (
           <div className="chat-sidebar">
-            {renderUIComponents(uiComponents, 'sidebar')}
+            <DynamicUIRenderer 
+              components={uiComponents} 
+              placement="sidebar"
+              onAction={handleUIAction}
+            />
           </div>
         )}
       </div>
       
       {/* Componenti UI bottom */}
-      {renderUIComponents(uiComponents, 'bottom')}
+      {enableDynamicComponents && (
+        <div className="bottom-components-scroll-area">
+          <DynamicUIRenderer 
+            components={uiComponents} 
+            placement="bottom"
+            onAction={handleUIAction}
+          />
+        </div>
+      )}
       
       {/* Suggerimenti */}
       {enableSuggestions && suggestedPrompts.length > 0 && (
@@ -293,13 +353,7 @@ function ImprovedChatInterface({
           ))}
         </div>
       )}
-      {/* Pannello NLP e Insights */}
-      {enableNLP && isNLPInitialized && nlpComponents.length > 0 && (
-        <NLPInsightsPanel 
-          components={nlpComponents}
-          onAction={handleUIAction}
-        />
-      )}
+      
       {/* Area input */}
       <div className="chat-input-container">
         <input
@@ -320,10 +374,15 @@ function ImprovedChatInterface({
         </button>
       </div>
     </div>
-
-    
-
   );
-}
+};
 
-export default ImprovedChatInterface;
+// Esporta sia il componente base che i suoi hook e funzioni di utilità
+export { 
+  BaseChatInterface, 
+  // Per condividere gli stati e la logica comune tra diversi componenti figli
+  // possiamo usare hook personalizzati
+  // Qui si potrebbero aggiungere in futuro
+};
+
+export default BaseChatInterface;
