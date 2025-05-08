@@ -2,6 +2,9 @@ import React from 'react';
 
 interface LoadingScreenProps {
   businessName: string;
+  progress: number;
+  onRetry: () => Promise<void>;
+  error?: string | null; // Added the error property
 }
 
 /**

@@ -1,81 +1,40 @@
-import React, { useState, useEffect } from 'react';
-import ChatInterface from './components/ChatInterface';
+import React, { useState } from 'react';
+import { useServices, useService } from './contexts/ServiceProvider';
 import AIConfigPanel from './components/AIConfigPanel';
-import BusinessConfigPanel  from './components/BusinessConfigPanel';
-import { useServices } from './contexts/ServiceContext';
-import { appInitializer } from './initialization/AppInitializer';
-import { configManager, interpolateConfig } from './config/ConfigManager';
-import LoadingScreen from './components/LoadingScreen';
+import BusinessConfigPanel from './components/BusinessConfigPanel';
+import CompleteChatInterface from './components/ContextChatUI';
+import { interpolateConfig } from './config/ConfigManager';
 import './styles/App.css';
-import ImprovedChatInterface from './components/ui/ImprovedChatInterface';
-
 
 /**
  * Componente principale dell'applicazione
+ * Utilizza il nuovo sistema di servizi centralizzato
  */
 function App() {
   // Stati dell'applicazione
   const [isConfigPanelOpen, setIsConfigPanelOpen] = useState(false);
   const [isBusinessPanelOpen, setIsBusinessPanelOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [appConfig, setAppConfig] = useState(configManager.getConfig());
   
-  // Ottieni servizi dal contesto
-  const { currentProvider, functionService } = useServices();
+  // Ottieni servizi dal nuovo context
+  const { currentProvider, reloadServices } = useServices();
+  const configManager = useService('configManager');
+  const functionRegistry = useService('functionRegistry');
+  
+  // Ottieni configurazione
+  const appConfig = configManager.getConfig();
   
   // Funzioni disponibili
-  const availableFunctions = functionService.getAllFunctions().map(fn => fn.name);
-  
-  // Inizializzazione app
-  useEffect(() => {
-    const initApp = async () => {
-      try {
-        // Carica configurazione da un URL remoto o localStorage se disponibile
-        // In questo esempio usiamo un URL fittizio, ma in produzione dovresti usare un URL reale
-        // o passare un valore da variabile d'ambiente
-        const configUrl = process.env.REACT_APP_CONFIG_URL;
-        
-        await appInitializer.initialize(configUrl);
-        
-        // Aggiorna lo stato con la configurazione caricata
-        setAppConfig(configManager.getConfig());
-        
-        // Simuliamo un breve ritardo per mostrare la schermata di caricamento
-        setTimeout(() => {
-          setIsLoading(false);
-        }, 1500);
-      } catch (error) {
-        console.error('Error initializing app:', error);
-        // Anche in caso di errore, mostriamo l'app con le impostazioni predefinite
-        setIsLoading(false);
-      }
-    };
-    
-    initApp();
-  }, []);
+  const availableFunctions = functionRegistry.getAllFunctions().map(fn => fn.name);
   
   // Gestione della reinizializzazione dopo cambio configurazione business
   const handleBusinessConfigSave = async () => {
-    setIsLoading(true);
-    
     try {
-      await appInitializer.reinitialize();
-      setAppConfig(configManager.getConfig());
-      
-      // Breve ritardo per mostrare la schermata di caricamento
-      setTimeout(() => {
-        setIsLoading(false);
-      }, 1000);
+      // Il nuovo AppInitializer mostrerà automaticamente lo stato di caricamento
+      await reloadServices();
     } catch (error) {
       console.error('Error reinitializing app:', error);
-      setIsLoading(false);
     }
   };
-  
-  // Mostra schermata di caricamento
-  if (isLoading) {
-    return <LoadingScreen businessName={appConfig.business.name} />;
-  }
   
   // Sostituisci i segnaposto nel messaggio di benvenuto
   const welcomeMessage = interpolateConfig(appConfig.ui.welcomeMessage, appConfig);
@@ -111,23 +70,17 @@ function App() {
       </header>
       
       <main className="app-main">
-        {/* Utilizziamo il nuovo EnhancedChatInterface al posto del ChatInterface standard */}
-        {appConfig.ui.enableNLP ? (
-          <ImprovedChatInterface 
-            welcomeMessage={welcomeMessage}
-            showSidebar={appConfig.ui.showSidebar}
-            enableSuggestions={appConfig.ui.enableSuggestions}
-            enableNLP={appConfig.ui.enableNLP}
-          />
-        ) : (
-          <ChatInterface 
-            welcomeMessage={welcomeMessage}
-            showSidebar={appConfig.ui.showSidebar}
-            enableSuggestions={appConfig.ui.enableSuggestions}
-            enableDynamicComponents={appConfig.ui.enableDynamicComponents}
-            maxRecommendations={appConfig.ui.maxRecommendations}
-          />
-        )}
+        {/* Usa il nuovo componente unificato che supporta tutte le funzionalità */}
+        <CompleteChatInterface 
+          initialConfig={{
+            welcomeMessage: welcomeMessage,
+            showSidebar: appConfig.ui.showSidebar,
+            enableSuggestions: appConfig.ui.enableSuggestions,
+            enableDynamicComponents: appConfig.ui.enableDynamicComponents,
+            enableNLP: appConfig.ui.enableNLP,
+            maxRecommendations: appConfig.ui.maxRecommendations
+          }}
+        />
       </main>
       
       <footer className="app-footer">

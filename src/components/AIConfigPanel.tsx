@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { AIProviderConfig } from '../types/AIProvider';
 import { useLocalStorage } from '../hooks/useLocalStorage';
-import { useServices } from '../contexts/ServiceContext';
+import { useServices } from '../contexts/ServiceProvider';
 
 interface AIConfigPanelProps {
   onClose: () => void;

@@ -1,7 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
-import { ServiceProvider } from './contexts/ServiceContext';
+import { ServiceProvider } from './contexts/ServiceProvider';
 import './styles/App.css';
 import './styles/carousel.css';
 import './styles/nlp.css'; // Importiamo i nuovi stili NLP
