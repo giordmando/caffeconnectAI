@@ -1,216 +1,181 @@
 // src/services/ai/AIConversationManager.ts
 
 import { IAIService } from './interfaces/IAIService';
-import { IUIComponentGenerator } from './interfaces/IUIComponentGenerator';
-import { AIProviderConfig } from '../../types/AIProvider';
 import { Message } from '../../types/Message';
 import { UserContext } from '../../types/UserContext';
 import { AIResponse } from '../../types/AIResponse';
-import { UIComponentGenerator } from '../ui/UIComponentGenerator';
-// Aggiunta all'inizio del file AIConversationManager.ts
+import { AIProviderConfig } from '../../types/AIProvider';
 import { FunctionCallProcessor } from './FunctionCallProcessor';
 import { IFunctionService } from '../function/interfaces/IFunctionService';
 import { ISuggestionService } from '../action/interfaces/ISuggestionService';
 import { IActionService } from '../action/interfaces/IActionService';
 
-
-
 /**
- * Advanced AI service with enhanced function calling support
- * Implements IAIService interface for seamless integration
+ * Decorator per AIService che aggiunge funzionalità avanzate per gestire
+ * conversazioni con più chiamate di funzioni
+ * Implementa IAIService per essere intercambiabile con AIService
  */
 export class AIConversationManager implements IAIService {
-    private baseService: IAIService;
-    private uiComponentGenerator: IUIComponentGenerator;
-    private maxFunctionCalls: number = 5;
-    // Aggiunta alle proprietà della classe
     private functionCallProcessor: FunctionCallProcessor;
-    private readonly suggestionService: ISuggestionService;
-    private readonly actionService: IActionService;
+    private maxFunctionCalls: number = 5;
 
-
-    // Aggiunta al costruttore
-    constructor(baseService: IAIService, functionService: IFunctionService, suggestionService: ISuggestionService,
-      actionService: IActionService) {
-        this.baseService = baseService;
-        this.uiComponentGenerator = new UIComponentGenerator();
+    constructor(
+        private baseService: IAIService, 
+        private functionService: IFunctionService,
+        private suggestionService: ISuggestionService,
+        private actionService: IActionService
+    ) {
         this.functionCallProcessor = new FunctionCallProcessor(functionService);
-        this.suggestionService = suggestionService;
-        this.actionService = actionService;
     }
 
-    async getCompletion(messages: Message[], userContext:UserContext): Promise<any> {
-        return this.baseService.getCompletion(messages, userContext);
-      }
-      
-      addMessageToConversation(message: Message): void {
+    // Delegazione diretta al servizio base per questi metodi
+    getProviderName(): string {
+        return this.baseService.getProviderName();
+    }
+
+    changeProvider(provider: string, config: AIProviderConfig): void {
+        this.baseService.changeProvider(provider, config);
+    }
+
+    getConversationHistory(): Message[] {
+        return this.baseService.getConversationHistory();
+    }
+
+    resetConversation(): void {
+        this.baseService.resetConversation();
+    }
+
+    addMessageToConversation(message: Message): void {
         this.baseService.addMessageToConversation(message);
-      }
-      
-      setConversation(messages: Message[]): void {
+    }
+
+    setConversation(messages: Message[]): void {
         this.baseService.setConversation(messages);
-      }
-  
-  /**
-   * Get the current provider name (delegates to base service)
-   */
-  getProviderName(): string {
-    return this.baseService.getProviderName();
-  }
-  
-  /**
-   * Change the AI provider (delegates to base service)
-   */
-  changeProvider(provider: string, config: AIProviderConfig): void {
-    this.baseService.changeProvider(provider, config);
-  }
-  
-  /**
-   * Get the conversation history (delegates to base service)
-   */
-  getConversationHistory(): Message[] {
-    return this.baseService.getConversationHistory();
-  }
-  
-  /**
-   * Reset the conversation (delegates to base service)
-   */
-  resetConversation(): void {
-    this.baseService.resetConversation();
-  }
-  
-  
-  /**
-   * Simple message sending (delegates to advanced implementation)
-   */
-  async sendMessage(message: string, userContext: UserContext): Promise<AIResponse> {
-    // Use the advanced implementation by default
-    return this.sendMessageWithFunctionSupport(message, userContext);
-  }
-  
-  async sendMessageWithFunctionSupport(message: string, userContext: UserContext): Promise<AIResponse> {
-    // Create user message
-    const userMessage: Message = {
-      role: 'user',
-      content: message,
-      timestamp: Date.now()
-    };
-    
-    // Get current conversation (for local use only)
-    const conversation = [...this.baseService.getConversationHistory()];
-    
-    // Add user message to local conversation
-    conversation.push(userMessage);
-    
-    // Add user message to the actual conversation
-    this.baseService.addMessageToConversation(userMessage);
-    
-    // Track function calls
-    let functionCalls = 0;
-    const maxFunctionCalls = this.maxFunctionCalls;
-    let isResponseComplete = false;
-    let aiMessage: Message | null = null;
-    
-    try {
-      // Start the function calling cycle
-      while (!isResponseComplete && functionCalls < maxFunctionCalls) {
-        // Request completion from the AI provider
-        const completion = await this.getCompletion(conversation, userContext);
-        
-        // Check if the completion contains a function call
-        if (completion.function_call) {
-          functionCalls++;
-          console.log(`Function call ${functionCalls}/${maxFunctionCalls}: ${completion.function_call.name}`);
-          
-          // Process the function call
-          const functionResultMessage = await this.functionCallProcessor.processFunctionCall(
-            completion.function_call,
-            conversation
-          );
-          
-          // Add function call and result to the actual conversation
-          this.baseService.addMessageToConversation({
-            role: 'assistant',
-            content: '',
-            functionCall: completion.function_call,
+    }
+
+    // Metodo delegato al servizio base
+    async getCompletion(messages: Message[], userContext: UserContext): Promise<any> {
+        return this.baseService.getCompletion(messages, userContext);
+    }
+
+    /**
+     * Invia un messaggio con supporto avanzato per chiamate di funzioni multiple
+     * Sovrascrive l'implementazione di base in AIService
+     */
+    async sendMessage(message: string, userContext: UserContext): Promise<AIResponse> {
+        return this.sendMessageWithFunctionSupport(message, userContext);
+    }
+
+    /**
+     * Implementazione con supporto per cicli di chiamate di funzioni
+     * Questa è la funzionalità principale che distingue questa classe
+     */
+    async sendMessageWithFunctionSupport(message: string, userContext: UserContext): Promise<AIResponse> {
+        // Creare messaggio utente
+        const userMessage: Message = {
+            role: 'user',
+            content: message,
             timestamp: Date.now()
-          });
-          
-          this.baseService.addMessageToConversation(functionResultMessage);
-          
-          // Continue the loop - we need another round of AI response
-        } else {
-          // No function call, we have a final response
-          aiMessage = {
-            role: 'assistant',
-            content: completion.content || '',
-            timestamp: Date.now()
-          };
-          
-          // Add the final AI message to the conversation
-          conversation.push(aiMessage);
-          this.baseService.addMessageToConversation(aiMessage);
-          
-          isResponseComplete = true;
-        }
-      }
-      
-      // If we've reached the maximum number of function calls without a final response
-      if (!isResponseComplete) {
-        console.warn(`Reached maximum function calls (${maxFunctionCalls}) without final response`);
-        
-        // Generate a fallback response
-        aiMessage = {
-          role: 'assistant',
-          content: 'Sto avendo difficoltà a elaborare la tua richiesta. Potresti fornire maggiori dettagli?',
-          timestamp: Date.now()
         };
         
-        // Add to conversation
-        conversation.push(aiMessage);
-        this.baseService.addMessageToConversation(aiMessage);
-      }
-      
-      // Generate UI components and other response elements
-      const uiComponents = this.uiComponentGenerator.generateUIComponents(
-        aiMessage!,
-        userContext,
-        conversation
-      );
-      
-      // Usa i nuovi servizi
-      const suggestedPrompts = await this.suggestionService.getSuggestedPrompts(aiMessage!, userContext);
-      const availableActions = await this.actionService.generateAvailableActions(
-        aiMessage!, 
-        userContext
-      );
-      
-      // Return the complete response
-      return {
-        message: aiMessage!,
-        uiComponents,
-        suggestedPrompts,
-        availableActions
-      };
-    } catch (error) {
-      console.error('Error in function support cycle:', error);
-      
-      // Create an error response
-      aiMessage = {
-        role: 'assistant',
-        content: 'Mi dispiace, ho avuto un problema nel processare la tua richiesta. Puoi riprovare?',
-        timestamp: Date.now()
-      };
-      
-      // Add error message to conversation
-      this.baseService.addMessageToConversation(aiMessage);
-      
-      return {
-        message: aiMessage,
-        suggestedPrompts: ['Cosa c\'è nel menu?', 'Mostrami i prodotti', 'Quanti punti ho?']
-      };
+        // Aggiungi messaggio alla conversazione
+        this.baseService.addMessageToConversation(userMessage);
+        
+        // Ottieni la conversazione attuale per uso locale
+        const conversation = this.baseService.getConversationHistory();
+        
+        // Traccia chiamate di funzioni
+        let functionCalls = 0;
+        let isResponseComplete = false;
+        let aiMessage: Message | null = null;
+        
+        try {
+            // Inizia il ciclo di chiamate di funzioni
+            while (!isResponseComplete && functionCalls < this.maxFunctionCalls) {
+                // Richiedi completamento dal provider AI
+                const completion = await this.getCompletion(conversation, userContext);
+                
+                // Verifica se il completamento contiene una chiamata di funzione
+                if (completion.function_call) {
+                    functionCalls++;
+                    
+                    // Processa la chiamata di funzione
+                    const functionResultMessage = await this.functionCallProcessor.processFunctionCall(
+                        completion.function_call,
+                        conversation
+                    );
+                    
+                    // Aggiungi chiamata di funzione e risultato alla conversazione
+                    this.baseService.addMessageToConversation({
+                        role: 'assistant',
+                        content: '',
+                        functionCall: completion.function_call,
+                        timestamp: Date.now()
+                    });
+                    
+                    this.baseService.addMessageToConversation(functionResultMessage);
+                    
+                    // Continua il ciclo - abbiamo bisogno di un'altra risposta dall'AI
+                } else {
+                    // Nessuna chiamata di funzione, abbiamo una risposta finale
+                    aiMessage = {
+                        role: 'assistant',
+                        content: completion.content || '',
+                        timestamp: Date.now()
+                    };
+                    
+                    // Aggiungi il messaggio finale dell'AI alla conversazione
+                    this.baseService.addMessageToConversation(aiMessage);
+                    
+                    isResponseComplete = true;
+                }
+            }
+            
+            // Se abbiamo raggiunto il numero massimo di chiamate di funzioni senza una risposta finale
+            if (!isResponseComplete) {
+                // Genera una risposta di fallback
+                aiMessage = {
+                    role: 'assistant',
+                    content: 'Sto avendo difficoltà a elaborare la tua richiesta. Potresti fornire maggiori dettagli?',
+                    timestamp: Date.now()
+                };
+                
+                // Aggiungi alla conversazione
+                this.baseService.addMessageToConversation(aiMessage);
+            }
+            
+            // Ottieni i componenti UI e gli altri elementi della risposta
+            const [uiComponents, suggestedPrompts, availableActions] = await Promise.all([
+                // Usa i servizi di supporto per generare componenti UI, suggerimenti e azioni
+                [], // Fallback a array vuoto
+                this.suggestionService.getSuggestedPrompts(aiMessage!, userContext),
+                this.actionService.generateAvailableActions(aiMessage!, userContext)
+            ]);
+            
+            // Restituisci la risposta completa
+            return {
+                message: aiMessage!,
+                uiComponents,
+                suggestedPrompts,
+                availableActions
+            };
+        } catch (error) {
+            console.error('Error in function support cycle:', error);
+            
+            // Crea una risposta di errore
+            aiMessage = {
+                role: 'assistant',
+                content: 'Mi dispiace, ho avuto un problema nel processare la tua richiesta. Puoi riprovare?',
+                timestamp: Date.now()
+            };
+            
+            // Aggiungi messaggio di errore alla conversazione
+            this.baseService.addMessageToConversation(aiMessage);
+            
+            return {
+                message: aiMessage,
+                suggestedPrompts: ['Cosa c\'è nel menu?', 'Mostrami i prodotti', 'Quanti punti ho?']
+            };
+        }
     }
-  }
-
- 
 }

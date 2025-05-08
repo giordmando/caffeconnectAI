@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Message } from '../types/Message';
 import { UIComponent } from '../types/UI';
-import { useServices } from '../contexts/ServiceProvider';
 import { DynamicUIRenderer } from './ui/DynamicUIRenderer';
 import { IConversationTracker } from '../services/analytics/interfaces/IConversationTracker';
 import { getConversationTracker } from '../services/analytics/setupAnalytics';
+import { useServices } from '../contexts/RootServiceProvider';
 
 export interface BaseChatInterfaceProps {
   welcomeMessage?: string;
