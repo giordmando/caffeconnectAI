@@ -4,7 +4,7 @@ import { UIComponent } from '../types/UI';
 import { DynamicUIRenderer } from './ui/DynamicUIRenderer';
 import { IConversationTracker } from '../services/analytics/interfaces/IConversationTracker';
 import { getConversationTracker } from '../services/analytics/setupAnalytics';
-import { useServices } from '../contexts/RootServiceProvider';
+import { useServices } from '../contexts/ServiceProvider';
 
 export interface BaseChatInterfaceProps {
   welcomeMessage?: string;

@@ -1,12 +1,11 @@
 import React, { useState } from 'react';
 // Aggiungi questi import
-import { useRootServices, useConfigManager, useThemeService } from './contexts/RootServiceProvider';
+import { useServices, useService } from './contexts/ServiceProvider';
 import AIConfigPanel from './components/AIConfigPanel';
 import BusinessConfigPanel from './components/BusinessConfigPanel';
 import CompleteChatInterface from './components/ContextChatUI';
 import { interpolateConfig } from './config/ConfigManager';
 import './styles/App.css';
-import { useAIService } from './contexts/AIServiceProvider';
 import { functionRegistry } from './services/function/FunctionRegistry';
 
 /**
@@ -17,15 +16,12 @@ function App() {
   // Stati dell'applicazione
   const [isConfigPanelOpen, setIsConfigPanelOpen] = useState(false);
   const [isBusinessPanelOpen, setIsBusinessPanelOpen] = useState(false);
-  
-  // Sostituisci con:
-  const { reloadServices } = useRootServices();
-  const configManager = useConfigManager();
-  
+  // Ottieni servizi dal nuovo context
+  const { currentProvider, reloadServices } = useServices();
+  const configManager = useService('configManager');
+  const functionRegistry = useService('functionRegistry');
   // Ottieni configurazione
   const appConfig = configManager.getConfig();
-
-  const { currentProvider } = useAIService();
   // Funzioni disponibili
   const availableFunctions = functionRegistry.getAllFunctions().map(fn => fn.name);
   

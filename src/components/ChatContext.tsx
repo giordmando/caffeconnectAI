@@ -5,7 +5,7 @@ import { IConversationTracker } from '../services/analytics/interfaces/IConversa
 import { getConversationTracker } from '../services/analytics/setupAnalytics';
 import { nlpIntegrationService } from '../services/analytics/nlp/NLPIntegrationService';
 import { AnalysisType } from '../services/analytics/nlp/interfaces/INLPService';
-import { useServices } from '../contexts/RootServiceProvider';
+import { useServices } from '../contexts/ServiceProvider';
 
 // Definizione delle proprietà di configurazione
 export interface ChatConfig {
