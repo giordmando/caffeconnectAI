@@ -9,7 +9,7 @@ import { registerComponents } from './components/ui/registry/ComponentRegistrati
 // Aggiungi un controllo per verificare la registrazione
 import { isComponentRegistered } from './components/ui/registry/ComponentRegistration';
 import { extendComponentRegistration } from './components/ui/registry/NLPComponentRegistration';
-import { RootServiceProvider } from './contexts/RootServiceProvider';
+import { ServiceProvider } from './contexts/ServiceProvider';
 
 
 // Assicurati che i componenti siano registrati prima del render
@@ -26,9 +26,9 @@ console.log("MenuCarousel registrato?", isComponentRegistered('menuCarousel'));
 
 root.render(
   <React.StrictMode>
-    <RootServiceProvider>
+    <ServiceProvider>
       <App />
-    </RootServiceProvider>
+    </ServiceProvider>
   </React.StrictMode>
 );
 
