@@ -10,9 +10,7 @@ import { IThemeService } from '../services/theme/interfaces/IThemeService';
 import { IActionService } from '../services/action/interfaces/IActionService';
 import { IAnalyticsService } from '../services/analytics/interfaces/IAnalyticsService';
 
-// Importazioni delle implementazioni concrete (solo per inizializzazione)
-import { AIService } from '../services/ai/AIService';
-import { AIConversationManager } from '../services/ai/AIConversationManager';
+// Importazioni delle implementazioni concrete (solo per inizializzazione);
 import { userContextService } from '../services/user/UserContextService';
 import { FunctionRegistry } from '../services/function/FunctionRegistry';
 import { catalogService } from '../services/catalog/CatalogService';
@@ -22,13 +20,7 @@ import { NLPIntegrationService, nlpIntegrationService } from '../services/analyt
 import { configManager } from '../config/ConfigManager';
 import { themeService } from '../services/theme/ThemeService';
 import { AIProviderConfig } from '../types/AIProvider';
-import { AIProviderFactory } from '../services/ai/AIProviderFactory';
-import { UIComponentGenerator } from '../services/ui/UIComponentGenerator';
-import { AIResponseProcessor } from '../services/ai/AIResponseProcessor';
-import { FunctionExecutionStrategyFactory } from '../services/function/FunctionExecutionStrategyFactory';
-import { registerAllProviders } from '../services/ai/providers/registerAllProviders';
-import { SuggestionServiceFactory } from '../services/action/SuggestionServiceFactory';
-import { ActionServiceFactory } from '../services/action/ActionServiceFactory';
+import { AIServiceFactory } from '../services/ai/AIServiceFactory';
 
 // Definizione dell'interfaccia per tutti i servizi - Con interfacce invece di implementazioni concrete
 export interface AppServices {
@@ -163,123 +155,36 @@ export const ServiceProvider: React.FC<{
         // Non bloccare l'inizializzazione se NLP fallisce
       }
       
-      // 4. Inizializza i servizi dipendenti
+     
       // Recupera la configurazione AI
       const aiConfig = services.configManager.getSection('ai');
       
-      // Carica la configurazione dell'AI da localStorage o usa quella di default
-      let savedConfig;
-      try {
-        const configString = localStorage.getItem('cafeconnect-ai-config');
-        savedConfig = configString ? JSON.parse(configString) : {
-          provider: aiConfig.defaultProvider,
-          config: {
-            apiKey: '',
-            model: aiConfig.providers[aiConfig.defaultProvider].defaultModel,
-            options: {
-              enableAdvancedFunctionSupport: aiConfig.enableAdvancedFunctionSupport || false,
-              useMockFunctions: false
-            }
-          }
-        };
-      } catch (error) {
-        console.warn('Error loading AI config from localStorage, using defaults:', error);
-        savedConfig = {
-          provider: aiConfig.defaultProvider,
-          config: {
-            apiKey: '',
-            model: aiConfig.providers[aiConfig.defaultProvider].defaultModel,
-            options: {
-              enableAdvancedFunctionSupport: aiConfig.enableAdvancedFunctionSupport || false,
-              useMockFunctions: false
-            }
-          }
-        };
-      }
-      // 1. Registra i provider PRIMA
-      registerAllProviders(); // ✅ importante che sia qui
-      // Crea il provider AI utilizzando la factory
-      const aiProvider = AIProviderFactory.createProvider(
-        savedConfig.provider, 
-        savedConfig.config
-      );
-      
-      // Crea la strategia di esecuzione delle funzioni
-      const executionStrategy = FunctionExecutionStrategyFactory.createStrategy(
-        aiProvider,
-        services.functionRegistry
-      );
-      
-      // Crea il processor con la strategia
-      const responseProcessor = new AIResponseProcessor(
-        services.functionRegistry, 
-        executionStrategy
-      );
+
+      // 4. Carica configurazione da localStorage o usa default
+      let savedConfig = getSavedConfig(aiConfig);
       // Crea provider specifici per il business type
       const businessType = services.configManager.getSection('business').type;
-      // Crea i componenti UI
-      const uiComponentGenerator = new UIComponentGenerator();
 
-      // Crea i servizi dipendenti
-
-      const suggestionService = SuggestionServiceFactory.createService(
-        businessType,
-        services.catalogService,
-        services.functionRegistry,
-        aiProvider)
-
-      const actionService = ActionServiceFactory.createService(
-        businessType,
-        services.catalogService,
-        aiProvider
-      );
-    
-      // IMPORTANTE: Aggiorna immediatamente i servizi prima di creare AIService
-      setServices(prevServices => ({
-        ...prevServices,
-        suggestionService,
-        actionService
-      }));
-
-      // Attendi che lo stato sia aggiornato
-      await new Promise(resolve => setTimeout(resolve, 0));
+      const { aiService, suggestionService, actionService } = AIServiceFactory.createAIService({
+        provider: savedConfig.provider,
+        providerConfig: savedConfig.config,
+        functionService: services.functionRegistry,
+        catalogService: services.catalogService,
+        businessType: businessType,
+        configManager: services.configManager
+      });
       
-      // Crea il servizio AI base
-      const baseAIService = new AIService(
-        aiProvider,
-        services.functionRegistry,
-        responseProcessor,
-        uiComponentGenerator,
-        suggestionService,
-        actionService,
-        {
-          enableFunctionCalling: true
-        }
-      );
-
-
-      // Decide se usare il manager avanzato in base alla configurazione
-      const enableAdvancedFunctionSupport = savedConfig.config.options?.enableAdvancedFunctionSupport || false;
-    
-      // Crea il servizio AI appropriato (base o avanzato)
-      const aiService: IAIService = enableAdvancedFunctionSupport
-        ? new AIConversationManager(
-            baseAIService, 
-            services.functionRegistry,
-            suggestionService,
-            actionService
-          )
-        : baseAIService;
-      
-      // Aggiorna i servizi con le nuove istanze
-      setServices(prevServices => ({
-        ...prevServices,
-        aiService,
-        suggestionService,
-        actionService
-      }));
-      
-      // 5. Aggiorna lo stato del provider corrente
+      // 6. Aggiorna lo stato con i nuovi servizi
+      setServices(prevServices => {
+        const updatedServices = {
+          ...prevServices,
+          aiService,
+          suggestionService, // Aggiorna suggestionService
+          actionService     // Aggiorna actionService
+        };
+        return updatedServices;
+      });
+  
       setCurrentProvider(savedConfig.provider);
       
       console.log('Tutti i servizi inizializzati con successo');
@@ -290,6 +195,37 @@ export const ServiceProvider: React.FC<{
     }
   };
   
+  // Funzione di supporto per ottenere la configurazione salvata
+function getSavedConfig(aiConfig: any) {
+  try {
+    const configString = localStorage.getItem('cafeconnect-ai-config');
+    return configString ? JSON.parse(configString) : {
+      provider: aiConfig.defaultProvider,
+      config: {
+        apiKey: '',
+        model: aiConfig.providers[aiConfig.defaultProvider].defaultModel,
+        options: {
+          enableAdvancedFunctionSupport: aiConfig.enableAdvancedFunctionSupport || false,
+          useMockFunctions: false
+        }
+      }
+    };
+  } catch (error) {
+    console.warn('Error loading AI config from localStorage, using defaults:', error);
+    return {
+      provider: aiConfig.defaultProvider,
+      config: {
+        apiKey: '',
+        model: aiConfig.providers[aiConfig.defaultProvider].defaultModel,
+        options: {
+          enableAdvancedFunctionSupport: aiConfig.enableAdvancedFunctionSupport || false,
+          useMockFunctions: false
+        }
+      }
+    };
+  }
+}
+
   // Funzione per ricaricare i servizi (utile dopo cambiamenti nella configurazione)
   const reloadServices = async () => {
     await initializeServices();

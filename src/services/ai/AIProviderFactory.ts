@@ -1,11 +1,11 @@
-import { aiProviderRegistry } from './AIProviderRegistry';
-import { IAIProvider } from './interfaces/IAIProvider';
+// src/services/ai/AIProviderFactory.ts
 import { AIProviderConfig } from '../../types/AIProvider';
+import { IAIProvider } from './interfaces/IAIProvider';
+import { aiProviderRegistry } from './AIProviderRegistry';
 
 export class AIProviderFactory {
   /**
    * Crea un provider AI basato sul tipo e la configurazione
-   * Utilizza il registry per la creazione effettiva
    */
   static createProvider(type: string, config: AIProviderConfig): IAIProvider {
     return aiProviderRegistry.createProvider(type, config);

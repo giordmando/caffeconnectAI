@@ -1,17 +1,18 @@
 // src/services/analytics/nlp/NLPConfiguration.ts
 
 import { NLPServiceOrchestrator } from './NLPServiceOrchestrator';
-import { OpenAIAdapter } from './adapters/OpenAIAdapter';
-import { VADERAdapter } from './adapters/VADERAdapter';
 import { configManager } from '../../../config/ConfigManager';
+import { NLPProviderFactory } from './factories/NLPProviderFactory';
 
 export class NLPConfiguration {
   private static instance: NLPConfiguration;
   private orchestrator: NLPServiceOrchestrator;
   private isInitialized: boolean = false;
+  private providerFactory: NLPProviderFactory;
   
   private constructor() {
     this.orchestrator = new NLPServiceOrchestrator();
+    this.providerFactory = new NLPProviderFactory();
   }
   
   public static getInstance(): NLPConfiguration {
@@ -38,27 +39,21 @@ export class NLPConfiguration {
       // Carica la configurazione NLP dalle impostazioni globali
       const aiConfig = configManager.getSection('ai');
       
-      // Registra gli adattatori NLP disponibili
-      
-      // 1. Registra OpenAI se disponibile
+      // Utilizza il factory per creare i provider
       if (aiConfig.providers.openai) {
-        const openaiAdapter = new OpenAIAdapter();
-        // Inizializza con la stessa API key del provider AI
-        await openaiAdapter.initialize({
+        const openAIConfig = {
           apiKey: localStorage.getItem('cafeconnect-ai-config') ? 
             JSON.parse(localStorage.getItem('cafeconnect-ai-config') || '{}').config?.apiKey : 
-            '',
-          /*customModels: {
-            [AnalysisType.SENTIMENT]: aiConfig.providers.openai.models[0].name || 'gpt-3.5-turbo'
-            }*/
-        });
+            ''
+        };
+        
+        const openaiAdapter = await this.providerFactory.createProvider('OpenAI', openAIConfig);
         this.orchestrator.registerProvider(openaiAdapter);
         console.log('Registered OpenAI NLP provider');
       }
       
-      // 2. Registra VADER (sempre disponibile, è locale)
-      const vaderAdapter = new VADERAdapter();
-      await vaderAdapter.initialize();
+      // VADER è sempre disponibile
+      const vaderAdapter = await this.providerFactory.createProvider('VADER');
       this.orchestrator.registerProvider(vaderAdapter);
       console.log('Registered VADER NLP provider');
       
@@ -68,7 +63,6 @@ export class NLPConfiguration {
       });
       
       // Imposta provider predefinito
-      // Se è disponibile OpenAI, usalo come default, altrimenti usa VADER
       if (aiConfig.providers.openai) {
         this.orchestrator.setDefaultProvider('OpenAI');
       } else {

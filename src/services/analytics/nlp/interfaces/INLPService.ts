@@ -1,6 +1,6 @@
 // src/services/analytics/interfaces/INLPService.ts
 
-import { INLPProviderAdapter } from "./INLPProviderAdapter";
+import { INLPBasicProvider } from "./INLPBasicProvider";
 
 export enum AnalysisType {
     INTENT = 'intent',
@@ -36,7 +36,7 @@ export enum AnalysisType {
     analyzeConversation(messages: Array<{role: string, content: string}>, options?: NLPProviderOptions): Promise<Record<AnalysisType, AnalysisResult[]>>;
     
     // Registrazione e gestione provider
-    registerProvider(provider: INLPProviderAdapter): void;
+    registerProvider(provider: INLPProvider): void;
     setDefaultProvider(providerName: string): void;
     
     // Configurazione
@@ -44,3 +44,18 @@ export enum AnalysisType {
     getAvailableProviders(): string[];
     getSupportedFeatures(): AnalysisType[];
   }
+
+  // Esempio di nuova struttura delle interfacce
+export interface INLPProvider extends INLPBasicProvider, IConversationAnalyzer {
+  // Capacità base
+  getSupportedAnalysisTypes(): AnalysisType[];
+  
+  // Operazione fondamentale
+  initialize(options?: NLPProviderOptions): Promise<void>;
+  analyzeText(text: string, options?: NLPProviderOptions): Promise<Record<AnalysisType, AnalysisResult[]>>;
+}
+
+// Interfacce opzionali per funzionalità aggiuntive
+export interface IConversationAnalyzer {
+  analyzeConversation(messages: Array<{role: string, content: string}>, options?: NLPProviderOptions): Promise<Record<AnalysisType, AnalysisResult[]>>;
+}

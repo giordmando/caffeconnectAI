@@ -1,10 +1,12 @@
 // src/services/analytics/NLPServiceOrchestrator.ts
 
-import { INLPService, AnalysisType, AnalysisResult, NLPProviderOptions } from './interfaces/INLPService';
-import { INLPProviderAdapter } from './interfaces/INLPProviderAdapter';
+import { NLPProviderOptions, INLPService, INLPProvider, AnalysisType, AnalysisResult } from "./interfaces/INLPService";
+
+
+
 
 export class NLPServiceOrchestrator implements INLPService {
-  private providers: Map<string, INLPProviderAdapter> = new Map();
+  private providers: Map<string, INLPProvider> = new Map();
   private defaultProvider: string | null = null;
   private cachedResults: Map<string, {result: any, timestamp: number}> = new Map();
   private cacheTTL: number = 5 * 60 * 1000; // 5 minuti
@@ -78,17 +80,17 @@ export class NLPServiceOrchestrator implements INLPService {
     }
   }
   
-  registerProvider(provider: INLPProviderAdapter): void {
-    this.providers.set(provider.name, provider);
+  registerProvider(provider: INLPProvider): void {
+    this.providers.set(provider.getName(), provider);
     
     // Se è il primo provider, imposta come default
     if (!this.defaultProvider) {
-      this.defaultProvider = provider.name;
+      this.defaultProvider = provider.getName();
     }
     
     // Inizializza il provider
     provider.initialize().catch(err => {
-      console.error(`Error initializing ${provider.name}:`, err);
+      console.error(`Error initializing ${provider.getName()}:`, err);
     });
   }
   
@@ -124,7 +126,7 @@ export class NLPServiceOrchestrator implements INLPService {
     return Array.from(features);
   }
   
-  private getProviderForOptions(options?: NLPProviderOptions): INLPProviderAdapter | null {
+  private getProviderForOptions(options?: NLPProviderOptions): INLPProvider | null {
     // Se è specificato un provider
     if (options?.provider && this.providers.has(options.provider)) {
       return this.providers.get(options.provider)!;
