@@ -277,8 +277,6 @@ export class FunctionRegistry implements IFunctionService {
         required: ['userId']
       },
       handler: async (params) => {
-        // Simulazione di ritardo di rete
-        await new Promise(resolve => setTimeout(resolve, 500));
         return {data:{
           points: 1250,
           tier: 'Gold',
@@ -314,7 +312,6 @@ export class FunctionRegistry implements IFunctionService {
         required: ['userId']
       },
       handler: async (params) => {
-        await new Promise(resolve => setTimeout(resolve, 500));
         return {
           favoriteDrinks: ['Cappuccino', 'Espresso'],
           favoriteFood: ['Cornetto Integrale', 'Pain au Chocolat'],
@@ -359,7 +356,6 @@ export class FunctionRegistry implements IFunctionService {
         required: ['userId', 'timeOfDay']
       },
       handler: async (params) => {
-        await new Promise(resolve => setTimeout(resolve, 700));
         
         // Raccomandazioni diverse in base al momento della giornata
         if (params.timeOfDay === 'morning') {
@@ -415,7 +411,6 @@ export class FunctionRegistry implements IFunctionService {
         required: ['userId']
       },
       handler: async (params) => {
-        await new Promise(resolve => setTimeout(resolve, 600));
         
         // Raccomandazioni diverse in base alla categoria
         if (params.category === 'coffee' || !params.category) {
@@ -484,7 +479,6 @@ export class FunctionRegistry implements IFunctionService {
         required: ['userId', 'actionType', 'itemId', 'itemType']
       },
       handler: async (params) => {
-        await new Promise(resolve => setTimeout(resolve, 300));
         return {
           success: true,
           message: `Azione ${params.actionType} tracciata con successo`

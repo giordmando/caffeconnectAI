@@ -23,6 +23,7 @@ const ChatInterface: React.FC = () => {
     suggestedPrompts,
     nlpComponents,
     config,
+    availableActions,
     handleInputChange,
     handleKeyDown,
     handleSendMessage,
@@ -147,7 +148,20 @@ const ChatInterface: React.FC = () => {
           Invia
         </button>
       </div>
-      
+      {/* Aggiungi la visualizzazione delle actions disponibili */}
+      {availableActions && availableActions.length > 0 && (
+        <div className="available-actions">
+          {availableActions.map((action, index) => (
+            <button 
+              key={index} 
+              className="action-btn"
+              onClick={() => handleUIAction(action.type, action.payload)}
+            >
+              {action.title}
+            </button>
+          ))}
+        </div>
+      )}
       {/* Banner consenso */}
       <SimpleConsentBanner 
         consentService={consentService}

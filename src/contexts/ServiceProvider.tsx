@@ -20,7 +20,8 @@ import { NLPIntegrationService, nlpIntegrationService } from '../services/analyt
 import { configManager } from '../config/ConfigManager';
 import { themeService } from '../services/theme/ThemeService';
 import { AIProviderConfig } from '../types/AIProvider';
-import { AIServiceFactory } from '../services/ai/AIServiceFactory';
+import { EnhancedAIServiceFactory } from '../services/ai/EnhancedAIServiceFactory';
+
 
 // Definizione dell'interfaccia per tutti i servizi - Con interfacce invece di implementazioni concrete
 export interface AppServices {
@@ -140,8 +141,7 @@ export const ServiceProvider: React.FC<{
       // 2. Inizializza i servizi di base in parallelo
       await Promise.all([
         services.themeService.initialize(),
-        services.functionRegistry.initialize(),
-        //services.consentService.initialize()
+        services.functionRegistry.initialize()
       ]);
       
       // 3. Inizializza i servizi analitici
@@ -165,25 +165,26 @@ export const ServiceProvider: React.FC<{
       // Crea provider specifici per il business type
       const businessType = services.configManager.getSection('business').type;
 
-      const { aiService, suggestionService, actionService } = AIServiceFactory.createAIService({
-        provider: savedConfig.provider,
-        providerConfig: savedConfig.config,
-        functionService: services.functionRegistry,
-        catalogService: services.catalogService,
-        businessType: businessType,
-        configManager: services.configManager
-      });
-      
-      // 6. Aggiorna lo stato con i nuovi servizi
-      setServices(prevServices => {
-        const updatedServices = {
-          ...prevServices,
-          aiService,
-          suggestionService, // Aggiorna suggestionService
-          actionService     // Aggiorna actionService
-        };
-        return updatedServices;
-      });
+      // Usa la factory esistente che ora internamente usa quella nuova
+    const { aiService, suggestionService, actionService } = EnhancedAIServiceFactory.createAIService({
+      provider: savedConfig.provider,
+      providerConfig: savedConfig.config,
+      functionService: services.functionRegistry,
+      catalogService: services.catalogService,
+      businessType: businessType,
+      configManager: services.configManager
+    });
+    
+    // Aggiorna i servizi - questo codice rimane invariato
+    setServices(prevServices => {
+      const updatedServices = {
+        ...prevServices,
+        aiService,
+        suggestionService,
+        actionService
+      };
+      return updatedServices;
+    });
   
       setCurrentProvider(savedConfig.provider);
       

@@ -42,7 +42,8 @@ interface ChatContextType {
   nlpComponents: UIComponent[];
   handleSuggestionClick: (suggestion: string) => void;
   handleUIAction: (action: string, payload: any) => void;
-  
+  availableActions: any[]; // Aggiungi questa proprietà
+  //handleActionClick: (action: string, payload: any) => void; // Aggiungi questa funzione
   // Servizi e tracking
   conversationId: string | null;
   isNLPInitialized: boolean;
@@ -79,6 +80,7 @@ export const ChatProvider: React.FC<{
   const [nlpComponents, setNLPComponents] = useState<UIComponent[]>([]);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [isNLPInitialized, setIsNLPInitialized] = useState<boolean>(false);
+  const [availableActions, setAvailableActions] = useState<any[]>([]);
   
   // Riferimenti
   const messagesEndRef = useRef<HTMLDivElement>(null!);
@@ -339,6 +341,14 @@ export const ChatProvider: React.FC<{
       } else {
         setSuggestedPrompts([]);
       }
+
+      // Aggiorna le actions se presenti nella risposta
+      if (response.availableActions) {
+        setAvailableActions(response.availableActions);
+      } else {
+        setAvailableActions([]);
+      }
+
     } catch (error) {
       console.error('Errore nella comunicazione con l\'AI:', error);
       
@@ -411,6 +421,7 @@ export const ChatProvider: React.FC<{
     uiComponents,
     suggestedPrompts,
     nlpComponents,
+    availableActions,
     handleSuggestionClick,
     handleUIAction,
     

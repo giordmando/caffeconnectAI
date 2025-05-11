@@ -26,9 +26,7 @@ export class MockAIProvider implements IAIProvider {
    * Send a message to the mock AI
    */
   async sendMessage(prompt: string, options?: any): Promise<string> {
-    // Simulate network delay
-    await new Promise(resolve => setTimeout(resolve, 800));
-    
+
     let response = "";  
     // Generate mock responses based on keywords
     if (prompt.toLowerCase().includes('colazione')) {
@@ -42,8 +40,18 @@ export class MockAIProvider implements IAIProvider {
     } else {
       response = "Posso aiutarti a scegliere qualcosa dal nostro menu o tra i prodotti disponibili. Hai preferenze per colazione, pranzo o aperitivo? O stai cercando un buon caffè da acquistare?";
     }
-    if (prompt.toLowerCase().includes('array json di stringhe')) {
-      response = "Ecco un array JSON di stringhe: [\""+response+"\"]";
+    if (prompt.toLowerCase().includes('array json di stringhe')) {// per simulare i suggerimenti
+      response = "Ecco un array JSON di stringhe: [\"" + response + "\"]";
+    }else if (prompt.toLowerCase().includes('array json di oggetti')) { // per simulare le action
+      response = JSON.stringify([
+        { "type": "view_item", "title": "Vedi Cappuccino", "payload": { "id": "coffee-2", "type": "menuItem" } },
+        { "type": "view_item", "title": "Vedi Espresso", "payload": { "id": "coffee-1", "type": "menuItem" } },
+        { "type": "view_item", "title": "Vedi Cornetto Integrale", "payload": { "id": "food-1", "type": "menuItem" } },
+        { "type": "view_item", "title": "Vedi Pain au Chocolat", "payload": { "id": "food-2", "type": "menuItem" } },
+        { "type": "view_item", "title": "Vedi Caffè Specialty Etiopia Yirgacheffe", "payload": { "id": "coffee-3", "type": "menuItem" } },
+        { "type": "view_item", "title": "Vedi Biscotti alle Mandorle", "payload": { "id": "food-3", "type": "menuItem" } }
+      ]);
+      response = "Ecco un array JSON di oggetti: " + response;
     }
     return response;
   }
@@ -66,8 +74,6 @@ export class MockAIProvider implements IAIProvider {
     const words = mockResponse.split(' ');
     
     for (const word of words) {
-      // Simulate random delay between words
-      await new Promise(resolve => setTimeout(resolve, 50 + Math.random() * 150));
       callback(word + ' ');
     }
   }
@@ -151,8 +157,6 @@ export class MockAIProvider implements IAIProvider {
    * Generate a regular text response (no function calls)
    */
   private async mockRegularResponse(prompt: string): Promise<any> {
-    // Simulate network delay
-    await new Promise(resolve => setTimeout(resolve, 500));
     
     if (prompt.includes('colazione')) {
       return {
