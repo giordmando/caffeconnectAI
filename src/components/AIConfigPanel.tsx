@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { AIProviderConfig } from '../types/AIProvider';
 import { useLocalStorage } from '../hooks/useLocalStorage';
+import { useServices } from '../contexts/ServiceProvider';
 
 interface AIConfigPanelProps {
   onClose: () => void;
@@ -10,7 +11,8 @@ interface AIConfigPanelProps {
  * Component for configuring AI provider settings
  */
 const AIConfigPanel: React.FC<AIConfigPanelProps> = ({ onClose }) => {
-  
+  // Ottieni il service provider
+  const { changeAIProvider } = useServices(); // Aggiungi questa riga
   // Load saved configuration
   const [savedConfig, setSavedConfig] = useLocalStorage<{
     provider: string;
@@ -223,6 +225,3 @@ const AIConfigPanel: React.FC<AIConfigPanelProps> = ({ onClose }) => {
 
 export default AIConfigPanel;
 
-function changeAIProvider(provider: string, config: AIProviderConfig) {
-  throw new Error('Function not implemented.');
-}

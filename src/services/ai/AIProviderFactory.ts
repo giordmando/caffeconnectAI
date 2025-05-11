@@ -1,4 +1,3 @@
-// src/services/ai/AIProviderFactory.ts
 import { AIProviderConfig } from '../../types/AIProvider';
 import { IAIProvider } from './interfaces/IAIProvider';
 import { aiProviderRegistry } from './AIProviderRegistry';
