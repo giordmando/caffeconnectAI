@@ -32,15 +32,22 @@ export class FunctionExecutionHandler extends BaseMessageHandler {
         name: functionName,
         result: result  // Salva il risultato completo, non stringificato
       };
-      
-      // Genera un messaggio di risposta basato sul risultato
-      const aiMessage = result;//await this.functionOrchestrator.generateResponseFromResult(functionName, result);
+
+       // Assicurati che il contenuto sia una stringa per l'API di OpenAI
+      if (typeof result.content !== 'string') {
+        result.content = JSON.stringify(result.content);
+      }
       
       // Aggiungi il messaggio alla conversazione
-      this.conversationService.addMessage(aiMessage);
+      this.conversationService.addMessage({
+        name: functionName,
+        role: result.role || 'function',
+        content: result.content,
+        timestamp: result.timestamp || Date.now(),
+      });
       
       // Salva il messaggio AI in request
-      request.aiMessage = aiMessage;
+      request.aiMessage = result;
       
       // Continua la pipeline
       return super.handle(request);

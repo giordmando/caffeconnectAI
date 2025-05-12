@@ -515,18 +515,20 @@ export class FunctionRegistry implements IFunctionService {
           if (!item) {
             return {
               success: false,
-              error: `Elemento ${params.itemId} non trovato`
+              error: `Elemento ${params.itemId} non trovato`,
+              message: `Non ho trovato l'elemento ${params.itemId}`
             };
           }
           
           // Restituisce dati + metadati per generare UI
           return {
             success: true,
+            message: `Ecco i dettagli di ${item.name}:`,
             product: item,
             uiComponent: {
               type: 'productDetail',
-              placement: 'inline', // può essere inline, sidebar, o bottom
-              product: item
+              data: item,
+              placement: 'inline'
             }
           };
         } catch (error) {

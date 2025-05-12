@@ -28,7 +28,7 @@ export class UIResponseGenerator implements IUIResponseGenerator {
         const result = functionResult?.functionResult
         // Estrai i dati, gestendo le diverse strutture possibili
         let data = result.result?.data || result.result || result;
-        data = data.data || data; // Assicurati di avere sempre un oggetto dati
+        data = data.data || data;
         // Genera componenti in base al tipo di funzione
         if (functionName === 'get_user_loyalty_points') {
           components.push({
@@ -71,17 +71,34 @@ export class UIResponseGenerator implements IUIResponseGenerator {
             id: 'user-preferences-' + Date.now()
           });
         } else if (functionName === 'view_item_details') {
-          if (result.success && result.product) {
+          
+          const product = data.product ? data.product: data
+          if (data.success && product) {
             // Genera component productDetail
             components.push({
               type: 'productDetail',
               data: {
-                product: result.product
+                product: product
               },
               placement: 'sidebar', // Mostra in line nella chat
               id: 'product-detail-' + Date.now()
             });
           }
+        }else if (functionName === 'search_product_by_name') {
+          
+            const products = Array.isArray(data.results) && data.results.length > 0 ? data.results : [];
+            if (data.success && products.length > 0) {
+              for (const product of products) {
+              components.push({
+                type: 'productDetail',
+                data: {
+                product: product
+                },
+                placement: 'sidebar', // Mostra in line nella chat
+                id: 'product-detail-' + Date.now()
+              });
+              }
+            }
         }
       }
       

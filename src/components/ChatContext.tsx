@@ -322,7 +322,11 @@ export const ChatProvider: React.FC<{
       );
       
       // Aggiorna messaggi con la risposta dell'AI
-      addMessage(response.message);
+      addMessage({
+        role: response.message.role,
+        content: response.message.content,
+        timestamp: response.message.timestamp || Date.now()
+      });
       
       // Traccia risposta AI
       await trackMessage(response.message.content, 'assistant');
@@ -402,7 +406,7 @@ export const ChatProvider: React.FC<{
           if (result.data.uiComponent && config.enableDynamicComponents) {
             const newComponent = {
               type:result.data.uiComponent.type,
-              data:result.data.uiComponent.product,
+              data:result.data.uiComponent?.data || result.data?.product || {},
               id: `${functionName}-${Date.now()}`,
               placement: result.data.uiComponent.placement || 'inline'
             };

@@ -18,7 +18,7 @@ export class DynamicSuggestionProvider implements ISuggestionProvider {
     const businessConfig = configManager.getSection('business');
     
     // Ottieni informazioni sul catalogo
-    const categories = await this.catalogService.getCategories();
+    const categories = this.catalogService.getCategories();
     
     // Ottieni le funzioni disponibili
     const availableFunctions = this.functionService.getAllFunctions()

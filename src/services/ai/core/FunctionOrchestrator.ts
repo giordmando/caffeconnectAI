@@ -57,7 +57,7 @@ export class FunctionOrchestrator implements IFunctionOrchestrator {
         const products = data.recommendations.map((r: any) => r.name).join(', ');
         responseText = `Ecco alcuni prodotti che potrebbero interessarti: ${products}. Posso darti più dettagli su uno di questi.`;
       } else {
-        responseText = "Ho elaborato la tua richiesta. C'è altro di cui hai bisogno?";
+        responseText = Array.isArray(data.results) && data.results.length > 0 ? data.results[0] : data?.message || "Ho elaborato la tua richiesta. C'è altro di cui hai bisogno?";
       }
       
       return {

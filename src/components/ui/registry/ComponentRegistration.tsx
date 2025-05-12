@@ -68,7 +68,7 @@ export function registerComponents(): void {
     
     return (
       <ProductDetailComponent 
-        product={component.data || {}}
+        product={component.data?.product || component.data || {}}
         id={component.id}
         onAction={onAction}
       />
