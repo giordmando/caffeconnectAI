@@ -4,6 +4,7 @@ import { LoyaltyCard } from '../LoyaltyCard';
 import { MenuCarousel } from '../MenuCarousel';
 import { ProductCarousel } from '../ProductCarousel';
 import { PreferencesCard } from '../PreferencesCard';
+import { ProductDetailComponent } from '../ProductDetailComponent';
 
 export function registerComponents(): void {
   console.log("Registering UI components...");
@@ -62,6 +63,17 @@ export function registerComponents(): void {
     );
   });
   
+  uiComponentRegistry.register('productDetail', (component, onAction) => {
+    console.log("Rendering ProductDetailComponent with data:", component.data);
+    
+    return (
+      <ProductDetailComponent 
+        product={component.data || {}}
+        id={component.id}
+        onAction={onAction}
+      />
+    );
+  });
   console.log("UI components registered successfully!");
 }
 

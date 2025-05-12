@@ -87,7 +87,7 @@ export const ChatProvider: React.FC<{
   const conversationTracker = useRef<IConversationTracker | null>(null);
   
   // Servizi
-  const { aiService, userService, suggestionService } = useServices();
+  const { aiService, userService, suggestionService, functionRegistry } = useServices();
   const userContext = userService.getUserContext();
   
   // Aggiorna configurazione
@@ -370,9 +370,61 @@ export const ChatProvider: React.FC<{
   };
   
   // Gestione azione UI
-  const handleUIAction = (action: string, payload: any) => {
+  const handleUIAction = async (action: string, payload: any) => {
     console.log(`UI Action: ${action}`, payload);
     
+
+      // Aggiungi questo nuovo case per gestire l'esecuzione di funzioni
+      if (action === 'execute_function') {
+        const { functionName, parameters } = payload;
+        
+        // Mostra un indicatore di caricamento
+        setIsTyping(true);
+        
+        try {
+          // Esegui la funzione richiesta
+          const functionService = functionRegistry;
+          const result = await functionService.executeFunction(functionName, parameters);
+          
+          // Aggiorna contesto utente
+          userService.addInteraction(`Esecuzione funzione: ${functionName}`);
+          
+          // Aggiungi messaggio AI se necessario
+          if (result.message) {
+            addMessage({
+              role: 'assistant',
+              content: result.message,
+              timestamp: Date.now()
+            });
+          }
+          
+          // Aggiungi componenti UI se presenti nel risultato
+          if (result.data.uiComponent && config.enableDynamicComponents) {
+            const newComponent = {
+              type:result.data.uiComponent.type,
+              data:result.data.uiComponent.product,
+              id: `${functionName}-${Date.now()}`,
+              placement: result.data.uiComponent.placement || 'inline'
+            };
+            
+            setUIComponents(prev => [newComponent, ...prev]);
+          }
+        } catch (error) {
+          console.error(`Error executing function ${functionName}:`, error);
+          
+          // Messaggio di errore
+          addMessage({
+            role: 'assistant',
+            content: `Mi dispiace, ho avuto un problema nell'eseguire questa azione. Dettaglio: ${error instanceof Error ? error.message : 'Errore sconosciuto'}`,
+            timestamp: Date.now()
+          });
+        } finally {
+          setIsTyping(false);
+        }
+        
+        return;
+      }
+
     // Logica per azioni comuni
     if (action === 'view_item') {
       alert(`Visualizzazione dettagli per: ${payload.id}`);

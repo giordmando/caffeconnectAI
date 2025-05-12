@@ -2,6 +2,7 @@
 import { FunctionDefinition, FunctionCallResult } from '../../types/Function';
 import { configManager } from '../../config/ConfigManager';
 import { IFunctionService } from './interfaces/IFunctionService';
+import { catalogService } from '../catalog/CatalogService';
 
 /**
  * Registry per funzioni personalizzabili
@@ -485,6 +486,144 @@ export class FunctionRegistry implements IFunctionService {
         };
       }
     });
+
+    this.registerFunction({
+      name: 'view_item_details',
+      description: 'Visualizza dettagli completi di un prodotto o elemento del menu',
+      parameters: {
+        type: 'object',
+        properties: {
+          itemId: {
+            type: 'string',
+            description: 'ID dell\'item'
+          },
+          itemType: {
+            type: 'string',
+            enum: ['menuItem', 'product'],
+            description: 'Tipo di item'
+          }
+        },
+        required: ['itemId', 'itemType']
+      },
+      handler: async (params) => {
+        try {
+          // Recupera i dettagli completi in base al tipo
+          const item = params.itemType === 'menuItem' 
+            ? await catalogService.getMenuItemById(params.itemId)
+            : await catalogService.getProductById(params.itemId);
+          
+          if (!item) {
+            return {
+              success: false,
+              error: `Elemento ${params.itemId} non trovato`
+            };
+          }
+          
+          // Restituisce dati + metadati per generare UI
+          return {
+            success: true,
+            product: item,
+            uiComponent: {
+              type: 'productDetail',
+              placement: 'inline', // può essere inline, sidebar, o bottom
+              product: item
+            }
+          };
+        } catch (error) {
+          console.error(`Errore nel recupero dettagli per ${params.itemId}:`, error);
+          return {
+            success: false,
+            error: `Errore nel caricamento dei dettagli: ${error instanceof Error ? error.message : String(error)}`
+          };
+        }
+      },
+      uiMetadata: {
+        displayType: 'detailed-view',
+        cardTemplate: 'product-detail',
+        refreshRate: 'on-demand'
+      }
+    });
+
+    this.registerFunction({
+      name: 'search_product_by_name',
+      description: 'Cerca un prodotto o elemento menu per nome',
+      parameters: {
+        type: 'object',
+        properties: {
+          query: {
+            type: 'string',
+            description: 'Nome o descrizione del prodotto da cercare'
+          },
+          type: {
+            type: 'string',
+            enum: ['menuItem', 'product', 'all'],
+            description: 'Tipo di prodotto da cercare'
+          }
+        },
+        required: ['query']
+      },
+      handler: async (params) => {
+        try {
+          let results: string | any[] = [];
+          const query = params.query.toLowerCase();
+          const itemType = params.type || 'all';
+          
+          // Cerca nel menu
+          if (itemType === 'menuItem' || itemType === 'all') {
+            const menuItems = await catalogService.getAllMenuItems();
+            const matchingItems = menuItems.filter(item => 
+              item.name.toLowerCase().includes(query) || 
+              item.description.toLowerCase().includes(query)
+            );
+            
+            results = [
+              ...results, 
+              ...matchingItems.map(item => ({
+                id: item.id,
+                name: item.name,
+                type: 'menuItem',
+                description: item.description,
+                price: item.price
+              }))
+            ];
+          }
+          
+          // Cerca nei prodotti
+          if (itemType === 'product' || itemType === 'all') {
+            const products = await catalogService.getProducts();
+            const matchingProducts = products.filter(product => 
+              product.name.toLowerCase().includes(query) || 
+              product.description.toLowerCase().includes(query)
+            );
+            
+            results = [
+              ...results, 
+              ...matchingProducts.map(product => ({
+                id: product.id,
+                name: product.name,
+                type: 'product',
+                description: product.description,
+                price: product.price
+              }))
+            ];
+          }
+          
+          return {
+            success: true,
+            results,
+            query,
+            count: results.length
+          };
+        } catch (error) {
+          console.error('Error searching products:', error);
+          return {
+            success: false,
+            error: `Errore nella ricerca: ${error instanceof Error ? error.message : String(error)}`
+          };
+        }
+      }
+    });
+
   }
 }
 

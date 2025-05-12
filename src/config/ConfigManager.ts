@@ -205,6 +205,25 @@ LINEE GUIDA:
 7. Se ritieni che una funzione possa fornire informazioni utili, chiamala proattivamente.
 
 Il nostro menu e i prodotti cambiano durante la giornata, quindi fai attenzione al contesto temporale.
+
+VISUALIZZAZIONE DETTAGLI PRODOTTI:
+Quando l'utente richiede di vedere i dettagli di un prodotto specifico:
+1. Identifica quale prodotto l'utente sta richiedendo di visualizzare
+2. Cerca di mappare la richiesta a un ID prodotto esistente nel catalogo 
+3. Chiama proattivamente la funzione 'view_item_details' con i parametri appropriati
+
+Se non sei sicuro dell'ID esatto:
+1. Usa la funzione 'search_product_by_name' per trovare il prodotto
+2. Quindi usa 'view_item_details' con l'ID trovato
+
+Non rispondere solo con descrizioni testuali per queste richieste, ma usa proattivamente
+le funzioni per mostrare l'interfaccia ricca di prodotto. 
+
+Esempi di richieste che dovrebbero attivare questa funzionalità:
+- "Fammi vedere il cappuccino"
+- "Mostrami i dettagli del panino veggie"
+- "Vorrei più informazioni sul caffè arabica"
+- "Che caratteristiche ha la French Press?"
 `,
 enableAdvancedFunctionSupport: true // Nuova proprietà
       },
@@ -228,7 +247,9 @@ enableAdvancedFunctionSupport: true // Nuova proprietà
           'get_user_preferences',
           'get_menu_recommendations',
           'get_product_recommendations',
-          'track_user_action'
+          'track_user_action',
+          'search_product_by_name',
+          'view_item_details'
         ],
         functionDataEndpoints: {}
      
