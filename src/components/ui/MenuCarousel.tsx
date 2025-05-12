@@ -70,9 +70,14 @@ export const MenuCarousel: React.FC<MenuCarouselProps> = ({
   
   const handleItemClick = (item: any) => {
     if (onAction) {
-      onAction('view_item', {
-        id: item.id,
-        type: 'menuItem'
+      // Invece di chiamare semplicemente onAction('view_item', ...)
+      // Chiama la funzione view_item_details attraverso l'handler
+      onAction('execute_function', {
+        functionName: 'view_item_details',
+        parameters: {
+          itemId: item.id,
+          itemType: 'menuItem'
+        }
       });
     }
   };

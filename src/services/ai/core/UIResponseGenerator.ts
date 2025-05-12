@@ -70,6 +70,18 @@ export class UIResponseGenerator implements IUIResponseGenerator {
             placement: 'sidebar',
             id: 'user-preferences-' + Date.now()
           });
+        } else if (functionName === 'view_item_details') {
+          if (result.success && result.product) {
+            // Genera component productDetail
+            components.push({
+              type: 'productDetail',
+              data: {
+                product: result.product
+              },
+              placement: 'sidebar', // Mostra in line nella chat
+              id: 'product-detail-' + Date.now()
+            });
+          }
         }
       }
       
