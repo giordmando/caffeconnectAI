@@ -4,4 +4,5 @@
     data: any;
     placement: string;
     id: string;
+    _updated?: number; // Optional property to track the last update timestamp
   }

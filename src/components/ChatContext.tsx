@@ -333,10 +333,37 @@ export const ChatProvider: React.FC<{
       
       // Aggiorna componenti UI se presenti e abilitati
       if (response.uiComponents && config.enableDynamicComponents) {
-        setUIComponents(prev => [
-          ...(response.uiComponents ?? []).slice(0, config.maxRecommendations || 3),
-          ...prev.slice(0, 5 - Math.min(config.maxRecommendations || 3, response.uiComponents?.length || 0))
-        ]);
+        // VERSIONE PROBLEMATICA (da sostituire):
+        // setUIComponents(prev => [
+        //   ...(response.uiComponents ?? []).slice(0, config.maxRecommendations || 3),
+        //   ...prev.slice(0, 5 - Math.min(config.maxRecommendations || 3, response.uiComponents?.length || 0))
+        // ]);
+
+        // NUOVA VERSIONE (migliore gestione dei componenti):
+        const newComponents = response.uiComponents ?? [];
+        
+        // Identifica i tipi di componenti che devono essere unici
+        const uniqueTypes = ['loyaltyCard', 'preferencesCard'];
+        
+        // Filtra i componenti UI esistenti, rimuovendo quelli con tipi che dovrebbero essere unici
+        // se sono presenti nei nuovi componenti
+        const newTypesPresent = newComponents.map(c => c.type);
+        
+        setUIComponents(prev => {
+          // Mantieni componenti esistenti solo se:
+          // 1. Non sono di un tipo che dovrebbe essere unico
+          // 2. Oppure sono di un tipo unico ma quel tipo non è presente nei nuovi componenti
+          const filteredPrev = prev.filter(comp => 
+            !uniqueTypes.includes(comp.type) || 
+            !newTypesPresent.includes(comp.type)
+          );
+          
+          // Aggiungi i nuovi componenti (limitando al massimo raccomandazioni)
+          return [
+            ...newComponents.slice(0, config.maxRecommendations || 3),
+            ...filteredPrev
+          ];
+        });
       }
       
       // Aggiorna suggerimenti se abilitati

@@ -40,10 +40,41 @@ export const DynamicUIRenderer: React.FC<DynamicUIRendererProps> = ({
     default:
       containerClassName += " dynamic-ui-default";
   }
+
+  const uniqueComponents = new Map<string, UIComponent>();
+  // Componenti che dovrebbero essere unici per tipo (uno per tipo)
+  const uniqueComponentTypes = ['loyaltyCard', 'preferencesCard'];
+  // Componenti finali da renderizzare
+  const componentsToRender: UIComponent[] = [];
+  // Prima passata: raccogli i componenti che devono essere unici
+  filteredComponents.forEach(comp => {
+    if (uniqueComponentTypes.includes(comp.type)) {
+      const key = comp.type;
+      
+      if (!uniqueComponents.has(key) || 
+          (uniqueComponents.get(key)!._updated || 0) < (comp._updated || 0)) {
+        uniqueComponents.set(key, comp);
+      }
+    } else {
+      componentsToRender.push(comp);
+    }
+  });
   
+  // Aggiungi i componenti unici (solo il più recente per ogni tipo)
+  uniqueComponents.forEach(comp => {
+    componentsToRender.push(comp);
+  });
+  
+  // Ordina i componenti: prima quelli aggiornati più di recente
+  componentsToRender.sort((a, b) => {
+    const aTime = a._updated || 0;
+    const bTime = b._updated || 0;
+    return bTime - aTime;
+  });
+
   return (
     <div className={containerClassName}>
-      {filteredComponents.map((component) => (
+      {componentsToRender.map((component) => (
         <div key={component.id} className="dynamic-ui-item">
           {uiComponentRegistry.createComponent(component, onAction)}
         </div>

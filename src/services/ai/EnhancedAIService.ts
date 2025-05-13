@@ -62,7 +62,7 @@ export class EnhancedAIService implements IAIService {
       this.pipeline = new UserMessageHandler(this.conversationService);
       this.pipeline
         .setNext(new AIProviderHandler(this.aiProviderService, this.conversationService, functionService ))
-        .setNext(new FunctionExecutionHandler(this.functionOrchestrator, this.conversationService))
+        .setNext(new FunctionExecutionHandler(this.functionOrchestrator, this.conversationService, this.aiProviderService))
         .setNext(new UIGenerationHandler(this.uiResponseGenerator));
     }
     

@@ -162,11 +162,33 @@ export class OpenAIAdapter implements INLPProvider, ISentimentAnalyzer, IIntentD
   }
   
   private extractJSON(text: string): string | null {
-    const jsonMatch = text.match(/```json\n([\s\S]*)\n```/) || 
-                      text.match(/\{[\s\S]*\}/) ||
-                      text.match(/\[[\s\S]*\]/);
-                      
-    return jsonMatch ? (jsonMatch[1] || jsonMatch[0]) : null;
+    // Prova a estrarre JSON racchiuso in block markdown ``````
+    let jsonMatch = text.match(/``````/);
+    if (jsonMatch) {
+      return jsonMatch[1].trim();
+    }
+  
+    // Prova a estrarre un array JSON
+    jsonMatch = text.match(/\[[\s\S]*?\]/);
+    if (jsonMatch) {
+      return jsonMatch[0].trim();
+    }
+  
+    // Prova a estrarre oggetti JSON multipli o singoli
+    // Matcha tutto ciò che sembra oggetti JSON separati da virgole
+    const objectsMatch = text.match(/(\{[\s\S]*?\})(?:\s*,\s*(\{[\s\S]*?\}))*?/g);
+    if (objectsMatch) {
+      // Se c'è più di un oggetto, li racchiudiamo in un array
+      if (objectsMatch.length > 1) {
+        return `[${objectsMatch.join(",")}]`;
+      } else {
+        // Singolo oggetto JSON
+        return objectsMatch[0];
+      }
+    }
+  
+    // Nessun JSON valido trovato
+    return null;
   }
   
   private getEmptyResult(): Record<AnalysisType, any[]> {

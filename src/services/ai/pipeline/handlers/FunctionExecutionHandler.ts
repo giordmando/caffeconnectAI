@@ -1,5 +1,6 @@
 import { AIResponse } from "../../../../types/AIResponse";
 import { Message } from "../../../../types/Message";
+import { IAIProviderService } from "../../core/interfaces/IAIProviderService";
 import { IConversationService } from "../../core/interfaces/IConversationService";
 import { IFunctionOrchestrator } from "../../core/interfaces/IFunctionOrchestrator";
 import { MessageRequest } from "../interfaces/MessageRequest";
@@ -8,7 +9,8 @@ import { BaseMessageHandler } from "./BaseMessageHandler";
 export class FunctionExecutionHandler extends BaseMessageHandler {
     constructor(
       private functionOrchestrator: IFunctionOrchestrator,
-      private conversationService: IConversationService
+      private conversationService: IConversationService,
+      private aiProviderService: IAIProviderService
     ) {
       super();
     }
@@ -49,6 +51,41 @@ export class FunctionExecutionHandler extends BaseMessageHandler {
       // Salva il messaggio AI in request
       request.aiMessage = result;
       
+       // NUOVO: Reinterpreta il risultato della funzione attraverso l'AI
+      // per garantire una risposta coerente
+      if (result.role === 'function' && result.content) {
+        // Ottieni la conversazione aggiornata che include il risultato della funzione
+        const messages = this.conversationService.formatMessagesForAI();
+        
+        // Aggiungi un messaggio di sistema che spiega come utilizzare il risultato della funzione
+        messages.push({
+          role: 'system',
+          content: `Hai appena chiamato la funzione "${functionName}" e hai ricevuto un risultato. 
+                   Utilizza questi dati per fornire una risposta coerente all'utente. 
+                   Assicurati che la tua risposta sia pertinente al contesto della conversazione 
+                   e alle informazioni fornite dalla funzione.`
+        });
+        
+        // Chiedi all'AI di generare una risposta basata sul risultato della funzione
+        const aiResponse = await this.aiProviderService.sendCompletionRequest(messages);
+        
+        // Crea un nuovo messaggio dell'assistente con la risposta dell'AI
+        const aiMessage: Message = {
+          role: 'assistant',
+          content: aiResponse.content || 'Mi dispiace, non sono riuscito a elaborare queste informazioni.',
+          timestamp: Date.now()
+        };
+        
+        // Aggiungi il messaggio dell'assistente alla conversazione
+        this.conversationService.addMessage(aiMessage);
+        
+        // Salva il messaggio AI in request
+        request.aiMessage = aiMessage;
+      } else {
+        // Per le funzioni di visualizzazione e ricerca, usa il messaggio generato dal risultato
+        request.aiMessage = result;
+      }
+
       // Continua la pipeline
       return super.handle(request);
       } catch (error) {

@@ -357,33 +357,33 @@ export class FunctionRegistry implements IFunctionService {
         required: ['userId', 'timeOfDay']
       },
       handler: async (params) => {
-        
-        // Raccomandazioni diverse in base al momento della giornata
-        if (params.timeOfDay === 'morning') {
-          return {
-            recommendations: [
-              { id: 'coffee-2', name: 'Cappuccino', confidence: 0.95 },
-              { id: 'pastry-2', name: 'Cornetto Integrale', confidence: 0.88 },
-              { id: 'pastry-3', name: 'Pain au Chocolat', confidence: 0.75 }
-            ]
-          };
-        } else if (params.timeOfDay === 'afternoon') {
-          return {
-            recommendations: [
-              { id: 'sandwich-1', name: 'Panino Veggie', confidence: 0.85 },
-              { id: 'salad-1', name: 'Insalata Caesar', confidence: 0.82 },
-              { id: 'tea-1', name: 'Tè Verde', confidence: 0.78 }
-            ]
-          };
-        } else {
-          return {
-            recommendations: [
-              { id: 'aperitivo-1', name: 'Aperol Spritz', confidence: 0.92 },
-              { id: 'aperitivo-2', name: 'Tagliere Misto', confidence: 0.90 },
-              { id: 'dessert-1', name: 'Tiramisù', confidence: 0.85 }
-            ]
-          };
+        try {
+          // Ottieni dati reali dal catalogo invece di valori hardcoded
+          const allItems = await catalogService.getAllMenuItems();
+          
+          // Filtra per categoria E momento della giornata
+          let filteredItems = allItems.filter(item => {
+            const matchesTime = item.timeOfDay.includes(params.timeOfDay);
+            const matchesCategory = !params.category || params.category === 'all' || 
+                                   item.category === params.category;
+            return matchesTime && matchesCategory;
+          });
+          
+          // Limita a 3-5 risultati rilevanti
+          const recommendations = filteredItems
+            .slice(0, 5)
+            .map(item => ({
+              id: item.id,
+              name: item.name,
+              confidence: 0.9 // o calcola in base alla rilevanza
+            }));
+          
+          return { recommendations, timeOfDay: params.timeOfDay };
+        } catch (error) {
+          console.error('Error generating recommendations:', error);
+          return { recommendations: [] };
         }
+      
       },
       uiMetadata: {
         displayType: 'carousel',
@@ -413,31 +413,30 @@ export class FunctionRegistry implements IFunctionService {
       },
       handler: async (params) => {
         
-        // Raccomandazioni diverse in base alla categoria
-        if (params.category === 'coffee' || !params.category) {
-          return {
-            recommendations: [
-              { id: 'coffee-bag-2', name: 'Caffè Specialty Etiopia Yirgacheffe', confidence: 0.92 },
-              { id: 'coffee-bag-1', name: 'Caffè Arabica - Miscela Premium', confidence: 0.88 },
-              { id: 'accessory-3', name: 'Moka Express 3 tazze', confidence: 0.75 }
-            ]
-          };
-        } else if (params.category === 'accessory') {
-          return {
-            recommendations: [
-              { id: 'accessory-2', name: 'French Press Premium', confidence: 0.89 },
-              { id: 'accessory-1', name: 'Tazza in Ceramica CaféConnect', confidence: 0.82 },
-              { id: 'accessory-3', name: 'Moka Express 3 tazze', confidence: 0.78 }
-            ]
-          };
-        } else {
-          return {
-            recommendations: [
-              { id: 'gift-1', name: 'Gift Box Caffè del Mondo', confidence: 0.94 },
-              { id: 'food-2', name: 'Cioccolato Fondente 70%', confidence: 0.85 },
-              { id: 'food-1', name: 'Biscotti alle Mandorle', confidence: 0.80 }
-            ]
-          };
+        try {
+          // Ottieni dati reali dal catalogo invece di valori hardcoded
+          const allItems = await catalogService.getProducts();
+          
+          // Filtra per categoria E momento della giornata
+          let filteredItems = allItems.filter(item => {
+            const matchesCategory = !params.category || params.category === 'all' || 
+                                   item.category === params.category;
+            return matchesCategory;
+          });
+          
+          // Limita a 3-5 risultati rilevanti
+          const recommendations = filteredItems
+            .slice(0, 5)
+            .map(item => ({
+              id: item.id,
+              name: item.name,
+              confidence: 0.9 // o calcola in base alla rilevanza
+            }));
+          
+          return { recommendations, timeOfDay: params.timeOfDay };
+        } catch (error) {
+          console.error('Error generating recommendations:', error);
+          return { recommendations: [] };
         }
       },
       uiMetadata: {
