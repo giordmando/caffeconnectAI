@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { ChatProvider, useChatContext, ChatConfig } from './ChatContext';
 import { DynamicUIRenderer } from './ui/DynamicUIRenderer';
 import { NLPInsightsPanel } from './ui/nlp/NLPInsightsPanel';
@@ -19,7 +19,8 @@ const ChatInterface: React.FC = () => {
     messages,
     inputValue,
     isTyping,
-    uiComponents,
+    componentManager,
+    uiComponentsUpdated,
     suggestedPrompts,
     nlpComponents,
     config,
@@ -32,11 +33,23 @@ const ChatInterface: React.FC = () => {
     messagesEndRef,
     isNLPInitialized
   } = useChatContext();
-  
+    // Per assicurarci che i componenti siano renderizzati quando cambiano
+  const [dummyState, setDummyState] = useState(0);
+  // Effetto per ri-renderizzare quando cambiano i componenti
+  useEffect(() => {
+    setDummyState(prev => prev + 1);
+  }, [uiComponentsUpdated]);
   // Gestione consenso
   const handleConsentChange = async (level: ConsentLevel) => {
     console.log(`Consenso aggiornato: ${level}`);
   };
+
+  // Aggiungi log per verificare i componenti disponibili
+  useEffect(() => {
+    console.log("Current UI components:", componentManager);
+    console.log("Dynamic components enabled:", config.enableDynamicComponents);
+    console.log("Sidebar enabled:", config.showSidebar);
+  }, [componentManager, config.enableDynamicComponents, config.showSidebar]);
   
   return (
     <div className="chat-container">
@@ -73,9 +86,11 @@ const ChatInterface: React.FC = () => {
           {/* Componenti UI inline */}
           {config.enableDynamicComponents && (
             <DynamicUIRenderer 
-              components={uiComponents} 
+              components={[]} // Array vuoto, usiamo il manager
               placement="inline"
               onAction={handleUIAction}
+              componentManager={componentManager}
+              key={`inline-${dummyState}`}
             />
           )}
           
@@ -86,9 +101,11 @@ const ChatInterface: React.FC = () => {
         {config.showSidebar && config.enableDynamicComponents && (
           <div className="chat-sidebar">
             <DynamicUIRenderer 
-              components={uiComponents} 
+              components={[]} // Array vuoto, usiamo il manager
               placement="sidebar"
               onAction={handleUIAction}
+              componentManager={componentManager}
+              key={`sidebar-${dummyState}`}
             />
             {/* Componenti NLP */}
             {config.enableNLP && isNLPInitialized && nlpComponents.length > 0 && (
@@ -107,9 +124,10 @@ const ChatInterface: React.FC = () => {
       {config.enableDynamicComponents && (
         <div className="bottom-components-scroll-area">
           <DynamicUIRenderer 
-            components={uiComponents} 
+            components={[]} // Passa un array vuoto
             placement="bottom"
             onAction={handleUIAction}
+            componentManager={componentManager} // Passa il manager
           />
         </div>
       )}

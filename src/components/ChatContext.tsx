@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, useMemo } from 'react';
 import { Message } from '../types/Message';
 import { UIComponent } from '../types/UI';
 import { IConversationTracker } from '../services/analytics/interfaces/IConversationTracker';
@@ -6,6 +6,7 @@ import { getConversationTracker } from '../services/analytics/setupAnalytics';
 import { nlpIntegrationService } from '../services/analytics/nlp/NLPIntegrationService';
 import { AnalysisType } from '../services/analytics/nlp/interfaces/INLPService';
 import { useServices } from '../contexts/ServiceProvider';
+import { ComponentManager } from '../services/ui/ComponentManager';
 
 // Definizione delle proprietà di configurazione
 export interface ChatConfig {
@@ -43,6 +44,8 @@ interface ChatContextType {
   handleSuggestionClick: (suggestion: string) => void;
   handleUIAction: (action: string, payload: any) => void;
   availableActions: any[]; // Aggiungi questa proprietà
+  componentManager: ComponentManager; // Aggiungi questa proprietà
+  uiComponentsUpdated: number;
   //handleActionClick: (action: string, payload: any) => void; // Aggiungi questa funzione
   // Servizi e tracking
   conversationId: string | null;
@@ -90,6 +93,12 @@ export const ChatProvider: React.FC<{
   const { aiService, userService, suggestionService, functionRegistry } = useServices();
   const userContext = userService.getUserContext();
   
+  // Contatore per forzare aggiornamenti UI quando i componenti cambiano
+  const [uiComponentsUpdated, setUIComponentsUpdated] = useState<number>(0);
+  
+  // Istanzia ComponentManager come valore memorizzato
+  const componentManager = useMemo(() => new ComponentManager(), []);
+
   // Aggiorna configurazione
   const updateConfig = (newConfig: Partial<ChatConfig>) => {
     setConfig(prev => ({ ...prev, ...newConfig }));
@@ -197,7 +206,14 @@ export const ChatProvider: React.FC<{
     config.welcomeMessage, config.enableDynamicComponents, config.enableSuggestions, 
     suggestionService, messages.length
   ]);
-  
+
+  const handleNewUIComponents = (components: UIComponent[]) => {
+    // Aggiungi i componenti al manager invece di fare setState
+    componentManager.addComponents(components);
+    
+    // Forza un aggiornamento
+    // Removed setUIComponentsUpdated as it is not defined
+  };
   // Aggiungi messaggio
   const addMessage = (message: Message) => {
     setMessages(prev => [...prev, message]);
@@ -219,7 +235,9 @@ export const ChatProvider: React.FC<{
       handleSendMessage();
     }
   };
+
   
+
   // Traccia i messaggi
   const trackMessage = async (message: any, role: 'user' | 'assistant', nlpAnalysis?: any) => {
     if (!conversationId || !conversationTracker.current) return;
@@ -333,37 +351,10 @@ export const ChatProvider: React.FC<{
       
       // Aggiorna componenti UI se presenti e abilitati
       if (response.uiComponents && config.enableDynamicComponents) {
-        // VERSIONE PROBLEMATICA (da sostituire):
-        // setUIComponents(prev => [
-        //   ...(response.uiComponents ?? []).slice(0, config.maxRecommendations || 3),
-        //   ...prev.slice(0, 5 - Math.min(config.maxRecommendations || 3, response.uiComponents?.length || 0))
-        // ]);
-
-        // NUOVA VERSIONE (migliore gestione dei componenti):
-        const newComponents = response.uiComponents ?? [];
-        
-        // Identifica i tipi di componenti che devono essere unici
-        const uniqueTypes = ['loyaltyCard', 'preferencesCard'];
-        
-        // Filtra i componenti UI esistenti, rimuovendo quelli con tipi che dovrebbero essere unici
-        // se sono presenti nei nuovi componenti
-        const newTypesPresent = newComponents.map(c => c.type);
-        
-        setUIComponents(prev => {
-          // Mantieni componenti esistenti solo se:
-          // 1. Non sono di un tipo che dovrebbe essere unico
-          // 2. Oppure sono di un tipo unico ma quel tipo non è presente nei nuovi componenti
-          const filteredPrev = prev.filter(comp => 
-            !uniqueTypes.includes(comp.type) || 
-            !newTypesPresent.includes(comp.type)
-          );
-          
-          // Aggiungi i nuovi componenti (limitando al massimo raccomandazioni)
-          return [
-            ...newComponents.slice(0, config.maxRecommendations || 3),
-            ...filteredPrev
-          ];
-        });
+        // Aggiungi tutti i componenti UI al manager
+        componentManager.addComponents(response.uiComponents);   
+        // Forza un re-render incrementando il contatore
+        setUIComponentsUpdated(prev => prev + 1);
       }
       
       // Aggiorna suggerimenti se abilitati
@@ -486,12 +477,12 @@ export const ChatProvider: React.FC<{
     // Configurazione
     config,
     updateConfig,
-    
+
     // Stato messaggi
     messages,
     addMessage,
     clearMessages,
-    
+
     // Input utente
     inputValue,
     setInputValue,
@@ -499,21 +490,23 @@ export const ChatProvider: React.FC<{
     handleKeyDown,
     handleSendMessage,
     isTyping,
-    
+
     // Componenti UI e suggerimenti
     uiComponents,
     suggestedPrompts,
     nlpComponents,
     availableActions,
+    componentManager,
     handleSuggestionClick,
     handleUIAction,
-    
+
     // Servizi e tracking
     conversationId,
     isNLPInitialized,
-    messagesEndRef
+    messagesEndRef,
+    uiComponentsUpdated: 0
   };
-  
+ 
   return (
     <ChatContext.Provider value={contextValue}>
       {children}
