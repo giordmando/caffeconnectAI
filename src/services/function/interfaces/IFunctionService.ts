@@ -1,3 +1,5 @@
+import { FunctionDefinition } from "../../../types/Function";
+
 /**
  * Interface for function management service
  */
@@ -59,4 +61,7 @@ export interface IFunctionService {
      * @returns UI metadata object or null
      */
     getFunctionUIMetadata(functionName: string): any;
+
+    getFunctionDefinition(functionName: string): FunctionDefinition | null;
+    
   }

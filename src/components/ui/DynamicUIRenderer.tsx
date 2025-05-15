@@ -3,7 +3,6 @@ import React, { useEffect, useState } from 'react';
 import { UIComponent } from '../../types/UI';
 import { uiComponentRegistry } from './registry/UIComponentRegistry';
 import { ComponentManager } from '../../services/ui/ComponentManager';
-import { UITypeRegistry } from '../../services/ui/UITypeRegistry';
 
 interface DynamicUIRendererProps {
   components: UIComponent[];

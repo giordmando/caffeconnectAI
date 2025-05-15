@@ -9,6 +9,7 @@ import { catalogService } from '../catalog/CatalogService';
  * Permette di registrare e gestire funzioni per interazioni con l'AI
  */
 export class FunctionRegistry implements IFunctionService {
+
   private static instance: FunctionRegistry;
   private functions: Map<string, FunctionDefinition> = new Map();
   private isInitialized: boolean = false;
@@ -16,6 +17,14 @@ export class FunctionRegistry implements IFunctionService {
   private functionDataEndpoints: Record<string, string> = {};
   // Aggiungi una proprietà per tracciare se le funzioni custom sono state caricate
   private customFunctionsLoaded: boolean = false;
+
+  getFunctionDefinition(functionName: string): FunctionDefinition | null {
+    if (!this.hasFunction(functionName)) {
+      return null;
+    }
+    const functionDef = this.functions.get(functionName)!;
+    return functionDef;
+  }
 
   // Metodo per verificare se le funzioni custom sono state caricate
   public areCustomFunctionsLoaded(): boolean {
@@ -354,7 +363,7 @@ export class FunctionRegistry implements IFunctionService {
             description: 'Categoria di prodotti'
           }
         },
-        required: ['userId', 'timeOfDay']
+        required: ['userId', 'timeOfDay', 'category']
       },
       handler: async (params) => {
         try {
@@ -572,11 +581,20 @@ export class FunctionRegistry implements IFunctionService {
           // Cerca nel menu
           if (itemType === 'menuItem' || itemType === 'all') {
             const menuItems = await catalogService.getAllMenuItems();
-            const matchingItems = menuItems.filter(item => 
-              item.name.toLowerCase().includes(query) || 
-              item.description.toLowerCase().includes(query)
-            );
-            
+            // Spezza la query in parole chiave, tutto minuscolo
+            const keywords = query.toLowerCase().split(' ');
+
+            const matchingItems = menuItems.filter(item => {
+                // Porta i campi a minuscolo
+                const name = item.name.toLowerCase();
+                const description = item.description.toLowerCase();
+
+                // Verifica se almeno una parola chiave è presente in uno dei campi
+                return keywords.some((key: string) =>
+                    name.includes(key) || description.includes(key)
+                );
+            });
+  
             results = [
               ...results, 
               ...matchingItems.map(item => ({
@@ -592,11 +610,21 @@ export class FunctionRegistry implements IFunctionService {
           // Cerca nei prodotti
           if (itemType === 'product' || itemType === 'all') {
             const products = await catalogService.getProducts();
-            const matchingProducts = products.filter(product => 
-              product.name.toLowerCase().includes(query) || 
-              product.description.toLowerCase().includes(query)
-            );
-            
+
+            // Spezza la query in parole chiave, tutto minuscolo
+            const keywords = query.toLowerCase().split(' ');
+
+            const matchingProducts = products.filter(item => {
+                // Porta i campi a minuscolo
+                const name = item.name.toLowerCase();
+                const description = item.description.toLowerCase();
+
+                // Verifica se almeno una parola chiave è presente in uno dei campi
+                return keywords.some((key: string) =>
+                    name.includes(key) || description.includes(key)
+                );
+            });
+
             results = [
               ...results, 
               ...matchingProducts.map(product => ({

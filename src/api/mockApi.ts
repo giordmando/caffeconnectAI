@@ -28,7 +28,7 @@ export const mockApiGetMenuItems = async (): Promise<MenuItem[]> => {
   
   // Converti i dati JSON in MenuItem[]
   return (menuItemsData.menuItems as MenuItem[])
-    .filter(item => item.timeOfDay.includes(timeOfDay));
+    //.filter(item => item.timeOfDay.includes(timeOfDay));
 };
 
 /**

@@ -21,31 +21,26 @@ export class UIResponseGenerator implements IUIResponseGenerator {
     message: Message, 
     userContext: UserContext, 
     history: Message[],
-    functionContext?: {
-      functionName?: string;
-      functionResult?: any;
-    }
+    functionContext?: any[]
   ): Promise<UIComponent[]> {
-    // Se abbiamo un contesto di funzione, genera componenti appropriati
-    if (functionContext?.functionName && functionContext?.functionResult) {
-      const { functionName, functionResult } = functionContext;
-      
-      // Gestione speciale per search_product_by_name (risultati multipli)
-      if (functionName === 'search_product_by_name') {
-        return this.handleSearchProductResults(functionResult);
-      }
-      
-      // Usa le factory per generare componenti
-      const component = componentFactoryRegistry.createFromFunctionResult(
-        functionName, 
-        this.extractDataFromFunctionResult(functionResult)
-      );
-      
-      if (component) {
-        // Aggiungi il componente al manager
-        this.componentManager.addComponent(component);
-      } else {
-        console.warn(`No component factory found for function: ${functionName}`);
+    // Se abbiamo un contesto di funzione, usa quello per generare componenti
+    if (functionContext && functionContext.length > 0) {
+      // Processa ogni risultato di funzione
+      for (const context of functionContext) {
+        const { functionName, functionResult } = context;
+        
+        // Usa le factory per generare componenti
+        const component = componentFactoryRegistry.createFromFunctionResult(
+          functionName, 
+          this.extractDataFromFunctionResult(functionResult)
+        );
+        
+        if (component) {
+          // Aggiungi il componente al manager
+          this.componentManager.addComponent(component);
+        } else {
+          console.warn(`No component factory found for function: ${functionName}`);
+        }
       }
     }
     

@@ -18,4 +18,10 @@ export interface MessageRequest {
     result: any; // Risultato NON stringificato
   };        // Risultato della funzione eseguita
   error?: Error;               // Eventuali errori
+
+  // Nuovi campi per supportare il flusso grounding-first
+  functionDetectionResults?: string[];
+  functionResults?: any[];
+  dataContext?: any;
+
 }
