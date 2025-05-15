@@ -1,4 +1,5 @@
 import { Message } from "../../../types/Message";
+import { UserContext } from "../../../types/UserContext";
 import { IFunctionExecutionStrategy } from "../../function/interfaces/IFunctionExecutionStrategy";
 import { IFunctionService } from "../../function/interfaces/IFunctionService";
 import { IFunctionOrchestrator } from "./interfaces/IFunctionOrchestrator";
@@ -10,7 +11,6 @@ export class FunctionOrchestrator implements IFunctionOrchestrator {
     ) {}
     
     async processFunctionCall(call: any): Promise<Message> {
-  
       // Esegui la funzione
       const args = JSON.parse(call.arguments);
       const result = await this.executionStrategy.executeFunction(call.name, args);
@@ -22,13 +22,23 @@ export class FunctionOrchestrator implements IFunctionOrchestrator {
         content: this.generateResponseFromResult(call.name, result).content,
         functionResult: {
           name: call.name,
-          result: result //JSON.stringify(result)
+          result: result
         },
         timestamp: Date.now()
       };
       
-      // Genera una risposta in base al risultato
       return functionResultMessage;
+    }
+    
+    async executeForMessage(message: string, userContext: UserContext): Promise<any[]> {
+      // Se la strategia supporta l'esecuzione basata su messaggio, usala
+      if (this.executionStrategy.executeForMessage) {
+        return await this.executionStrategy.executeForMessage(message, userContext);
+      }
+      
+      // Altrimenti, non è possibile eseguire funzioni in base al messaggio
+      console.warn('Function strategy does not support message-based execution');
+      return [];
     }
     
     getFunctionsForAI(): any[] {
@@ -41,7 +51,6 @@ export class FunctionOrchestrator implements IFunctionOrchestrator {
     
     private generateResponseFromResult(functionName: string, result: any): Message {
       // Logica per generare una risposta testuale dal risultato della funzione
-      // Questa parte può essere migliorata con template e mappatura più dettagliata
       
       let responseText = "";
       const data = result.data?.data ?? result.data;

@@ -44,7 +44,7 @@ export class EnhancedAIServiceFactory {
       );
       
       // Determina se abilitare il supporto funzioni avanzato
-      const enableAdvancedFunctionSupport = params.providerConfig.options?.enableAdvancedFunctionSupport || false;
+      //const enableAdvancedFunctionSupport = params.providerConfig.options?.enableAdvancedFunctionSupport || false;
       
       // Crea il servizio AI migliorato
       const aiService = new EnhancedAIService(
@@ -52,7 +52,7 @@ export class EnhancedAIServiceFactory {
         params.functionService,
         suggestionService,
         actionService,
-        { enableAdvancedFunctionSupport }
+        //{ enableAdvancedFunctionSupport }
       );
       
       return {

@@ -16,10 +16,11 @@ export class UIGenerationHandler extends BaseMessageHandler {
       
       try {
       // PUNTO CRITICO: Passa il contesto della funzione al generatore UI
-      const functionContext = request.functionResult ? {
-        functionName: request.functionResult.name,
-        functionResult: request.functionResult.result
-      } : undefined;
+      const functionContext = request.functionResults && request.functionResults.length > 0 ? 
+        request.functionResults.map(result => ({
+          functionName: result.functionName,
+          functionResult: result.result
+        })) : undefined;
       
       // Genera componenti UI, suggerimenti e azioni in parallelo
       const [uiComponents, suggestedPrompts, availableActions] = await Promise.all([
@@ -27,7 +28,7 @@ export class UIGenerationHandler extends BaseMessageHandler {
           request.aiMessage,
           request.userContext,
           request.conversationHistory,
-          functionContext  // Passa il contesto della funzione
+          functionContext ? functionContext : undefined  // Passa il contesto della funzione come array
         ),
         this.uiResponseGenerator.generateSuggestions(
           request.aiMessage,

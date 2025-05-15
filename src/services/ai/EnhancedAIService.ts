@@ -13,57 +13,48 @@ import { AIProviderService } from "./core/AIProviderService";
 import { ConversationService } from "./core/ConversationService";
 import { FunctionOrchestrator } from "./core/FunctionOrchestrator";
 import { UIResponseGenerator } from "./core/UIResponseGenerator";
-import { AIProviderHandler } from "./pipeline/handlers/AIProviderHandler";
 import { FunctionExecutionHandler } from "./pipeline/handlers/FunctionExecutionHandler";
 import { UIGenerationHandler } from "./pipeline/handlers/UIGenerationHandler";
 import { UserMessageHandler } from "./pipeline/handlers/UserMessageHandler";
 import { IMessageHandler } from "./pipeline/interfaces/IMessageHandler";
-import { AdvancedFunctionExecutionStrategy } from "./strategies/AdvancedFunctionExecutionStrategy";
-import { BasicFunctionExecutionStrategy } from "./strategies/BasicFunctionExecutionStrategy";
+import { FunctionDetectionHandler } from "./pipeline/handlers/FunctionDetectionHandler";
+import { AIGuidedFunctionStrategy } from "./strategies/AIGuidedFunctionStrategy";
+import { GroundingHandler } from "./pipeline/handlers/GroundingHandler ";
+import { GroundingService } from "./core/GroundingService";
 
 export class EnhancedAIService implements IAIService {
     private pipeline: IMessageHandler;
     private conversationService: ConversationService;
     private aiProviderService: AIProviderService;
-    private uiResponseGenerator: UIResponseGenerator; // Aggiunta proprietà mancante
-    private functionOrchestrator: FunctionOrchestrator; // Aggiunta proprietà mancante
-    
+    private uiResponseGenerator: UIResponseGenerator;
+    private functionOrchestrator: FunctionOrchestrator;
+
     constructor(
       aiProvider: IAIProvider,
       functionService: IFunctionService,
       suggestionService: ISuggestionService,
-      actionService: IActionService,
-      options: { enableAdvancedFunctionSupport?: boolean } = {}
+      actionService: IActionService
     ) {
-      // Inizializza i servizi
-      this.conversationService = new ConversationService();
-      this.aiProviderService = new AIProviderService(aiProvider);
+      // Inizializza i servizi core
+      const conversationService = new ConversationService();
+      const aiProviderService = new AIProviderService(aiProvider);
+      const functionStrategy = new AIGuidedFunctionStrategy(aiProvider, functionService);
+      const groundingService = new GroundingService(aiProviderService);
+      this.uiResponseGenerator = new UIResponseGenerator(suggestionService, actionService);
+      this.functionOrchestrator = new FunctionOrchestrator(functionService, functionStrategy);
 
-      const functions = functionService.getFunctionsForAI();
-      console.log("Funzioni disponibili per l'AI:", functions);
-
-      // Crea l'orchestratore di funzioni con la strategia appropriata
-      const executionStrategy = options.enableAdvancedFunctionSupport
-        ? new AdvancedFunctionExecutionStrategy(functionService)
-        : new BasicFunctionExecutionStrategy(functionService);
-        
-      this.functionOrchestrator = new FunctionOrchestrator( // Memorizza l'istanza per uso futuro
-        functionService, 
-        executionStrategy
-      );
-      
-      // Crea il generatore di UI
-      this.uiResponseGenerator = new UIResponseGenerator( // Memorizza l'istanza per uso futuro
-        suggestionService,
-        actionService
-      );
       
       // Costruisci la pipeline
-      this.pipeline = new UserMessageHandler(this.conversationService);
+      this.pipeline = new UserMessageHandler(conversationService);
       this.pipeline
-        .setNext(new AIProviderHandler(this.aiProviderService, this.conversationService, functionService ))
-        .setNext(new FunctionExecutionHandler(this.functionOrchestrator, this.conversationService, this.aiProviderService))
+        .setNext(new FunctionDetectionHandler(functionStrategy))
+        .setNext(new FunctionExecutionHandler(functionStrategy))
+        .setNext(new GroundingHandler(groundingService))
         .setNext(new UIGenerationHandler(this.uiResponseGenerator));
+      
+      // Salva i servizi come proprietà per altri metodi dell'interfaccia
+      this.conversationService = conversationService;
+      this.aiProviderService = aiProviderService;
     }
     
     // Implementazione dell'interfaccia IAIService
