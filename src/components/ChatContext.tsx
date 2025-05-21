@@ -430,6 +430,10 @@ export const ChatProvider: React.FC<{
             };
             
             setUIComponents(prev => [newComponent, ...prev]);
+        
+            // Forza un re-render incrementando il contatore
+            setUIComponentsUpdated(prev => prev + 1);
+            componentManager.addComponents(uiComponents);   
           }
         } catch (error) {
           console.error(`Error executing function ${functionName}:`, error);

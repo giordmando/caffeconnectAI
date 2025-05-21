@@ -11,6 +11,11 @@ export class GroundingHandler extends BaseMessageHandler {
   }
 
   async handle(request: MessageRequest): Promise<AIResponse> {
+
+    // Verifica se ci sono già messaggi nella conversazione
+    const isOngoingConversation = request.conversationHistory.length > 2; // più di un messaggio utente e assistente
+  
+
     // Verifica che i risultati delle funzioni siano disponibili
     if (!request.functionResults) {
       console.warn('No function results available for grounding');
@@ -18,12 +23,31 @@ export class GroundingHandler extends BaseMessageHandler {
     }
     
     try {
-      // Genera risposta grounded sui dati recuperati
+       // Estrai preferenze utente in un formato utilizzabile
+      const userPreferredDrinks = request.userContext.preferences
+        .filter(p => p.itemType === 'beverage')
+        .map(p => p.itemId)
+        .join(', ');
+      
+      const userPreferredFood = request.userContext.preferences
+        .filter(p => p.itemType === 'food')
+        .map(p => p.itemId)
+        .join(', ');
+      
+      const dietaryRestrictions = request.userContext.dietaryRestrictions.join(', ');
+
+      // Genera risposta grounded con contesto arricchito
       const aiMessage = await this.groundingService.generateGroundedResponse(
         request.message,
         request.functionResults,
         request.userContext,
-        request.conversationHistory
+        request.conversationHistory,
+        {
+          isOngoingConversation,
+          userPreferredDrinks,
+          userPreferredFood,
+          dietaryRestrictions
+        }
       );
       
       // Aggiorna la richiesta con la risposta AI

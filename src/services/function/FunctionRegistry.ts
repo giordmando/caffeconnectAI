@@ -380,12 +380,12 @@ export class FunctionRegistry implements IFunctionService {
           
           // Limita a 3-5 risultati rilevanti
           const recommendations = filteredItems
-            .slice(0, 5)
+            /*.slice(0, 5)
             .map(item => ({
               id: item.id,
               name: item.name,
               confidence: 0.9 // o calcola in base alla rilevanza
-            }));
+            }));*/
           
           return { recommendations, timeOfDay: params.timeOfDay };
         } catch (error) {
@@ -435,12 +435,12 @@ export class FunctionRegistry implements IFunctionService {
           
           // Limita a 3-5 risultati rilevanti
           const recommendations = filteredItems
-            .slice(0, 5)
+            /*.slice(0, 5)
             .map(item => ({
               id: item.id,
               name: item.name,
               confidence: 0.9 // o calcola in base alla rilevanza
-            }));
+            }));*/
           
           return { recommendations, timeOfDay: params.timeOfDay };
         } catch (error) {
@@ -575,14 +575,16 @@ export class FunctionRegistry implements IFunctionService {
       handler: async (params) => {
         try {
           let results: string | any[] = [];
-          const query = params.query.toLowerCase();
-          const itemType = params.type || 'all';
+          const query = Array.isArray(params.query) 
+            ? params.query.map((q: string) => q.toLowerCase()).join(' ') 
+            : params.query.toLowerCase();
+          const itemTypes = Array.isArray(params.type) ? params.type : [params.type || 'all'];
           
           // Cerca nel menu
-          if (itemType === 'menuItem' || itemType === 'all') {
+          if (itemTypes.includes('menuItem') || itemTypes.includes('all')) {
             const menuItems = await catalogService.getAllMenuItems();
             // Spezza la query in parole chiave, tutto minuscolo
-            const keywords = query.toLowerCase().split(' ');
+            const keywords = query.split(' ').filter(Boolean); // <-- FIXED
 
             const matchingItems = menuItems.filter(item => {
                 // Porta i campi a minuscolo
@@ -608,11 +610,11 @@ export class FunctionRegistry implements IFunctionService {
           }
           
           // Cerca nei prodotti
-          if (itemType === 'product' || itemType === 'all') {
+          if (itemTypes.includes('product') || itemTypes.includes('all')) {
             const products = await catalogService.getProducts();
 
             // Spezza la query in parole chiave, tutto minuscolo
-            const keywords = query.toLowerCase().split(' ');
+            const keywords = query.split(' ').filter(Boolean); // <-- FIXED
 
             const matchingProducts = products.filter(item => {
                 // Porta i campi a minuscolo

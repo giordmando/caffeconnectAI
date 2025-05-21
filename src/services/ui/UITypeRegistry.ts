@@ -15,7 +15,7 @@ export interface ComponentTypeDefinition {
       // Definizioni predefinite
       this.registerType('loyaltyCard', { isUnique: true, displayName: 'Loyalty Card' });
       this.registerType('preferencesCard', { isUnique: true, displayName: 'Preferences Card' });
-      this.registerType('productDetail', { isUnique: true, displayName: 'Product Detail' });
+      this.registerType('productDetail', { isUnique: false, limit: 5, displayName: 'Product Detail' });
       this.registerType('menuCarousel', { isUnique: false, limit: 1, displayName: 'Menu Carousel' });
       this.registerType('productCarousel', { isUnique: false, limit: 1, displayName: 'Product Carousel' });
     }

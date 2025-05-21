@@ -2,6 +2,7 @@ import { DataContextBuilder } from './DataContextBuilder';
 import { IAIProviderService } from './interfaces/IAIProviderService';
 import { Message } from '../../../types/Message';
 import { UserContext } from '../../../types/UserContext';
+import { promptService } from '../../prompt/PromptService';
 
 export class GroundingService {
   constructor(
@@ -12,7 +13,8 @@ export class GroundingService {
     userMessage: string,
     functionResults: any[],
     userContext: UserContext,
-    conversation: Message[]
+    conversation: Message[],
+    additionalContext: any = {}
   ): Promise<Message> {
     // Costruisci il contesto dati
     const dataContext = new DataContextBuilder();
@@ -25,33 +27,47 @@ export class GroundingService {
     // Aggiungi contesto utente
     dataContext.addUserContext(userContext);
     
-    // Crea un prompt di sistema per il grounding
-    const groundingPrompt = dataContext.buildPrompt();
+    // Aggiungi contesto aggiuntivo
+    dataContext.addCustomData('additional_context', additionalContext);
     
+    // Determina se è una conversazione in corso
+    const isOngoingConversation = conversation.length > 2 && additionalContext.isOngoingConversation;
+    
+    const messages: Message[] =[];
     // Prepara i messaggi per l'AI
-    const messages: Message[] = [
+   /* const messages: Message[] = [
       {
         role: 'system',
-        content: 'Sei un assistente specializzato per CaféConnect. Rispondi in modo cordiale e preciso utilizzando SOLO le informazioni verificate fornite nel contesto.',
-        timestamp: Date.now()
-      },
-      {
-        role: 'system',
-        content: groundingPrompt,
+        content: 'Sei un assistente specializzato per CaféConnect. Rispondi in modo cordiale e preciso.',
         timestamp: Date.now()
       }
     ];
+    */
     
-    // Aggiungi la conversazione precedente (ultimi 3 scambi per esempio)
+    // Aggiungi istruzione per evitare saluti ripetuti se la conversazione è in corso
+    /*if (isOngoingConversation) {
+      messages.push({
+        role: 'system',
+        content: 'IMPORTANTE: Questa è una conversazione in corso. Non ripetere saluti come "Buongiorno" o introduzioni.',
+        timestamp: Date.now()
+      });
+    }*/
+    
+    // Aggiungi il prompt di grounding
+    messages.push({
+      role: 'system',
+      content: await promptService.getPrompt('rag_context', {
+        retrievedContent: dataContext.buildPrompt(),
+        userPreferredDrinks: additionalContext.userPreferredDrinks || 'Nessuna preferenza registrata',
+        userPreferredFood: additionalContext.userPreferredFood || 'Nessuna preferenza registrata',
+        dietaryRestrictions: additionalContext.dietaryRestrictions || 'Nessuna restrizione'
+      }),
+      timestamp: Date.now()
+    });
+    
+    // Aggiungi la conversazione precedente (ultimi 3 scambi)
     const recentConversation = conversation.slice(-6); // 3 scambi (utente + assistente)
     messages.push(...recentConversation);
-    
-    // Aggiungi il messaggio utente corrente
-    /*messages.push({
-      role: 'user',
-      content: userMessage,
-      timestamp: Date.now()
-    });*/
     
     try {
       // Genera risposta grounded
@@ -67,7 +83,7 @@ export class GroundingService {
       
       return {
         role: 'assistant',
-        content: 'Mi dispiace, ho avuto un problema nel processare la tua richiesta. Puoi riprovare?',
+        content: 'Mi dispiace, ho avuto un problema nel processare la tua richiesta. Posso aiutarti in altro modo?',
         timestamp: Date.now()
       };
     }

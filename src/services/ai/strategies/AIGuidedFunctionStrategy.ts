@@ -4,6 +4,8 @@ import { IAIProvider } from "../interfaces/IAIProvider";
 import { UserContext } from "../../../types/UserContext";
 import { FunctionCallResult } from "../../../types/Function";
 import { getTimeOfDay } from "../../../utils/timeContext";
+import { Message } from "../../../types/Message";
+import { promptService } from "../../prompt/PromptService";
 
 export class AIGuidedFunctionStrategy implements IFunctionExecutionStrategy {
   constructor(
@@ -15,12 +17,16 @@ export class AIGuidedFunctionStrategy implements IFunctionExecutionStrategy {
     return this.functionService.executeFunction(functionName, args);
   }
   
-  async determineFunctions(userMessage: string, context: UserContext): Promise<string[]> {
+  async determineFunctions(userMessage: string, context: UserContext, conversationHistory?: Message[]): Promise<string[]> {
     // Ottieni tutte le funzioni disponibili
     const availableFunctions = this.functionService.getAllFunctions();
     
-    // Costruisci prompt per la selezione delle funzioni
-    const prompt = this.buildFunctionSelectionPrompt(userMessage, availableFunctions, context);
+    // Costruisci prompt per la selezione delle funzioni, includendo la storia conversazionale
+    const prompt = await this.buildFunctionSelectionPrompt(
+      userMessage, 
+      availableFunctions, 
+      context
+    );
     
     try {
       // Chiama l'AI per determinare quali funzioni chiamare
@@ -61,24 +67,42 @@ export class AIGuidedFunctionStrategy implements IFunctionExecutionStrategy {
     return results;
   }
   
-  private buildFunctionSelectionPrompt(userMessage: string, availableFunctions: any[], context: UserContext): string {
-    return `
-    Messaggio utente: "${userMessage}"
-
-    Contesto utente:
-    - ID: ${context.userId}
-    - Preferenze: ${context.preferences.map(p => `${p.itemType}:${p.itemId} (rating: ${p.rating})`).join(', ')}
-    - Restrizioni dietetiche: ${context.dietaryRestrictions.join(', ') || 'Nessuna'}
-    - Ultima visita: ${context.lastVisit || 'Prima visita'}
-
-    Funzioni disponibili:
-    ${availableFunctions.map(fn => `- ${fn.name}: ${fn.description}`).join('\n')}
-
-    Individua le funzioni più adatte per recuperare i dati necessari a rispondere alla richiesta dell'utente.
-    Restituisci SOLO un array JSON con i nomi delle funzioni necessarie.
-    Esempio: ["get_menu_recommendations", "get_user_preferences"]
-    Non includere spiegazioni o altro testo, solo l'array JSON.
-    `;
+  private async buildFunctionSelectionPrompt(userMessage: string, availableFunctions: any[], context: UserContext): Promise<string> {
+    return promptService.getPrompt('function_selection', {
+      userMessage,
+      userId: context.userId,
+      preferences: context.preferences,
+      dietaryRestrictions: context.dietaryRestrictions,
+      lastVisit: context.lastVisit,
+      availableFunctions
+    });
+  }
+  
+  // Metodi helper
+  private getRecentConversationContext(history: Message[], numMessages: number): Message[] {
+    return history.slice(-numMessages);
+  }
+  
+  private getRecentFunctionCalls(history: Message[]): {name: string, timestamp: number}[] {
+    const functionCalls: {name: string, timestamp: number}[] = [];
+    
+    for (const msg of history) {
+      if (msg.functionCall) {
+        functionCalls.push({
+          name: msg.functionCall.name,
+          timestamp: msg.timestamp
+        });
+      }
+    }
+    
+    return functionCalls.slice(-3); // ultimi 3 call di funzioni
+  }
+  
+  private formatTimestamp(timestamp: number): string {
+    const seconds = Math.floor((Date.now() - timestamp) / 1000);
+    if (seconds < 60) return `${seconds} secondi fa`;
+    if (seconds < 3600) return `${Math.floor(seconds/60)} minuti fa`;
+    return `${Math.floor(seconds/3600)} ore fa`;
   }
   
   private extractFunctionsFromResponse(response: string): string[] {

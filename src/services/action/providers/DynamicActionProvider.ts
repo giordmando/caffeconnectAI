@@ -4,6 +4,7 @@ import { UserContext } from '../../../types/UserContext';
 import { ICatalogService } from '../../catalog/interfaces/ICatalogService';
 import { IAIProvider } from '../../ai/interfaces/IAIProvider';
 import { configManager } from '../../../config/ConfigManager';
+import { promptService } from '../../prompt/PromptService';
 
 export class DynamicActionProvider implements IActionProvider {
   constructor(
@@ -34,7 +35,7 @@ export class DynamicActionProvider implements IActionProvider {
       );
       
       // Invia il prompt all'AI
-      const aiResponse = await this.aiProvider.sendMessage(prompt, {});
+      const aiResponse = await this.aiProvider.sendMessage(await prompt, {});
       
       // Analizza la risposta dell'AI
       return this.parseActions(aiResponse);
@@ -45,33 +46,17 @@ export class DynamicActionProvider implements IActionProvider {
     }
   }
   
-  private createActionPrompt(
-    messageContent: string,
-    userContext: UserContext,
-    timeOfDay: string,
-    menuItems: any[],
-    products: any[]
-  ): string {
+  private async createActionPrompt(messageContent: string, userContext: UserContext, timeOfDay: string, menuItems: any[], products: any[]): Promise<string> {
     const businessConfig = configManager.getSection('business');
     
-    const prompt = `Data la seguente risposta dell'AI ad un utente di ${businessConfig.name} (${businessConfig.type}):
-    
-"${messageContent}"
-
-Orario attuale: ${timeOfDay}
-
-Genera un elenco di azioni pratiche che l'utente potrebbe voler intraprendere in base alla risposta.
-Considera i seguenti item dal menu e prodotti menzionati nella risposta:
-
-Menu items disponibili:
-${menuItems.map(item => `- ${item.name}`).join('\n')}
-
-Prodotti disponibili:
-${products.map(product => `- ${product.name}`).join('\n')}
-
-Rispondi SOLO con un array JSON di oggetti azione, ciascuno con i campi "type", "title" e "payload".
-Esempio: [{"type": "view_item", "title": "Vedi Cappuccino", "payload": {"id": "coffee-2", "type": "menuItem"}}]`;
-return prompt;
+    return await promptService.getPrompt('action_generation', {
+      messageContent,
+      timeOfDay,
+      businessName: businessConfig.name,
+      businessType: businessConfig.type,
+      menuItems,
+      products
+    });
   }
   
   private parseActions(response: string): any[] {

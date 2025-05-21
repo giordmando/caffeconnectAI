@@ -29,6 +29,13 @@ export class UIResponseGenerator implements IUIResponseGenerator {
       for (const context of functionContext) {
         const { functionName, functionResult } = context;
         
+        // Gestione speciale per risultati di ricerca prodotti
+        if (functionName === 'search_product_by_name') {
+          // Chiama il metodo di gestione ricerca
+          this.handleSearchProductResults(functionResult);
+          continue; // Passa al prossimo context
+        }
+
         // Usa le factory per generare componenti
         const component = componentFactoryRegistry.createFromFunctionResult(
           functionName, 
@@ -57,23 +64,37 @@ export class UIResponseGenerator implements IUIResponseGenerator {
     return data?.data || data;
   }
   
-  // Gestisce i risultati di ricerca prodotto
-  private handleSearchProductResults(data: any): UIComponent[] {
-    const products = Array.isArray(data.results) && data.results.length > 0 ? data.results : [];
+ // Implementazione corretta del metodo handleSearchProductResults
+  private handleSearchProductResults(result: any): void {
+    console.log('Handling search product results:', result);
     
-    if (data.success && products.length > 0) {
+    if (!result || !result.success) {
+      console.warn('No search results to display');
+      return;
+    }
+    
+    const products = result.results || result.data.results || [result.data] || [];
+    
+    // Crea e aggiungi un componente per ogni prodotto trovato
+    for (const product of products) {
       const productDetailFactory = componentFactoryRegistry.getFactory('productDetail');
       
       if (productDetailFactory) {
-        for (const product of products) {
-          const component = productDetailFactory.createComponent({ product }, 'sidebar');
-          this.componentManager.addComponent(component);
-        }
+        // Crea un componente con ID univoco per ogni prodotto
+        const component = productDetailFactory.createComponent(
+          { product }, 
+          'inline' // Cambia placement da 'sidebar' a 'inline' per renderli nella chat
+        );
+        
+        // Assicurati che ogni componente abbia un ID univoco basato sul prodotto
+        component.id = `product-detail-${product.id}-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
+        
+        console.log('Adding product component to manager:', component.id);
+        this.componentManager.addComponent(component);
+      } else {
+        console.error('Product detail factory not found!');
       }
     }
-    
-    // Ritorna tutti i componenti gestiti dal manager
-    return this.componentManager.getAllComponents();
   }
   
   async generateSuggestions(message: Message, userContext: UserContext): Promise<string[]> {
