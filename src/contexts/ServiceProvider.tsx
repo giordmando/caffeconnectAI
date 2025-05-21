@@ -21,6 +21,11 @@ import { configManager } from '../config/ConfigManager';
 import { themeService } from '../services/theme/ThemeService';
 import { AIProviderConfig } from '../types/AIProvider';
 import { EnhancedAIServiceFactory } from '../services/ai/EnhancedAIServiceFactory';
+import { setupPrompts } from '../services/prompt/setupPrompts';
+import { promptService } from '../services/prompt/PromptService';
+import { retrievalService } from '../services/prompt/retrieval/RetrievalService';
+import { InMemoryVectorStore } from '../services/prompt/retrieval/stores/InMemoryVectorStore';
+
 
 
 // Definizione dell'interfaccia per tutti i servizi - Con interfacce invece di implementazioni concrete
@@ -131,6 +136,14 @@ export const ServiceProvider: React.FC<{
   // Funzione per inizializzare tutti i servizi
   const initializeServices = async () => {
     try {
+
+      // Configura il vector store temporaneo
+      retrievalService.setVectorStore(new InMemoryVectorStore());
+      await retrievalService.initialize();
+
+      // Inizializza il servizio prompt
+      await setupPrompts();
+
       console.log('Inizializzazione dei servizi in corso...');
       setIsInitialized(false);
       setInitializationError(null);

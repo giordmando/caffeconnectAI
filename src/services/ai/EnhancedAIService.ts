@@ -36,6 +36,7 @@ export class EnhancedAIService implements IAIService {
       actionService: IActionService
     ) {
       // Inizializza i servizi core
+
       const conversationService = new ConversationService();
       const aiProviderService = new AIProviderService(aiProvider);
       const functionStrategy = new AIGuidedFunctionStrategy(aiProvider, functionService);

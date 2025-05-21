@@ -1,14 +1,28 @@
+import { configManager } from "../../../config/ConfigManager";
 import { Message } from "../../../types/Message";
+import { promptService } from "../../prompt/PromptService";
 import { IConversationService } from "./interfaces/IConversationService";
 
 export class ConversationService implements IConversationService {
     private conversation: Message[] = [];
     
-    constructor(systemPrompt?: string) {
-      if (systemPrompt) {
-        this.initializeWithSystemPrompt(systemPrompt);
-      }
+  constructor(systemPrompt?: string) {
+    if (systemPrompt) {
+      this.initializeWithSystemPrompt(systemPrompt);
+    } else {
+      this.initializeWithDefaultSystemPrompt();
     }
+  }
+
+  private async initializeWithDefaultSystemPrompt(): Promise<void> {
+    const systemPrompt = await promptService.getPrompt('system', {
+      business: {
+        name: configManager.getSection('business').name,
+        type: configManager.getSection('business').type
+      }
+    });
+    this.initializeWithSystemPrompt(systemPrompt);
+  }
     
     getConversationHistory(): Message[] {
       return this.conversation;
