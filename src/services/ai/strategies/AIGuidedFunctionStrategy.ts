@@ -2,207 +2,192 @@ import { IFunctionExecutionStrategy } from "../../function/interfaces/IFunctionE
 import { IFunctionService } from "../../function/interfaces/IFunctionService";
 import { IAIProvider } from "../interfaces/IAIProvider";
 import { UserContext } from "../../../types/UserContext";
-import { FunctionCallResult } from "../../../types/Function";
+import { FunctionCallResult, FunctionDefinition } from "../../../types/Function"; // Importa FunctionDefinition
 import { getTimeOfDay } from "../../../utils/timeContext";
 import { Message } from "../../../types/Message";
-import { promptService } from "../../prompt/PromptService";
+import { promptService } from "../../prompt/PromptService"; // Importa il promptService
 
 export class AIGuidedFunctionStrategy implements IFunctionExecutionStrategy {
   constructor(
     private aiProvider: IAIProvider,
     private functionService: IFunctionService
   ) {}
-  
+
   async executeFunction(functionName: string, args: any): Promise<FunctionCallResult> {
     return this.functionService.executeFunction(functionName, args);
   }
-  
+
   async determineFunctions(userMessage: string, context: UserContext, conversationHistory?: Message[]): Promise<string[]> {
-    // Ottieni tutte le funzioni disponibili
-    const availableFunctions = this.functionService.getAllFunctions();
-    
-    // Costruisci prompt per la selezione delle funzioni, includendo la storia conversazionale
-    const prompt = await this.buildFunctionSelectionPrompt(
-      userMessage, 
-      availableFunctions, 
-      context
-    );
-    
+    const availableFunctions = this.functionService.getFunctionsForAI(); // Usa getFunctionsForAI per il formato corretto
+
+    // Costruisci prompt per la selezione delle funzioni
+    const promptContext = {
+      userMessage,
+      userId: context.userId,
+      preferences: context.preferences?.map(p => `${p.itemType}:${p.itemId} (rating: ${p.rating})`).join(', ') || 'Nessuna',
+      dietaryRestrictions: context.dietaryRestrictions?.join(', ') || 'Nessuna',
+      lastVisit: context.lastVisit,
+      availableFunctions: availableFunctions.map((fn: any) => `- ${fn.name}: ${fn.description}`).join('\n')
+      // Potresti voler passare l'intera history o un suo riassunto se il template lo supporta
+    };
+
+    const prompt = await promptService.getPrompt('function_selection', promptContext); //
+
     try {
-      // Chiama l'AI per determinare quali funzioni chiamare
       const response = await this.aiProvider.sendMessage(prompt);
-      
-      // Estrai i nomi delle funzioni dalla risposta dell'AI
       const selectedFunctions = this.extractFunctionsFromResponse(response);
-      
-      // Filtra solo le funzioni che effettivamente esistono
-      return selectedFunctions.filter(fn => this.functionService.hasFunction(fn));
+      return selectedFunctions.filter(fnName => this.functionService.hasFunction(fnName));
     } catch (error) {
       console.error('Error determining functions:', error);
       return [];
     }
   }
-  
+
   async executeForMessage(userMessage: string, context: UserContext): Promise<any[]> {
-    // Determina quali funzioni chiamare
     const functionsToCall = await this.determineFunctions(userMessage, context);
-    
-    // Se non ci sono funzioni da chiamare, restituisci array vuoto
     if (functionsToCall.length === 0) return [];
-    
-    // Esegui tutte le funzioni in parallelo
+
     const results = await Promise.all(
       functionsToCall.map(async fnName => {
         try {
-          const params = await this.buildParamsForFunction(fnName, userMessage, context);
+          // Passa l'intera definizione della funzione a buildParamsForFunction
+          const functionDef = this.functionService.getFunctionDefinition(fnName);
+          if (!functionDef) {
+            console.warn(`Function definition not found for ${fnName} during param building.`);
+            return { functionName: fnName, success: false, error: `Definition for ${fnName} not found` };
+          }
+          const params = await this.buildParamsForFunction(fnName, functionDef, userMessage, context); // Modificato
           const result = await this.executeFunction(fnName, params);
-          return { functionName: fnName, success: true, result };
+          return { functionName: fnName, success: result.success, result }; // result qui è FunctionCallResult
         } catch (error) {
-          console.error(`Error executing function ${fnName}:`, error);
+          console.error(`Error executing or building params for function ${fnName}:`, error);
           return { functionName: fnName, success: false, error: String(error) };
         }
       })
     );
-    
     return results;
   }
-  
-  private async buildFunctionSelectionPrompt(userMessage: string, availableFunctions: any[], context: UserContext): Promise<string> {
-    return promptService.getPrompt('function_selection', {
-      userMessage,
-      userId: context.userId,
-      preferences: context.preferences,
-      dietaryRestrictions: context.dietaryRestrictions,
-      lastVisit: context.lastVisit,
-      availableFunctions
-    });
-  }
-  
-  // Metodi helper
-  private getRecentConversationContext(history: Message[], numMessages: number): Message[] {
-    return history.slice(-numMessages);
-  }
-  
-  private getRecentFunctionCalls(history: Message[]): {name: string, timestamp: number}[] {
-    const functionCalls: {name: string, timestamp: number}[] = [];
-    
-    for (const msg of history) {
-      if (msg.functionCall) {
-        functionCalls.push({
-          name: msg.functionCall.name,
-          timestamp: msg.timestamp
-        });
-      }
-    }
-    
-    return functionCalls.slice(-3); // ultimi 3 call di funzioni
-  }
-  
-  private formatTimestamp(timestamp: number): string {
-    const seconds = Math.floor((Date.now() - timestamp) / 1000);
-    if (seconds < 60) return `${seconds} secondi fa`;
-    if (seconds < 3600) return `${Math.floor(seconds/60)} minuti fa`;
-    return `${Math.floor(seconds/3600)} ore fa`;
-  }
-  
+
   private extractFunctionsFromResponse(response: string): string[] {
     try {
-      // Cerca pattern di array JSON nella risposta
-      const match = response.match(/\[(.*?)\]/);
-      if (!match) return [];
-      
-      // Parsing del risultato
+      const match = response.match(/\[(.*?)\]/); // Aggiunto 's' per multiline
+      if (!match || !match[0]) return [];
       const jsonArray = JSON.parse(match[0]);
       if (!Array.isArray(jsonArray)) return [];
-      
-      // Filtra solo stringhe
       return jsonArray.filter(item => typeof item === 'string');
     } catch (error) {
-      console.error('Error extracting functions from response:', error);
+      console.warn('Could not parse functions from AI response, attempting direct extraction:', response, error);
+      // Fallback: prova a estrarre nomi di funzioni se non è un JSON array valido
+      // Questo è un fallback grezzo, potrebbe necessitare di miglioramenti
+      const knownFunctionNames = this.functionService.getAllFunctions().map(f => f.name);
+      const foundFunctions: string[] = [];
+      for (const name of knownFunctionNames) {
+        if (response.includes(`"${name}"`)) { // Cerca il nome della funzione tra virgolette
+            foundFunctions.push(name);
+        }
+      }
+      if (foundFunctions.length > 0) {
+          console.log('Fallback extraction found functions:', foundFunctions);
+          return foundFunctions;
+      }
       return [];
     }
   }
-  
-  async buildParamsForFunction(functionName: string, userMessage: string, context: UserContext): Promise<any> {
-    // Parametri di base per tutte le funzioni
+
+  // MODIFICATO: Ora accetta FunctionDefinition e usa promptService
+  async buildParamsForFunction(
+    functionName: string,
+    functionDef: FunctionDefinition, // Ora riceve l'intera definizione
+    userMessage: string,
+    context: UserContext
+  ): Promise<any> {
     const baseParams = {
       userId: context.userId
+      // Potresti aggiungere altri parametri di contesto comuni qui, es. timeOfDay
     };
-    
-    // 1. Ottieni la definizione della funzione dal registry
-    const functionDef = this.functionService.getFunctionDefinition(functionName);
-    if (!functionDef) {
-      console.warn(`Function definition not found for ${functionName}`);
+
+    if (!functionDef.parameters || !functionDef.parameters.properties || Object.keys(functionDef.parameters.properties).length === 0) {
+      // Se la funzione non ha parametri definiti (oltre a quelli base), restituisci solo i baseParams
       return baseParams;
     }
-    
-    // 2. Utilizza AI per generare i parametri in base alla definizione
+
     try {
       const paramSchema = functionDef.parameters;
       const requiredParams = paramSchema.required || [];
-      
-      // Usa un prompt specifico per estrarre i parametri necessari
-      const paramPrompt = `
-Messaggio utente: "${userMessage}"
 
-Per la funzione "${functionName}" (${functionDef.description}), estrai i seguenti parametri richiesti:
-${requiredParams.map(param => {
-  const paramDef = paramSchema.properties[param];
-  return `- ${param}: ${paramDef.description}${paramDef.enum ? ` (opzioni: ${paramDef.enum.join(', ')})` : ''}`;
-}).join('\n')}
+      // Costruisci la descrizione dei parametri per il prompt
+      const parameterDescriptions = Object.entries(paramSchema.properties)
+        .map(([paramKey, paramDefValue]) => {
+          // paramDefValue è l'oggetto che contiene type, description, enum etc.
+          const desc = paramDefValue.description || 'Nessuna descrizione';
+          const enumValues = paramDefValue.enum ? ` (Valori possibili: ${paramDefValue.enum.join(', ')})` : '';
+          return `- ${paramKey} (${paramDefValue.type}): ${desc}${enumValues}`;
+        })
+        .join('\n');
 
-Restituisci SOLO un oggetto JSON con i parametri estratti.
-Se non riesci a identificare un parametro, usa null.
-`;
+      // Usa promptService per ottenere il prompt di estrazione parametri
+      const promptContext = {
+        userMessage,
+        functionName,
+        functionDescription: functionDef.description,
+        parameterDescriptions // Questo ora contiene la lista formattata dei parametri
+      };
+      // Log per debug
+      // console.log(`[AIGuidedFunctionStrategy] Context for FUNCTION_PARAM_EXTRACTION_TEMPLATE for ${functionName}:`, JSON.stringify(promptContext, null, 2));
 
-      // Chiama l'AI per estrarre i parametri
+      const paramPrompt = await promptService.getPrompt('function_param_extraction', promptContext); //
+
       const response = await this.aiProvider.sendMessage(paramPrompt);
-      
-      // Estrai i parametri dalla risposta
-      const extractedParams = this.extractJSONFromResponse(response);
-      
-      // 3. Integra i parametri estratti con i parametri base
+      const extractedParams = this.extractJSONFromResponse(response); // Supponendo che l'AI restituisca JSON
+
       const finalParams = {
         ...baseParams,
         ...extractedParams
       };
-      
-      // 4. Verifica i parametri richiesti e fornisci valori di default se necessario
+
+      // Verifica i parametri richiesti e fornisci valori di default se necessario
       for (const param of requiredParams) {
         if (finalParams[param] === undefined || finalParams[param] === null) {
-          finalParams[param] = this.getDefaultValueForParam(param, functionDef.parameters.properties[param]);
+          // Non passare paramDef.properties[param] ma paramSchema.properties[param]
+          finalParams[param] = this.getDefaultValueForParam(param, paramSchema.properties[param]);
         }
       }
-      
+       // console.log(`[AIGuidedFunctionStrategy] Final params for ${functionName}:`, JSON.stringify(finalParams, null, 2));
       return finalParams;
+
     } catch (error) {
       console.error(`Error building parameters for ${functionName}:`, error);
+      // In caso di errore, restituisci i parametri base o gestisci diversamente
       return baseParams;
     }
   }
-  
-  
+
   private extractJSONFromResponse(response: string): any {
     try {
-      // Cerca pattern di oggetti JSON nella risposta
+      // Cerca un oggetto JSON nella risposta. Potrebbe essere necessario un parsing più robusto.
       const match = response.match(/\{[\s\S]*\}/);
-      if (!match) return {};
-      
-      // Parsing del risultato
-      return JSON.parse(match[0]);
-    } catch (error) {
-      console.error('Error extracting JSON from response:', error);
+      if (match && match[0]) {
+        return JSON.parse(match[0]);
+      }
+      console.warn('No JSON object found in AI response for parameters:', response);
       return {};
+    } catch (error) {
+      console.error('Error extracting JSON from AI response for parameters:', error, "\nResponse was:", response);
+      return {}; // Restituisce un oggetto vuoto in caso di errore di parsing
     }
   }
-  
+
   private getDefaultValueForParam(paramName: string, paramDef: any): any {
-    // Logica per fornire valori di default in base al tipo e al contesto
-    if (paramName === 'timeOfDay') return getTimeOfDay();
-    if (paramName === 'category') return 'all';
-    if (paramName === 'type') return 'all';
-    
-    // Default in base al tipo
+    if (!paramDef) return null; // Se paramDef non esiste
+
+    if (paramName === 'timeOfDay') return getTimeOfDay(); //
+    if (paramName === 'category' && paramDef.enum && paramDef.enum.includes('all')) return 'all';
+    if (paramName === 'type' && paramDef.enum && paramDef.enum.includes('all')) return 'all';
+
+    // Se c'è un valore di default nello schema, usalo
+    if (paramDef.default !== undefined) return paramDef.default;
+
+    // Altrimenti, default basato sul tipo
     switch (paramDef.type) {
       case 'string': return '';
       case 'number': return 0;
@@ -212,5 +197,4 @@ Se non riesci a identificare un parametro, usa null.
       default: return null;
     }
   }
-  
 }

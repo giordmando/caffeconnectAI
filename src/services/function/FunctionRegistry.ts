@@ -1,8 +1,8 @@
-// src/services/function/FunctionRegistry.ts
 import { FunctionDefinition, FunctionCallResult } from '../../types/Function';
 import { configManager } from '../../config/ConfigManager';
 import { IFunctionService } from './interfaces/IFunctionService';
 import { catalogService } from '../catalog/CatalogService';
+import { getTimeOfDay } from '../../utils/timeContext';
 
 /**
  * Registry per funzioni personalizzabili
@@ -359,35 +359,70 @@ export class FunctionRegistry implements IFunctionService {
           },
           category: {
             type: 'string',
-            enum: ['beverage', 'food', 'all'],
-            description: 'Categoria di prodotti'
+            enum: ['beverage', 'food', 'all', 'aperitivo', 'appetizer', 'dessert'], // Aggiungi sottocategorie rilevanti come enum
+            description: "Filtra per categoria. Usa 'all' per tutte le categorie. Per 'aperitivo', l'AI dovrebbe considerare sia bevande ('beverage' con subcategory 'aperitivo') sia cibo da stuzzicare ('food' con subcategory 'appetizer'). Se l'utente non specifica, spesso 'all' è una buona scelta per il momento della giornata corrente."
           }
         },
         required: ['userId', 'timeOfDay', 'category']
       },
       handler: async (params) => {
         try {
-          // Ottieni dati reali dal catalogo invece di valori hardcoded
-          const allItems = await catalogService.getAllMenuItems();
-          
-          // Filtra per categoria E momento della giornata
+          const allItems = await catalogService.getAllMenuItems(); //
+          const timeOfDay = params.timeOfDay || getTimeOfDay(); // Usa getTimeOfDay se non specificato
+          const categoryOrSubcategoryFilter = (params.category || 'all').toLowerCase();
+          const dietaryPreference = params.dietaryPreference; // es. "vegan"
+
+          console.log(`[get_menu_recommendations] Params received: timeOfDay=${timeOfDay}, categoryFilter=${categoryOrSubcategoryFilter}, dietaryPreference=${dietaryPreference}`);
+
           let filteredItems = allItems.filter(item => {
-            const matchesTime = item.timeOfDay.includes(params.timeOfDay);
-            const matchesCategory = !params.category || params.category === 'all' || 
-                                   item.category === params.category;
-            return matchesTime && matchesCategory;
+            const matchesTime = item.timeOfDay.includes(timeOfDay);
+            
+            let matchesCategoryLogic = false;
+            if (categoryOrSubcategoryFilter === 'all') {
+              matchesCategoryLogic = true;
+            } else if (categoryOrSubcategoryFilter === 'aperitivo') {
+              // Caso speciale per "aperitivo": include bevande 'aperitivo' e cibo 'appetizer'
+              matchesCategoryLogic = (item.category?.toLowerCase() === 'beverage' && item.subcategory?.toLowerCase() === 'aperitivo') ||
+                                    (item.category?.toLowerCase() === 'food' && item.subcategory?.toLowerCase() === 'appetizer');
+            } else {
+              // Cerca corrispondenza sia in category che in subcategory
+              matchesCategoryLogic = item.category?.toLowerCase() === categoryOrSubcategoryFilter ||
+                                    item.subcategory?.toLowerCase() === categoryOrSubcategoryFilter;
+            }
+            
+            let matchesDietary = true;
+            if (dietaryPreference && item.dietaryInfo && Array.isArray(item.dietaryInfo)) {
+              matchesDietary = item.dietaryInfo.map(di => di.toLowerCase()).includes(dietaryPreference.toLowerCase());
+            } else if (dietaryPreference && (!item.dietaryInfo || item.dietaryInfo.length === 0)) {
+              matchesDietary = false; // Se si richiede una preferenza ma l'item non ha info, è un non-match
+            }
+            
+            return matchesTime && matchesCategoryLogic && matchesDietary;
           });
-          
-          // Limita a 3-5 risultati rilevanti
+
+          // Logica di ordinamento e slicing per le raccomandazioni
           const recommendations = filteredItems
-            /*.slice(0, 5)
+            .sort((a, b) => {
+              // Logica di priorità per "aperitivo" se il filtro è 'aperitivo' o 'all' in serata
+              if (timeOfDay === 'evening' && (categoryOrSubcategoryFilter === 'all' || categoryOrSubcategoryFilter === 'aperitivo')) {
+                const aIsAperitivoContext = a.subcategory?.toLowerCase() === 'aperitivo' || a.subcategory?.toLowerCase() === 'appetizer';
+                const bIsAperitivoContext = b.subcategory?.toLowerCase() === 'aperitivo' || b.subcategory?.toLowerCase() === 'appetizer';
+                if (aIsAperitivoContext && !bIsAperitivoContext) return -1; // 'a' ha priorità
+                if (!aIsAperitivoContext && bIsAperitivoContext) return 1;  // 'b' ha priorità
+              }
+              // Altrimenti (o a parità di contesto aperitivo), ordina per popolarità
+              return (b.popularity || 0) - (a.popularity || 0);
+            })
+            .slice(0, params.limit || configManager.getSection('ui').maxRecommendations || 3) //
             .map(item => ({
               id: item.id,
               name: item.name,
-              confidence: 0.9 // o calcola in base alla rilevanza
-            }));*/
-          
-          return { recommendations, timeOfDay: params.timeOfDay };
+              // Non serve confidence qui, la UI prenderà i dettagli da CatalogService se necessario
+            }));
+    
+        console.log(`[get_menu_recommendations] Filtered items for ${timeOfDay} & ${categoryOrSubcategoryFilter}: ${filteredItems.length}, Recommendations: ${recommendations.length}`);
+        
+        return { success: true, data: { recommendations, timeOfDay: timeOfDay } };
         } catch (error) {
           console.error('Error generating recommendations:', error);
           return { recommendations: [] };

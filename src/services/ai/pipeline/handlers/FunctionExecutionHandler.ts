@@ -1,5 +1,4 @@
 import { AIResponse } from "../../../../types/AIResponse";
-import { UserContext } from "../../../../types/UserContext";
 import { AIGuidedFunctionStrategy } from "../../strategies/AIGuidedFunctionStrategy";
 import { MessageRequest } from "../interfaces/MessageRequest";
 import { BaseMessageHandler } from "./BaseMessageHandler";
@@ -12,27 +11,15 @@ export class FunctionExecutionHandler extends BaseMessageHandler {
   }
 
   async handle(request: MessageRequest): Promise<AIResponse> {
-    // Verifica che la lista di funzioni da chiamare sia disponibile
+    // Verifica se FunctionDetectionHandler ha prodotto risultati
     if (!request.functionDetectionResults || request.functionDetectionResults.length === 0) {
-      console.log('No functions to execute');
-      request.functionResults = [];
-      return super.handle(request);
+      console.log('FunctionExecutionHandler: No functions detected to execute.');
+      request.functionResults = []; // Assicura che functionResults sia un array vuoto
+      return super.handle(request); // Passa al prossimo handler (probabilmente GroundingHandler)
     }
     
     try {
-      // Esegui tutte le funzioni in parallelo
-      const results = await Promise.all(
-        request.functionDetectionResults.map(async fnName => {
-          try {
-            const params = await this.functionStrategy.buildParamsForFunction(fnName, request.message, request.userContext);
-            const result = await this.functionStrategy.executeFunction(fnName, params);
-            return { functionName: fnName, success: result.success, result };
-          } catch (error) {
-            console.error(`Error executing function ${fnName}:`, error);
-            return { functionName: fnName, success: false, error: String(error) };
-          }
-        })
-      );
+      const results = await this.functionStrategy.executeForMessage(request.message, request.userContext);
       
       // Aggiorna la richiesta con i risultati
       request.functionResults = results;

@@ -936,3 +936,133 @@
     padding-bottom: env(safe-area-inset-bottom); /* Supporto per iPhone X+ */
   }
 }
+
+.business-config-panel {
+  /* ... stili esistenti ... */
+  overflow-y: auto;
+  max-height: 90vh;
+}
+.config-tabs {
+    display: flex;
+    flex-wrap: wrap; /* Permette ai tab di andare a capo su schermi piccoli */
+    gap: 5px; /* Spazio ridotto tra i tab */
+    margin-bottom: 20px;
+}
+.config-tabs button {
+    padding: 8px 12px; /* Padding ridotto per i tab */
+    font-size: 0.9rem; /* Font più piccolo per i tab */
+    flex-grow: 1; /* Permette ai tab di dividere lo spazio */
+    min-width: 100px; /* Larghezza minima per evitare tab troppo stretti */
+}
+.knowledge-entry-card {
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 15px;
+  margin-bottom: 15px;
+  background-color: #f9f9f9;
+}
+.fact-item {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.fact-item textarea {
+  flex-grow: 1;
+  margin-right: 8px;
+}
+.remove-btn-small, .add-btn-small {
+  padding: 4px 8px;
+  font-size: 0.8rem;
+  min-width: auto;
+}
+.add-btn-small {
+    background-color: #28a745;
+    color: white;
+    border: none;
+}
+.remove-btn-small {
+    background-color: #dc3545;
+    color: white;
+    border: none;
+}
+.section-title {
+  margin-top: 20px;
+  margin-bottom: 15px;
+  font-size: 1.2rem;
+  color: #333;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 5px;
+}
+.color-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.color-input {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.color-input input[type="color"] {
+  width: 40px;
+  height: 30px;
+  padding: 0;
+  border: none;
+}
+.color-input input[type="text"] {
+  width: 100px;
+}
+.theme-preview {
+  border: 1px solid; /* Colore del bordo verrà dal tema */
+  border-radius: 8px;
+  padding: 15px;
+  margin-top: 15px;
+}
+.preview-header {
+  padding: 10px;
+  border-radius: 4px 4px 0 0;
+  margin-bottom: 10px;
+}
+.preview-content button {
+  padding: 8px 12px;
+  border: none;
+  border-radius: 4px;
+  margin-right: 10px;
+}
+.endpoint-input-group {
+  display: flex;
+  gap: 10px;
+}
+.endpoint-input-group input {
+  flex-grow: 1;
+}
+.load-btn {
+  white-space: nowrap;
+}
+.error-message {
+  color: red;
+  font-size: 0.9rem;
+  margin-top: 5px;
+}
+.loading-indicator {
+  padding: 10px;
+  text-align: center;
+  color: #555;
+}
+.no-functions, .no-knowledge-entries {
+  padding: 10px;
+  text-align: center;
+  color: #777;
+  background-color: #f9f9f9;
+  border-radius: 4px;
+}
+.functions-list .function-item, .knowledge-entry-card .form-group {
+  margin-bottom: 10px; /* Spazio uniforme */
+}
+.form-check input[type="checkbox"] {
+    width: auto; /* Ripristina larghezza auto per checkbox */
+    margin-right: 8px;
+}
+.icon-input {
+    width: 80px !important; /* Stile specifico per input icona */
+}

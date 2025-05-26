@@ -96,4 +96,11 @@ export interface AppConfig {
         analytics: string;
       };
     };
+
+    knowledgeBase?: Array<{ // NUOVA SEZIONE
+      key: string;          // Parola chiave o frase per attivare questa conoscenza
+      facts: string[];      // Lista di fatti o risposte predefinite
+      scope?: 'global' | 'product' | 'category'; // Opzionale: per contestualizzare meglio
+      itemId?: string;      // Opzionale: se il fatto è specifico per un item
+    }>;
   }

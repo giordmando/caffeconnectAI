@@ -10,6 +10,15 @@ interface BusinessConfigPanelProps {
   onSave: () => void;
 }
 
+// Definiamo un tipo per le voci della Knowledge Base per chiarezza
+interface KnowledgeBaseEntry {
+  key: string;
+  facts: string[];
+  scope?: 'global' | 'product' | 'category';
+  itemId?: string;
+}
+
+
 /**
  * Pannello di configurazione per il business
  * Permette di personalizzare vari aspetti dell'applicazione
@@ -17,73 +26,55 @@ interface BusinessConfigPanelProps {
 const BusinessConfigPanel: React.FC<BusinessConfigPanelProps> = ({ onClose, onSave }) => {
   // Carica la configurazione corrente
   const [config, setConfig] = useState<AppConfig>(configManager.getConfig());
-  
+
   // Stati per le diverse sezioni
-  const [activeTab, setActiveTab] = useState<'business'|'ai'|'catalog'|'functions'|'ui'|'privacy'>('business');
+  const [activeTab, setActiveTab] = useState<'business' | 'ai' | 'catalog' | 'functions' | 'ui' | 'privacy' | 'knowledgeBase'>('business'); // Aggiunta 'knowledgeBase'
   const [isDirty, setIsDirty] = useState(false);
   const [businessCategories, setBusinessCategories] = useState<string[]>([
     'cafe', 'restaurant', 'bar', 'store', 'hybrid'
   ]);
   const [availableFunctions, setAvailableFunctions] = useState<string[]>([]);
-  const [catalogCategories, setCatalogCategories] = useState<{menu: string[], products: string[]}>({
+  const [catalogCategories, setCatalogCategories] = useState<{ menu: string[], products: string[] }>({
     menu: [], products: []
   });
-  
+
   const [isLoadingFunctions, setIsLoadingFunctions] = useState<boolean>(false);
   const [functionLoadError, setFunctionLoadError] = useState<string | null>(null);
+
   // Carica funzioni e categorie all'avvio
   useEffect(() => {
     const loadData = async () => {
-      // Carica funzioni disponibili
       setAvailableFunctions(functionRegistry.getAllFunctions().map(fn => fn.name));
-      
-      // Carica categorie del catalogo
       setCatalogCategories(catalogService.getCategories());
     };
-    
     loadData();
   }, []);
-  
-  // Aggiungi questa funzione per caricare funzioni dall'endpoint
+
   const handleLoadFunctionsFromEndpoint = async () => {
     const endpoint = config.functions.customFunctionEndpoint;
-    
     if (!endpoint) {
       setFunctionLoadError("Devi specificare un endpoint valido.");
       return;
     }
-    
     setIsLoadingFunctions(true);
     setFunctionLoadError(null);
-    
     try {
-      // Recupera le funzioni dall'endpoint
       const response = await fetch(endpoint);
-      
       if (!response.ok) {
         throw new Error(`Errore nel caricamento delle funzioni: ${response.status} ${response.statusText}`);
       }
-      
       let customFunctions = await response.json();
       if (!customFunctions.functions) {
         throw new Error("La risposta non contiene un array di funzioni.");
-      }else{
+      } else {
         customFunctions = customFunctions.functions;
         if (!Array.isArray(customFunctions)) {
           throw new Error("Il formato della risposta non è valido. Dovrebbe essere un array di funzioni.");
         }
       }
-
-      // Estrai i nomi delle funzioni dall'array di funzioni
-      const functionNames = customFunctions.map(func => func.name);
-      
-      // Aggiorna la lista delle funzioni disponibili
+      const functionNames = customFunctions.map((func: any) => func.name);
       setAvailableFunctions(functionNames);
-      
-      // Aggiorna le funzioni abilitate per includere tutte quelle caricate
       handleConfigChange('functions', 'enabledFunctions', functionNames);
-      
-      // Feedback di successo
       setIsDirty(true);
     } catch (error) {
       console.error("Errore nel caricamento delle funzioni:", error);
@@ -96,57 +87,44 @@ const BusinessConfigPanel: React.FC<BusinessConfigPanelProps> = ({ onClose, onSa
   // Gestione modifiche alla configurazione
   const handleConfigChange = (section: keyof AppConfig, field: string, value: any) => {
     setConfig(prevConfig => {
-      // Crea copia profonda per evitare mutazioni
       const newConfig = JSON.parse(JSON.stringify(prevConfig)) as AppConfig;
-      
-      // Aggiorna il campo specifico
-      if (field.includes('.')) {
-        // Campo nidificato (es. business.theme.primaryColor)
+      if (section === 'knowledgeBase' && field === '_self') { // Caso speciale per sostituire l'intero array knowledgeBase
+        newConfig.knowledgeBase = value;
+      } else if (field.includes('.')) {
         const parts = field.split('.');
         let current: any = newConfig[section];
-        
         for (let i = 0; i < parts.length - 1; i++) {
           current = current[parts[i]];
         }
-        
         current[parts[parts.length - 1]] = value;
       } else {
-        // Campo diretto
         (newConfig[section] as any)[field] = value;
       }
-      
       return newConfig;
     });
-    
     setIsDirty(true);
   };
-  
+
   // Salva le modifiche
   const handleSave = () => {
-    // Aggiorna la configurazione nell'app
     Object.keys(config).forEach(section => {
       configManager.updateSection(section as keyof AppConfig, (config as any)[section]);
     });
-    
-    // Applica il tema
     themeService.applyTheme({
       primaryColor: config.business.theme.primaryColor,
       secondaryColor: config.business.theme.secondaryColor,
       bgColor: config.business.theme.backgroundColor,
       textColor: config.business.theme.textColor
     });
-    
-    // Aggiorna altre parti dell'app che potrebbero dipendere dalla configurazione
     onSave();
     onClose();
   };
-  
+
   // Esporta configurazione
   const handleExport = () => {
     const configJson = JSON.stringify(config, null, 2);
     const blob = new Blob([configJson], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
-    
     const a = document.createElement('a');
     a.href = url;
     a.download = 'cafeconnect-config.json';
@@ -155,16 +133,19 @@ const BusinessConfigPanel: React.FC<BusinessConfigPanelProps> = ({ onClose, onSa
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   };
-  
+
   // Importa configurazione
   const handleImport = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
-    
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
         const importedConfig = JSON.parse(e.target?.result as string);
+        // Assicurati che knowledgeBase sia un array, anche se mancante o null nel file importato
+        if (!importedConfig.knowledgeBase || !Array.isArray(importedConfig.knowledgeBase)) {
+            importedConfig.knowledgeBase = [];
+        }
         setConfig(importedConfig);
         setIsDirty(true);
       } catch (error) {
@@ -174,57 +155,112 @@ const BusinessConfigPanel: React.FC<BusinessConfigPanelProps> = ({ onClose, onSa
     };
     reader.readAsText(file);
   };
-  
+
+  // Funzioni per la gestione della Knowledge Base
+  const handleAddKnowledgeEntry = () => {
+    const newEntry: KnowledgeBaseEntry = { key: '', facts: [''], scope: 'global' };
+    const currentKnowledgeBase = config.knowledgeBase || [];
+    handleConfigChange('knowledgeBase' as keyof AppConfig, '_self', [...currentKnowledgeBase, newEntry]);
+  };
+
+  const handleKnowledgeEntryChange = (index: number, field: keyof KnowledgeBaseEntry, value: string | string[]) => {
+    const currentKnowledgeBase = config.knowledgeBase ? [...config.knowledgeBase] : [];
+    if (currentKnowledgeBase[index]) {
+      (currentKnowledgeBase[index] as any)[field] = value;
+      handleConfigChange('knowledgeBase' as keyof AppConfig, '_self', currentKnowledgeBase);
+    }
+  };
+
+  const handleKnowledgeFactChange = (entryIndex: number, factIndex: number, value: string) => {
+    const currentKnowledgeBase = config.knowledgeBase ? [...config.knowledgeBase] : [];
+    if (currentKnowledgeBase[entryIndex] && currentKnowledgeBase[entryIndex].facts[factIndex] !== undefined) {
+      currentKnowledgeBase[entryIndex].facts[factIndex] = value;
+      handleConfigChange('knowledgeBase'as keyof AppConfig, '_self', currentKnowledgeBase);
+    }
+  };
+
+  const handleAddFactToKnowledgeEntry = (entryIndex: number) => {
+    const currentKnowledgeBase = config.knowledgeBase ? [...config.knowledgeBase] : [];
+    if (currentKnowledgeBase[entryIndex]) {
+      currentKnowledgeBase[entryIndex].facts.push('');
+      handleConfigChange('knowledgeBase' as keyof AppConfig, '_self', currentKnowledgeBase);
+    }
+  };
+
+  const handleRemoveFactFromKnowledgeEntry = (entryIndex: number, factIndex: number) => {
+    const currentKnowledgeBase = config.knowledgeBase ? [...config.knowledgeBase] : [];
+    if (currentKnowledgeBase[entryIndex] && currentKnowledgeBase[entryIndex].facts.length > 1) { // Impedisce la rimozione dell'ultimo fatto
+      currentKnowledgeBase[entryIndex].facts.splice(factIndex, 1);
+      handleConfigChange('knowledgeBase' as keyof AppConfig, '_self', currentKnowledgeBase);
+    }
+  };
+
+  const handleRemoveKnowledgeEntry = (index: number) => {
+    const currentKnowledgeBase = config.knowledgeBase ? [...config.knowledgeBase] : [];
+    currentKnowledgeBase.splice(index, 1);
+    handleConfigChange('knowledgeBase' as keyof AppConfig, '_self', currentKnowledgeBase);
+  };
+
+
   return (
     <div className="business-config-panel">
       <div className="config-header">
         <h2>Configurazione Business</h2>
         <button className="close-btn" onClick={onClose}>×</button>
       </div>
-      
+
       <div className="config-tabs">
-        <button 
+        {/* Tab Esistenti */}
+        <button
           className={activeTab === 'business' ? 'tab-active' : ''}
           onClick={() => setActiveTab('business')}
         >
           Business
         </button>
-        <button 
+        <button
           className={activeTab === 'ai' ? 'tab-active' : ''}
           onClick={() => setActiveTab('ai')}
         >
           AI
         </button>
-        <button 
+        <button
           className={activeTab === 'catalog' ? 'tab-active' : ''}
           onClick={() => setActiveTab('catalog')}
         >
           Catalogo
         </button>
-        <button 
+        <button
           className={activeTab === 'functions' ? 'tab-active' : ''}
           onClick={() => setActiveTab('functions')}
         >
           Funzioni
         </button>
-        <button 
+        <button
           className={activeTab === 'ui' ? 'tab-active' : ''}
           onClick={() => setActiveTab('ui')}
         >
           UI
         </button>
-        <button 
+        <button
           className={activeTab === 'privacy' ? 'tab-active' : ''}
           onClick={() => setActiveTab('privacy')}
         >
           Privacy
         </button>
+        {/* NUOVA TAB per Knowledge Base */}
+        <button
+          className={activeTab === 'knowledgeBase' ? 'tab-active' : ''}
+          onClick={() => setActiveTab('knowledgeBase')}
+        >
+          Knowledge Base
+        </button>
       </div>
-      
+
       <div className="config-content">
-        {/* Sezione Business */}
+        {/* Sezioni Esistenti (Business, AI, Catalog, Functions, UI, Privacy) */}
         {activeTab === 'business' && (
           <div className="tab-content">
+            {/* ... contenuto tab business ... */}
             <div className="form-group">
               <label htmlFor="business-name">Nome Business</label>
               <input
@@ -235,7 +271,7 @@ const BusinessConfigPanel: React.FC<BusinessConfigPanelProps> = ({ onClose, onSa
                 placeholder="Nome della tua attività"
               />
             </div>
-            
+
             <div className="form-group">
               <label htmlFor="business-type">Tipo Business</label>
               <select
@@ -254,7 +290,7 @@ const BusinessConfigPanel: React.FC<BusinessConfigPanelProps> = ({ onClose, onSa
                 ))}
               </select>
             </div>
-            
+
             <div className="form-group">
               <label htmlFor="business-logo">Logo URL</label>
               <input
@@ -265,13 +301,13 @@ const BusinessConfigPanel: React.FC<BusinessConfigPanelProps> = ({ onClose, onSa
                 placeholder="URL del logo"
               />
             </div>
-            
+
             <div className="form-group">
               <label htmlFor="business-indirizzo">Indirizzo</label>
               <input
                 id="business-indirizzo"
                 type="text"
-                value={config.business.indirizzo}
+                value={config.business.indirizzo || ''}
                 onChange={(e) => handleConfigChange('business', 'indirizzo', e.target.value)}
                 placeholder="Indirizzo della tua attività"
               />
@@ -281,17 +317,7 @@ const BusinessConfigPanel: React.FC<BusinessConfigPanelProps> = ({ onClose, onSa
               <input
                 id="business-telefono"
                 type="text"
-                value={config.business.telefono}
-                onChange={(e) => handleConfigChange('business', 'telefono', e.target.value)}
-                placeholder="Numero di telefono"
-              />
-            </div>
-            <div className="form-group">
-              <label htmlFor="business-telefono">Telefono</label>
-              <input
-                id="business-telefono"
-                type="text"
-                value={config.business.telefono}
+                value={config.business.telefono || ''}
                 onChange={(e) => handleConfigChange('business', 'telefono', e.target.value)}
                 placeholder="Numero di telefono"
               />
@@ -339,14 +365,14 @@ const BusinessConfigPanel: React.FC<BusinessConfigPanelProps> = ({ onClose, onSa
                 placeholder="URL profilo Instagram"
               />
             </div>
-            <div className="form-group">
-              <label htmlFor="twitter">Twitter</label>
+             <div className="form-group">
+              <label htmlFor="twitter">Twitter (X)</label>
               <input
                 id="twitter"
                 type="text"
                 value={config.business.socialMedia?.twitter || ''}
                 onChange={(e) => handleConfigChange('business', 'socialMedia.twitter', e.target.value)}
-                placeholder="URL profilo Twitter"
+                placeholder="URL profilo Twitter/X"
               />
             </div>
             <div className="form-group">
@@ -372,7 +398,7 @@ const BusinessConfigPanel: React.FC<BusinessConfigPanelProps> = ({ onClose, onSa
             </div>
 
             <div className="form-group">
-              <label htmlFor="privacy-policy">Privacy Policy</label>
+              <label htmlFor="privacy-policy">Privacy Policy URL</label>
               <input
                 id="privacy-policy"
                 type="text"
@@ -383,7 +409,7 @@ const BusinessConfigPanel: React.FC<BusinessConfigPanelProps> = ({ onClose, onSa
             </div>
 
             <div className="form-group">
-              <label htmlFor="terms-of-service">Termini di Servizio</label>
+              <label htmlFor="terms-of-service">Termini di Servizio URL</label>
               <input
                 id="terms-of-service"
                 type="text"
@@ -394,7 +420,7 @@ const BusinessConfigPanel: React.FC<BusinessConfigPanelProps> = ({ onClose, onSa
             </div>
 
             <div className="form-group">
-              <label htmlFor="cookie-policy">Cookie Policy</label>
+              <label htmlFor="cookie-policy">Cookie Policy URL</label>
               <input
                 id="cookie-policy"
                 type="text"
@@ -403,8 +429,8 @@ const BusinessConfigPanel: React.FC<BusinessConfigPanelProps> = ({ onClose, onSa
                 placeholder="URL della Cookie Policy"
               />
             </div>
+
             <h3 className="section-title">Tema</h3>
-            
             <div className="form-group color-group">
               <label htmlFor="primary-color">Colore Primario</label>
               <div className="color-input">
@@ -421,8 +447,8 @@ const BusinessConfigPanel: React.FC<BusinessConfigPanelProps> = ({ onClose, onSa
                 />
               </div>
             </div>
-            
-            <div className="form-group color-group">
+            {/* ... altri campi colore tema ... */}
+             <div className="form-group color-group">
               <label htmlFor="secondary-color">Colore Secondario</label>
               <div className="color-input">
                 <input
@@ -438,7 +464,7 @@ const BusinessConfigPanel: React.FC<BusinessConfigPanelProps> = ({ onClose, onSa
                 />
               </div>
             </div>
-            
+
             <div className="form-group color-group">
               <label htmlFor="bg-color">Colore Sfondo</label>
               <div className="color-input">
@@ -455,7 +481,7 @@ const BusinessConfigPanel: React.FC<BusinessConfigPanelProps> = ({ onClose, onSa
                 />
               </div>
             </div>
-            
+
             <div className="form-group color-group">
               <label htmlFor="text-color">Colore Testo</label>
               <div className="color-input">
@@ -472,26 +498,36 @@ const BusinessConfigPanel: React.FC<BusinessConfigPanelProps> = ({ onClose, onSa
                 />
               </div>
             </div>
-            
             <div className="theme-preview" style={{
               backgroundColor: config.business.theme.backgroundColor,
               color: config.business.theme.textColor,
-              borderColor: config.business.theme.primaryColor
+              borderColor: config.business.theme.primaryColor,
+              padding: '1rem',
+              border: '1px solid',
+              borderRadius: '8px',
+              marginTop: '1rem'
             }}>
-              <div className="preview-header" style={{ backgroundColor: config.business.theme.primaryColor, color: '#fff' }}>
-                <h4>{config.business.name}</h4>
+              <div className="preview-header" style={{ backgroundColor: config.business.theme.primaryColor, color: '#fff', padding: '0.5rem', borderRadius: '4px 4px 0 0' }}>
+                <h4>{config.business.name || "Anteprima Nome Business"}</h4>
               </div>
-              <div className="preview-content">
-                <p>Anteprima del tema</p>
-                <button style={{ 
-                  backgroundColor: config.business.theme.primaryColor, 
-                  color: '#fff' 
+              <div className="preview-content" style={{padding: '1rem'}}>
+                <p>Questo è un testo di anteprima per vedere come appaiono i colori.</p>
+                <button style={{
+                  backgroundColor: config.business.theme.primaryColor,
+                  color: '#fff',
+                  padding: '0.5rem 1rem',
+                  border: 'none',
+                  borderRadius: '4px',
+                  marginRight: '0.5rem'
                 }}>
                   Pulsante Primario
                 </button>
-                <button style={{ 
-                  backgroundColor: config.business.theme.secondaryColor, 
-                  color: '#fff' 
+                <button style={{
+                  backgroundColor: config.business.theme.secondaryColor,
+                  color: '#fff',
+                  padding: '0.5rem 1rem',
+                  border: 'none',
+                  borderRadius: '4px'
                 }}>
                   Pulsante Secondario
                 </button>
@@ -499,11 +535,10 @@ const BusinessConfigPanel: React.FC<BusinessConfigPanelProps> = ({ onClose, onSa
             </div>
           </div>
         )}
-        
-        {/* Sezione AI */}
         {activeTab === 'ai' && (
           <div className="tab-content">
-            <div className="form-group">
+            {/* ... contenuto tab AI ... */}
+             <div className="form-group">
               <label htmlFor="default-provider">Provider AI Predefinito</label>
               <select
                 id="default-provider"
@@ -517,7 +552,7 @@ const BusinessConfigPanel: React.FC<BusinessConfigPanelProps> = ({ onClose, onSa
                 ))}
               </select>
             </div>
-            
+
             <h3 className="section-title">System Prompt</h3>
             <div className="form-group">
               <textarea
@@ -527,14 +562,24 @@ const BusinessConfigPanel: React.FC<BusinessConfigPanelProps> = ({ onClose, onSa
                 placeholder="Prompt di sistema per l'AI"
               />
               <small className="form-text">
-                Questo è il prompt di sistema che definisce il comportamento dell'AI. 
+                Questo è il prompt di sistema che definisce il comportamento dell'AI.
                 Puoi usare {'{business.name}'} e altri segnaposto per renderlo dinamico.
               </small>
             </div>
-            
+             <div className="form-group">
+                 <div className="form-check">
+                    <input
+                        type="checkbox"
+                        id="enableAdvancedFunctionSupport"
+                        checked={config.ai.enableAdvancedFunctionSupport}
+                        onChange={(e) => handleConfigChange('ai', 'enableAdvancedFunctionSupport', e.target.checked)}
+                    />
+                    <label htmlFor="enableAdvancedFunctionSupport">Abilita supporto avanzato alle funzioni (ciclo chiamate multiple)</label>
+                </div>
+            </div>
+
             <div className="providers-container">
               <h3 className="section-title">Provider AI configurati</h3>
-              
               {Object.entries(config.ai.providers).map(([key, provider]) => (
                 <div key={key} className="provider-card">
                   <h4>{provider.displayName}</h4>
@@ -543,7 +588,7 @@ const BusinessConfigPanel: React.FC<BusinessConfigPanelProps> = ({ onClose, onSa
                     <ul>
                       {provider.models.map(model => (
                         <li key={model.id}>
-                          {model.name} 
+                          {model.name}
                           {model.id === provider.defaultModel && (
                             <span className="default-badge">default</span>
                           )}
@@ -556,10 +601,9 @@ const BusinessConfigPanel: React.FC<BusinessConfigPanelProps> = ({ onClose, onSa
             </div>
           </div>
         )}
-        
-        {/* Sezione Catalogo */}
         {activeTab === 'catalog' && (
           <div className="tab-content">
+            {/* ... contenuto tab catalogo ... */}
             <div className="form-group">
               <div className="form-check">
                 <input
@@ -568,13 +612,13 @@ const BusinessConfigPanel: React.FC<BusinessConfigPanelProps> = ({ onClose, onSa
                   checked={config.catalog.enableLocalData}
                   onChange={(e) => handleConfigChange('catalog', 'enableLocalData', e.target.checked)}
                 />
-                <label htmlFor="enable-local-data">Usa dati locali</label>
+                <label htmlFor="enable-local-data">Usa dati locali (per demo)</label>
               </div>
               <small className="form-text">
-                Se abilitato, usa i dati mock inclusi nell'app anziché caricarli da un endpoint.
+                Se abilitato, usa i dati mock inclusi nell'app. Disabilita per usare gli endpoint.
               </small>
             </div>
-            
+
             <div className="form-group">
               <label htmlFor="menu-endpoint">Endpoint Menu</label>
               <input
@@ -582,22 +626,22 @@ const BusinessConfigPanel: React.FC<BusinessConfigPanelProps> = ({ onClose, onSa
               type="text"
               value={config.catalog.menuEndpoint || ''}
               onChange={(e) => handleConfigChange('catalog', 'menuEndpoint', e.target.value)}
-              placeholder="URL dell'endpoint menu"
+              placeholder="URL dell'endpoint menu (es. https://api.tuosito.com/menu)"
               disabled={config.catalog.enableLocalData}
               />
               <small className="form-text">
-              <a 
-                href="/template-json/menu-template.json" 
+              <a
+                href="/template-json/menu-template.json"
                 download="menu-template.json"
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                Scarica il template JSON 
-              </a> 
-               per l'endpoint menu.
+                Scarica il template JSON
+              </a>
+               {' '}per l'endpoint menu.
               </small>
             </div>
-            
+
             <div className="form-group">
               <label htmlFor="products-endpoint">Endpoint Prodotti</label>
               <input
@@ -605,24 +649,24 @@ const BusinessConfigPanel: React.FC<BusinessConfigPanelProps> = ({ onClose, onSa
                 type="text"
                 value={config.catalog.productsEndpoint || ''}
                 onChange={(e) => handleConfigChange('catalog', 'productsEndpoint', e.target.value)}
-                placeholder="URL dell'endpoint prodotti"
+                placeholder="URL dell'endpoint prodotti (es. https://api.tuosito.com/products)"
                 disabled={config.catalog.enableLocalData}
               />
               <small className="form-text">
-              <a 
-                href="/template-json/product-template.json" 
+              <a
+                href="/template-json/product-template.json"
                 download="product-template.json"
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                Scarica il template JSON 
-              </a> 
-               per l'endpoint prodotti.
+                Scarica il template JSON
+              </a>
+               {' '}per l'endpoint prodotti.
               </small>
             </div>
-            
+
             <div className="form-group">
-              <label htmlFor="refresh-interval">Intervallo Aggiornamento (minuti)</label>
+              <label htmlFor="refresh-interval">Intervallo Aggiornamento Dati (minuti)</label>
               <input
                 id="refresh-interval"
                 type="number"
@@ -631,37 +675,36 @@ const BusinessConfigPanel: React.FC<BusinessConfigPanelProps> = ({ onClose, onSa
                 onChange={(e) => handleConfigChange('catalog', 'dataRefreshInterval', parseInt(e.target.value))}
               />
             </div>
-            
-            <h3 className="section-title">Categorie Menu</h3>
-            
+
+            <h3 className="section-title">Categorie Menu/Prodotti Principali</h3>
             <div className="categories-container">
-              {config.catalog.categories.map((category, index) => (
+              {(config.catalog.categories || []).map((category, index) => (
                 <div key={index} className="category-item">
                   <input
                     type="text"
                     value={category.id}
                     onChange={(e) => {
-                      const newCategories = [...config.catalog.categories];
+                      const newCategories = [...(config.catalog.categories || [])];
                       newCategories[index].id = e.target.value;
                       handleConfigChange('catalog', 'categories', newCategories);
                     }}
-                    placeholder="ID categoria"
+                    placeholder="ID categoria (es. beverage)"
                   />
                   <input
                     type="text"
                     value={category.name}
                     onChange={(e) => {
-                      const newCategories = [...config.catalog.categories];
+                      const newCategories = [...(config.catalog.categories || [])];
                       newCategories[index].name = e.target.value;
                       handleConfigChange('catalog', 'categories', newCategories);
                     }}
-                    placeholder="Nome categoria"
+                    placeholder="Nome Categoria (es. Bevande)"
                   />
                   <input
                     type="text"
                     value={category.icon}
                     onChange={(e) => {
-                      const newCategories = [...config.catalog.categories];
+                      const newCategories = [...(config.catalog.categories || [])];
                       newCategories[index].icon = e.target.value;
                       handleConfigChange('catalog', 'categories', newCategories);
                     }}
@@ -672,7 +715,7 @@ const BusinessConfigPanel: React.FC<BusinessConfigPanelProps> = ({ onClose, onSa
                   <button
                     className="remove-btn"
                     onClick={() => {
-                      const newCategories = config.catalog.categories.filter((_, i) => i !== index);
+                      const newCategories = (config.catalog.categories || []).filter((_, i) => i !== index);
                       handleConfigChange('catalog', 'categories', newCategories);
                     }}
                   >
@@ -680,101 +723,104 @@ const BusinessConfigPanel: React.FC<BusinessConfigPanelProps> = ({ onClose, onSa
                   </button>
                 </div>
               ))}
-              
               <button
                 className="add-btn"
                 onClick={() => {
-                  const newCategories = [...config.catalog.categories, { id: '', name: '', icon: '🔍' }];
+                  const newCategories = [...(config.catalog.categories || []), { id: '', name: '', icon: '🆕' }];
                   handleConfigChange('catalog', 'categories', newCategories);
                 }}
               >
-                Aggiungi Categoria
+                Aggiungi Categoria Principale
               </button>
             </div>
-            
-            <h3 className="section-title">Menu per Fascia Oraria</h3>
-            
-            <div className="form-group">
-              <label htmlFor="morning-menu">Menu Mattina</label>
+
+            <h3 className="section-title">Menu per Fascia Oraria (ID Categorie)</h3>
+             <div className="form-group">
+              <label htmlFor="morning-menu">Categorie Menu Mattina</label>
               <input
                 id="morning-menu"
                 type="text"
-                value={config.catalog.timeBasedMenus.morning.join(', ')}
+                value={config.catalog.timeBasedMenus?.morning.join(', ') || ''}
                 onChange={(e) => {
                   const categories = e.target.value.split(',').map(s => s.trim()).filter(Boolean);
-                  const newTimeBasedMenus = { ...config.catalog.timeBasedMenus, morning: categories };
+                  const newTimeBasedMenus = { ...(config.catalog.timeBasedMenus || { morning: [], afternoon: [], evening: [] }), morning: categories };
                   handleConfigChange('catalog', 'timeBasedMenus', newTimeBasedMenus);
                 }}
-                placeholder="Categorie per la mattina, separate da virgola"
+                placeholder="ID categorie per mattina (es. coffee, pastry)"
               />
             </div>
-            
+            {/* ... altri campi timeBasedMenus ... */}
             <div className="form-group">
-              <label htmlFor="afternoon-menu">Menu Pomeriggio</label>
+              <label htmlFor="afternoon-menu">Categorie Menu Pomeriggio</label>
               <input
                 id="afternoon-menu"
                 type="text"
-                value={config.catalog.timeBasedMenus.afternoon.join(', ')}
+                value={config.catalog.timeBasedMenus?.afternoon.join(', ') || ''}
                 onChange={(e) => {
                   const categories = e.target.value.split(',').map(s => s.trim()).filter(Boolean);
-                  const newTimeBasedMenus = { ...config.catalog.timeBasedMenus, afternoon: categories };
+                  const newTimeBasedMenus = { ...(config.catalog.timeBasedMenus || { morning: [], afternoon: [], evening: [] }), afternoon: categories };
                   handleConfigChange('catalog', 'timeBasedMenus', newTimeBasedMenus);
                 }}
-                placeholder="Categorie per il pomeriggio, separate da virgola"
+                placeholder="ID categorie per pomeriggio (es. lunch, sandwich)"
               />
             </div>
-            
             <div className="form-group">
-              <label htmlFor="evening-menu">Menu Sera</label>
+              <label htmlFor="evening-menu">Categorie Menu Sera</label>
               <input
                 id="evening-menu"
                 type="text"
-                value={config.catalog.timeBasedMenus.evening.join(', ')}
+                value={config.catalog.timeBasedMenus?.evening.join(', ') || ''}
                 onChange={(e) => {
                   const categories = e.target.value.split(',').map(s => s.trim()).filter(Boolean);
-                  const newTimeBasedMenus = { ...config.catalog.timeBasedMenus, evening: categories };
+                  const newTimeBasedMenus = { ...(config.catalog.timeBasedMenus || { morning: [], afternoon: [], evening: [] }), evening: categories };
                   handleConfigChange('catalog', 'timeBasedMenus', newTimeBasedMenus);
                 }}
-                placeholder="Categorie per la sera, separate da virgola"
+                placeholder="ID categorie per sera (es. aperitivo, dinner)"
               />
             </div>
           </div>
         )}
-        
-        {/* Sezione Funzioni */}
         {activeTab === 'functions' && (
-        <div className="tab-content">
-          <div className="form-group">
-            <label htmlFor="custom-function-endpoint">Endpoint Funzioni Personalizzate</label>
+          <div className="tab-content">
+            {/* ... contenuto tab funzioni ... */}
+            <div className="form-group">
+            <label htmlFor="custom-function-endpoint">Endpoint Funzioni Personalizzate (opzionale)</label>
             <div className="endpoint-input-group">
               <input
                 id="custom-function-endpoint"
                 type="text"
                 value={config.functions.customFunctionEndpoint || ''}
                 onChange={(e) => handleConfigChange('functions', 'customFunctionEndpoint', e.target.value)}
-                placeholder="URL dell'endpoint funzioni personalizzate"
+                placeholder="URL dell'endpoint per caricare funzioni custom"
                 className={functionLoadError ? "input-error" : ""}
               />
-              <button 
+              <button
                 className="load-btn"
                 onClick={handleLoadFunctionsFromEndpoint}
                 disabled={isLoadingFunctions || !config.functions.customFunctionEndpoint}
               >
-                {isLoadingFunctions ? "Caricamento..." : "Carica funzioni"}
+                {isLoadingFunctions ? "Caricamento..." : "Carica Funzioni"}
               </button>
             </div>
             {functionLoadError && (
-              <div className="error-message">{functionLoadError}</div>
+              <div className="error-message" style={{color: 'red', marginTop: '0.5rem'}}>{functionLoadError}</div>
             )}
             <small className="form-text">
-              L'endpoint deve restituire un array di definizioni di funzioni
+              L'endpoint deve restituire un array JSON di definizioni di funzioni. {' '}
+              <a
+                href="/template-json/registration-funzioni-prsonalizzate.json" // Corretto il typo
+                download="registration-funzioni-personalizzate.json" // Corretto il typo
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Scarica il template JSON
+              </a>.
             </small>
           </div>
-          
+
           <h3 className="section-title">Funzioni Abilitate</h3>
-          
           {isLoadingFunctions ? (
-            <div className="loading-indicator">Caricamento funzioni...</div>
+            <div className="loading-indicator">Caricamento funzioni in corso...</div>
           ) : (
             <div className="functions-list">
               {availableFunctions.length === 0 ? (
@@ -806,59 +852,67 @@ const BusinessConfigPanel: React.FC<BusinessConfigPanelProps> = ({ onClose, onSa
               )}
             </div>
           )}
-          
+
           <div className="form-group">
-            <button 
+            <button
               className="btn btn-secondary"
               onClick={() => {
-                setAvailableFunctions([
-                  'get_user_loyalty_points',
-                  'get_user_preferences',
-                  'get_menu_recommendations',
-                  'get_product_recommendations',
-                  'track_user_action'
-                ]);
-                handleConfigChange('functions', 'enabledFunctions', [
-                  'get_user_loyalty_points',
-                  'get_user_preferences',
-                  'get_menu_recommendations',
-                  'get_product_recommendations',
-                  'track_user_action'
-                ]);
+                const defaultCoreFunctions = [ // Funzioni core predefinite
+                    'get_user_loyalty_points',
+                    'get_user_preferences',
+                    'get_menu_recommendations',
+                    'get_product_recommendations',
+                    'track_user_action',
+                    'search_product_by_name',
+                    'view_item_details'
+                ];
+                setAvailableFunctions(defaultCoreFunctions);
+                handleConfigChange('functions', 'enabledFunctions', defaultCoreFunctions);
                 setIsDirty(true);
               }}
             >
-              Ripristina funzioni predefinite
+              Ripristina Funzioni Predefinite
             </button>
           </div>
-          
-          <h3 className="section-title">Endpoint Dati per Funzioni</h3>
-          
-          {/* Form dinamico per gli endpoint dati */}
+
+          <h3 className="section-title">Endpoint Dati per Funzioni (opzionale)</h3>
+           <small className="form-text" style={{marginBottom: '1rem', display: 'block'}}>
+              Se le tue funzioni (predefinite o custom) necessitano di chiamare API esterne per recuperare dati, specifica qui gli endpoint.
+              L'AI passerà i parametri necessari a questi endpoint. {' '}
+              <a
+                href="/template-json/dati-funzioni-standard.json"
+                download="dati-funzioni-standard.json"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Vedi esempi di risposte endpoint
+              </a>.
+            </small>
           {availableFunctions.map(functionName => (
             <div key={functionName} className="form-group">
               <label htmlFor={`endpoint-${functionName}`}>{functionName}</label>
               <input
                 id={`endpoint-${functionName}`}
                 type="text"
-                value={config.functions.functionDataEndpoints?.[functionName] || ''}
+                value={(config.functions.functionDataEndpoints || {})[functionName] || ''}
                 onChange={(e) => {
                   const newEndpoints = {
-                    ...config.functions.functionDataEndpoints || {},
-                    [functionName]: e.target.value
+                    ...(config.functions.functionDataEndpoints || {}),
+                    [functionName]: e.target.value.trim() === '' ? undefined : e.target.value.trim() // Rimuovi se vuoto
                   };
+                  // Rimuovi chiavi con valori undefined
+                  Object.keys(newEndpoints).forEach(key => newEndpoints[key] === undefined && delete newEndpoints[key]);
                   handleConfigChange('functions', 'functionDataEndpoints', newEndpoints);
                 }}
-                placeholder={`Endpoint dati per ${functionName}`}
+                placeholder={`URL endpoint per ${functionName} (es. https://api.tuosito.com/data/${functionName})`}
               />
             </div>
           ))}
-        </div>
-      )}
-        
-        {/* Sezione UI */}
+          </div>
+        )}
         {activeTab === 'ui' && (
           <div className="tab-content">
+            {/* ... contenuto tab UI ... */}
             <div className="form-group">
               <div className="form-check">
                 <input
@@ -867,10 +921,10 @@ const BusinessConfigPanel: React.FC<BusinessConfigPanelProps> = ({ onClose, onSa
                   checked={config.ui.enableSuggestions}
                   onChange={(e) => handleConfigChange('ui', 'enableSuggestions', e.target.checked)}
                 />
-                <label htmlFor="enable-suggestions">Abilita Suggerimenti</label>
+                <label htmlFor="enable-suggestions">Abilita Suggerimenti di Prompt</label>
               </div>
             </div>
-            
+
             <div className="form-group">
               <div className="form-check">
                 <input
@@ -879,7 +933,7 @@ const BusinessConfigPanel: React.FC<BusinessConfigPanelProps> = ({ onClose, onSa
                   checked={config.ui.enableDynamicComponents}
                   onChange={(e) => handleConfigChange('ui', 'enableDynamicComponents', e.target.checked)}
                 />
-                <label htmlFor="enable-dynamic-components">Abilita Componenti Dinamici</label>
+                <label htmlFor="enable-dynamic-components">Abilita Componenti UI Dinamici (Caroselli, Card, etc.)</label>
               </div>
             </div>
             <div className="form-group">
@@ -890,14 +944,13 @@ const BusinessConfigPanel: React.FC<BusinessConfigPanelProps> = ({ onClose, onSa
                   checked={config.ui.enableNLP}
                   onChange={(e) => handleConfigChange('ui', 'enableNLP', e.target.checked)}
                 />
-                <label htmlFor="enable-nlp">Abilita Analisi NLP</label>
+                <label htmlFor="enable-nlp">Abilita Analisi NLP (Sentiment, Intenti, Topic)</label>
               </div>
               <small className="form-text">
-                L'analisi NLP fornisce funzionalità avanzate come il rilevamento del sentiment, degli intenti e dei topic.
-                Richiede più risorse computazionali ma offre interazioni più intelligenti.
+                Mostra insight NLP nella sidebar. Richiede un provider AI configurato che supporti queste analisi.
               </small>
             </div>
-            
+
             <div className="form-group">
               <div className="form-check">
                 <input
@@ -906,12 +959,12 @@ const BusinessConfigPanel: React.FC<BusinessConfigPanelProps> = ({ onClose, onSa
                   checked={config.ui.showSidebar}
                   onChange={(e) => handleConfigChange('ui', 'showSidebar', e.target.checked)}
                 />
-                <label htmlFor="show-sidebar">Mostra Sidebar</label>
+                <label htmlFor="show-sidebar">Mostra Sidebar per Componenti Dinamici e NLP</label>
               </div>
             </div>
-            
+
             <div className="form-group">
-              <label htmlFor="max-recommendations">Numero massimo raccomandazioni</label>
+              <label htmlFor="max-recommendations">Numero Massimo Raccomandazioni (in caroselli)</label>
               <input
                 id="max-recommendations"
                 type="number"
@@ -921,7 +974,7 @@ const BusinessConfigPanel: React.FC<BusinessConfigPanelProps> = ({ onClose, onSa
                 onChange={(e) => handleConfigChange('ui', 'maxRecommendations', parseInt(e.target.value))}
               />
             </div>
-            
+
             <div className="form-group">
               <label htmlFor="welcome-message">Messaggio di Benvenuto</label>
               <textarea
@@ -929,182 +982,284 @@ const BusinessConfigPanel: React.FC<BusinessConfigPanelProps> = ({ onClose, onSa
                 rows={3}
                 value={config.ui.welcomeMessage}
                 onChange={(e) => handleConfigChange('ui', 'welcomeMessage', e.target.value)}
-                placeholder="Messaggio di benvenuto"
+                placeholder="Messaggio di benvenuto (es. Benvenuto a {business.name}! Come posso aiutarti?)"
               />
               <small className="form-text">
-                Puoi usare {'{business.name}'} e altri segnaposto per renderlo dinamico.
+                Puoi usare {'{business.name}'} per inserire dinamicamente il nome del business.
               </small>
             </div>
           </div>
         )}
         {activeTab === 'privacy' && (
-        <div className="tab-content">
-          <h3 className="section-title">Impostazioni Privacy</h3>
-          
-          <div className="form-group">
-            <label htmlFor="privacy-enabled">Abilita gestione consenso</label>
-            <div className="form-check">
-              <input
-                type="checkbox"
-                id="privacy-enabled"
-                checked={config.privacy?.enabled || false}
-                onChange={(e) => handleConfigChange('privacy', 'enabled', e.target.checked)}
-              />
-              <label htmlFor="privacy-enabled">Mostra banner consenso privacy</label>
+          <div className="tab-content">
+            {/* ... contenuto tab privacy ... */}
+            <h3 className="section-title">Impostazioni Privacy e Consenso</h3>
+
+            <div className="form-group">
+                <div className="form-check">
+                <input
+                    type="checkbox"
+                    id="privacy-enabled"
+                    checked={config.privacy?.enabled || false}
+                    onChange={(e) => handleConfigChange('privacy', 'enabled', e.target.checked)}
+                />
+                <label htmlFor="privacy-enabled">Abilita Banner Consenso Privacy</label>
+                </div>
+            </div>
+
+            <h4>Testi del Banner di Consenso</h4>
+            <div className="form-group">
+                <label htmlFor="privacy-title">Titolo Banner</label>
+                <input
+                id="privacy-title"
+                type="text"
+                value={config.privacy?.bannerTitle || 'Preferenze privacy'}
+                onChange={(e) => handleConfigChange('privacy', 'bannerTitle', e.target.value)}
+                placeholder="Titolo del banner privacy"
+                />
+            </div>
+            <div className="form-group">
+                <label htmlFor="privacy-message">Messaggio Banner</label>
+                <textarea
+                id="privacy-message"
+                rows={3}
+                value={config.privacy?.bannerMessage || 'Utilizziamo i dati di conversazione per migliorare il nostro assistente AI. Scegli il livello di condivisione dati che preferisci:'}
+                onChange={(e) => handleConfigChange('privacy', 'bannerMessage', e.target.value)}
+                placeholder="Messaggio del banner privacy"
+                />
+            </div>
+             <div className="form-group">
+                <label htmlFor="privacy-info">Informazioni Aggiuntive nel Banner</label>
+                <textarea
+                id="privacy-info"
+                rows={2}
+                value={config.privacy?.additionalInfo || 'Con "Tutto" ci aiuti a personalizzare meglio le risposte in base alle tue preferenze.'}
+                onChange={(e) => handleConfigChange('privacy', 'additionalInfo', e.target.value)}
+                placeholder="Testo informativo aggiuntivo"
+                />
+            </div>
+             <div className="form-group">
+                <label htmlFor="privacy-policy-link-banner">Link Privacy Policy (mostrato nel banner)</label>
+                <input
+                id="privacy-policy-link-banner"
+                type="text"
+                value={config.privacy?.policyLink || ''}
+                onChange={(e) => handleConfigChange('privacy', 'policyLink', e.target.value)}
+                placeholder="URL alla tua privacy policy completa"
+                />
+                 <small className="form-text">
+                    Se vuoto, verrà usato il link dalla sezione Business (se presente).
+                </small>
+            </div>
+
+
+            <h4>Etichette e Descrizioni Livelli di Consenso</h4>
+            {/* Consenso Minimo */}
+            <div className="form-group">
+                <label htmlFor="minimal-consent-label">Etichetta Consenso Minimo</label>
+                <input
+                id="minimal-consent-label"
+                type="text"
+                value={config.privacy?.consentLabels?.minimal || 'Solo essenziali'}
+                onChange={(e) => handleConfigChange('privacy', 'consentLabels.minimal', e.target.value)}
+                />
+                <label htmlFor="minimal-consent-desc" style={{marginTop: '0.5rem'}}>Descrizione Consenso Minimo</label>
+                <textarea
+                id="minimal-consent-desc"
+                rows={2}
+                value={config.privacy?.consentDescriptions?.minimal || 'Raccogliamo solo i dati essenziali per il funzionamento dell\'app.'}
+                onChange={(e) => handleConfigChange('privacy', 'consentDescriptions.minimal', e.target.value)}
+                className="mt-1"
+                />
+            </div>
+            {/* ... altri livelli di consenso ... */}
+            <div className="form-group">
+                <label htmlFor="functional-consent-label">Etichetta Consenso Funzionale</label>
+                <input
+                id="functional-consent-label"
+                type="text"
+                value={config.privacy?.consentLabels?.functional || 'Funzionali'}
+                onChange={(e) => handleConfigChange('privacy', 'consentLabels.functional', e.target.value)}
+                />
+                 <label htmlFor="functional-consent-desc" style={{marginTop: '0.5rem'}}>Descrizione Consenso Funzionale</label>
+                <textarea
+                id="functional-consent-desc"
+                rows={2}
+                value={config.privacy?.consentDescriptions?.functional || 'Permette di memorizzare le conversazioni per migliorare l\'esperienza.'}
+                onChange={(e) => handleConfigChange('privacy', 'consentDescriptions.functional', e.target.value)}
+                className="mt-1"
+                />
+            </div>
+            <div className="form-group">
+                <label htmlFor="analytics-consent-label">Etichetta Consenso Analitico/Completo</label>
+                <input
+                id="analytics-consent-label"
+                type="text"
+                value={config.privacy?.consentLabels?.analytics || 'Tutto (consigliato)'}
+                onChange={(e) => handleConfigChange('privacy', 'consentLabels.analytics', e.target.value)}
+                />
+                <label htmlFor="analytics-consent-desc" style={{marginTop: '0.5rem'}}>Descrizione Consenso Analitico/Completo</label>
+                <textarea
+                id="analytics-consent-desc"
+                rows={2}
+                value={config.privacy?.consentDescriptions?.analytics || 'Ci permette di analizzare le conversazioni per personalizzare le risposte e migliorare il servizio.'}
+                onChange={(e) => handleConfigChange('privacy', 'consentDescriptions.analytics', e.target.value)}
+                className="mt-1"
+                />
+            </div>
+
+            <div className="theme-preview" style={{
+              backgroundColor: config.business.theme.backgroundColor,
+              color: config.business.theme.textColor,
+              borderColor: config.business.theme.primaryColor,
+              padding: '20px',
+              marginTop: '20px',
+              borderRadius: '8px',
+              border: '1px solid'
+            }}>
+              <h3 style={{ color: config.business.theme.primaryColor, marginTop: 0 }}>
+                {config.privacy?.bannerTitle || 'Preferenze privacy'}
+              </h3>
+              <p>{config.privacy?.bannerMessage || 'Utilizziamo i dati di conversazione per migliorare il nostro assistente AI.'}</p>
+              <div style={{ display: 'flex', gap: '10px', marginTop: '10px', flexWrap: 'wrap' }}>
+                <button style={{
+                  backgroundColor: '#e2e8f0',
+                  color: '#4a5568',
+                  padding: '8px 12px',
+                  borderRadius: '6px',
+                  border: '1px solid #a0aec0'
+                }}>
+                  {config.privacy?.consentLabels?.minimal || 'Solo essenziali'}
+                </button>
+                <button style={{
+                  backgroundColor: '#4299e1',
+                  color: 'white',
+                  padding: '8px 12px',
+                  borderRadius: '6px',
+                  border: 'none'
+                }}>
+                  {config.privacy?.consentLabels?.functional || 'Funzionali'}
+                </button>
+                <button style={{
+                  backgroundColor: config.business.theme.primaryColor,
+                  color: 'white',
+                  padding: '8px 12px',
+                  borderRadius: '6px',
+                  border: 'none'
+                }}>
+                  {config.privacy?.consentLabels?.analytics || 'Tutto (consigliato)'}
+                </button>
+              </div>
+              <p style={{ fontSize: '12px', marginTop: '15px', color: '#718096' }}>
+                {config.privacy?.additionalInfo || 'Con "Tutto" ci aiuti a personalizzare meglio le risposte.'}
+                 {config.privacy?.policyLink && (
+                    <a href={config.privacy.policyLink || config.business.privacyPolicy} target="_blank" rel="noopener noreferrer" style={{color: config.business.theme.primaryColor, marginLeft: '5px'}}>
+                        Leggi la policy.
+                    </a>
+                 )}
+              </p>
             </div>
           </div>
-          
-          <h4>Livelli di consenso</h4>
-          
-          <div className="form-group">
-            <label htmlFor="minimal-consent-label">Etichetta consenso minimo</label>
-            <input
-              id="minimal-consent-label"
-              type="text"
-              value={config.privacy?.consentLabels?.minimal || 'Solo essenziali'}
-              onChange={(e) => handleConfigChange('privacy', 'consentLabels.minimal', e.target.value)}
-              placeholder="Etichetta per il consenso minimo"
-            />
-            <textarea
-              rows={2}
-              value={config.privacy?.consentDescriptions?.minimal || 'Raccogliamo solo i dati essenziali per il funzionamento dell\'app.'}
-              onChange={(e) => handleConfigChange('privacy', 'consentDescriptions.minimal', e.target.value)}
-              placeholder="Descrizione per il consenso minimo"
-              className="mt-2"
-            />
-          </div>
-          
-          <div className="form-group">
-            <label htmlFor="functional-consent-label">Etichetta consenso funzionale</label>
-            <input
-              id="functional-consent-label"
-              type="text"
-              value={config.privacy?.consentLabels?.functional || 'Funzionali'}
-              onChange={(e) => handleConfigChange('privacy', 'consentLabels.functional', e.target.value)}
-              placeholder="Etichetta per il consenso funzionale"
-            />
-            <textarea
-              rows={2}
-              value={config.privacy?.consentDescriptions?.functional || 'Permette di memorizzare le conversazioni per migliorare l\'esperienza.'}
-              onChange={(e) => handleConfigChange('privacy', 'consentDescriptions.functional', e.target.value)}
-              placeholder="Descrizione per il consenso funzionale"
-              className="mt-2"
-            />
-          </div>
-          
-          <div className="form-group">
-            <label htmlFor="analytics-consent-label">Etichetta consenso analitico</label>
-            <input
-              id="analytics-consent-label"
-              type="text"
-              value={config.privacy?.consentLabels?.analytics || 'Tutto (consigliato)'}
-              onChange={(e) => handleConfigChange('privacy', 'consentLabels.analytics', e.target.value)}
-              placeholder="Etichetta per il consenso analitico"
-            />
-            <textarea
-              rows={2}
-              value={config.privacy?.consentDescriptions?.analytics || 'Ci permette di analizzare le conversazioni per personalizzare le risposte.'}
-              onChange={(e) => handleConfigChange('privacy', 'consentDescriptions.analytics', e.target.value)}
-              placeholder="Descrizione per il consenso analitico"
-              className="mt-2"
-            />
-          </div>
-          
-          <h4>Banner Privacy</h4>
-          
-          <div className="form-group">
-            <label htmlFor="privacy-title">Titolo banner privacy</label>
-            <input
-              id="privacy-title"
-              type="text"
-              value={config.privacy?.bannerTitle || 'Preferenze privacy'}
-              onChange={(e) => handleConfigChange('privacy', 'bannerTitle', e.target.value)}
-              placeholder="Titolo del banner privacy"
-            />
-          </div>
-          
-          <div className="form-group">
-            <label htmlFor="privacy-message">Messaggio privacy</label>
-            <textarea
-              id="privacy-message"
-              rows={4}
-              value={config.privacy?.bannerMessage || 'Utilizziamo i dati di conversazione per migliorare il nostro assistente AI. Scegli il livello di condivisione dati che preferisci:'}
-              onChange={(e) => handleConfigChange('privacy', 'bannerMessage', e.target.value)}
-              placeholder="Messaggio del banner privacy"
-            />
-          </div>
-          
-          <div className="form-group">
-            <label htmlFor="privacy-info">Informazioni aggiuntive</label>
-            <textarea
-              id="privacy-info"
-              rows={3}
-              value={config.privacy?.additionalInfo || 'Con "Tutto" ci aiuti a personalizzare meglio le risposte in base alle tue preferenze.'}
-              onChange={(e) => handleConfigChange('privacy', 'additionalInfo', e.target.value)}
-              placeholder="Informazioni aggiuntive sulla privacy"
-            />
-          </div>
-          
-          <div className="form-group">
-            <label htmlFor="privacy-policy-link">Link alla policy privacy completa</label>
-            <input
-              id="privacy-policy-link"
-              type="text"
-              value={config.privacy?.policyLink || config.business.privacyPolicy || ''}
-              onChange={(e) => handleConfigChange('privacy', 'policyLink', e.target.value)}
-              placeholder="URL della privacy policy completa"
-            />
-          </div>
-          
-          <div className="theme-preview" style={{
-            backgroundColor: config.business.theme.backgroundColor,
-            color: config.business.theme.textColor,
-            borderColor: config.business.theme.primaryColor,
-            padding: '20px',
-            marginTop: '20px',
-            borderRadius: '8px'
-          }}>
-            <h3 style={{ color: config.business.theme.primaryColor }}>
-              {config.privacy?.bannerTitle || 'Preferenze privacy'}
-            </h3>
-            <p>{config.privacy?.bannerMessage || 'Utilizziamo i dati di conversazione per migliorare il nostro assistente AI.'}</p>
-            <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
-              <button style={{ 
-                backgroundColor: '#e2e8f0', 
-                color: '#4a5568',
-                padding: '6px 12px',
-                borderRadius: '6px',
-                border: 'none'
-              }}>
-                {config.privacy?.consentLabels?.minimal || 'Solo essenziali'}
-              </button>
-              <button style={{ 
-                backgroundColor: '#4299e1', 
-                color: 'white',
-                padding: '6px 12px',
-                borderRadius: '6px',
-                border: 'none'
-              }}>
-                {config.privacy?.consentLabels?.functional || 'Funzionali'}
-              </button>
-              <button style={{ 
-                backgroundColor: config.business.theme.primaryColor, 
-                color: 'white',
-                padding: '6px 12px',
-                borderRadius: '6px',
-                border: 'none'
-              }}>
-                {config.privacy?.consentLabels?.analytics || 'Tutto (consigliato)'}
-              </button>
-            </div>
-            <p style={{ fontSize: '12px', marginTop: '10px', color: '#a0aec0' }}>
-              {config.privacy?.additionalInfo || 'Con "Tutto" ci aiuti a personalizzare meglio le risposte.'}
+        )}
+
+        {/* NUOVA SEZIONE per Knowledge Base */}
+        {activeTab === 'knowledgeBase' && (
+          <div className="tab-content">
+            <h3 className="section-title">Knowledge Base (Fatti e Risposte Rapide)</h3>
+            <p className="form-text" style={{marginBottom: '1rem'}}>
+              Aggiungi qui informazioni specifiche che l'AI deve conoscere.
+              La "Chiave/Contesto" aiuta l'AI a capire quando usare questi fatti.
+              L'AI userà questi fatti per arricchire le sue risposte o rispondere direttamente a domande frequenti.
             </p>
+            {(config.knowledgeBase || []).map((entry, entryIndex) => (
+              <div key={entryIndex} className="knowledge-entry-card">
+                <div className="form-group">
+                  <label htmlFor={`kb-key-${entryIndex}`}>Chiave / Contesto (Keywords)</label>
+                  <input
+                    id={`kb-key-${entryIndex}`}
+                    type="text"
+                    value={entry.key}
+                    onChange={(e) => handleKnowledgeEntryChange(entryIndex, 'key', e.target.value)}
+                    placeholder="Es. orari di apertura, info wifi, cornetto integrale"
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Fatti / Risposte (uno per riga):</label>
+                  {entry.facts.map((fact, factIndex) => (
+                    <div key={factIndex} className="fact-item">
+                      <textarea
+                        rows={2}
+                        value={fact}
+                        onChange={(e) => handleKnowledgeFactChange(entryIndex, factIndex, e.target.value)}
+                        placeholder={`Fatto o risposta ${factIndex + 1}`}
+                      />
+                      <button
+                        type="button"
+                        className="remove-btn-small"
+                        onClick={() => handleRemoveFactFromKnowledgeEntry(entryIndex, factIndex)}
+                        disabled={entry.facts.length <= 1}
+                      >
+                        -
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    className="add-btn-small"
+                    onClick={() => handleAddFactToKnowledgeEntry(entryIndex)}
+                  >
+                    Aggiungi Fatto/Risposta
+                  </button>
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor={`kb-scope-${entryIndex}`}>Ambito (Opzionale)</label>
+                  <select
+                    id={`kb-scope-${entryIndex}`}
+                    value={entry.scope || 'global'}
+                    onChange={(e) => handleKnowledgeEntryChange(entryIndex, 'scope', e.target.value)}
+                  >
+                    <option value="global">Globale</option>
+                    <option value="product">Specifico Prodotto</option>
+                    <option value="category">Specifica Categoria</option>
+                  </select>
+                </div>
+
+                {entry.scope === 'product' && (
+                  <div className="form-group">
+                    <label htmlFor={`kb-itemId-${entryIndex}`}>ID Prodotto/Menu (se ambito prodotto)</label>
+                    <input
+                      id={`kb-itemId-${entryIndex}`}
+                      type="text"
+                      value={entry.itemId || ''}
+                      onChange={(e) => handleKnowledgeEntryChange(entryIndex, 'itemId', e.target.value)}
+                      placeholder="ID dell'item dal catalogo"
+                    />
+                  </div>
+                )}
+                <button
+                  type="button"
+                  className="remove-btn"
+                  onClick={() => handleRemoveKnowledgeEntry(entryIndex)}
+                  style={{marginTop: '10px'}}
+                >
+                  Rimuovi Questa Voce
+                </button>
+              </div>
+            ))}
+            <button
+              type="button"
+              className="add-btn"
+              onClick={handleAddKnowledgeEntry}
+              style={{marginTop: '1rem'}}
+            >
+              Aggiungi Nuova Voce alla Knowledge Base
+            </button>
           </div>
-        </div>
-      )}
+        )}
       </div>
-      
+
       <div className="form-actions">
         <div className="import-export-actions">
           <button
@@ -1113,7 +1268,7 @@ const BusinessConfigPanel: React.FC<BusinessConfigPanelProps> = ({ onClose, onSa
           >
             Esporta Configurazione
           </button>
-          
+
           <label className="import-btn btn btn-secondary">
             Importa Configurazione
             <input
@@ -1124,7 +1279,7 @@ const BusinessConfigPanel: React.FC<BusinessConfigPanelProps> = ({ onClose, onSa
             />
           </label>
         </div>
-        
+
         <div className="main-actions">
           <button
             className="btn btn-secondary"
@@ -1132,7 +1287,7 @@ const BusinessConfigPanel: React.FC<BusinessConfigPanelProps> = ({ onClose, onSa
           >
             Annulla
           </button>
-          
+
           <button
             className="btn btn-primary"
             onClick={handleSave}

@@ -1,9 +1,9 @@
-// src/services/prompt/setupPrompts.ts
 import { promptService } from './PromptService';
 import { SystemPromptTemplate } from './templates/SystemPromptTemplate';
 import { FunctionPromptTemplate } from './templates/FunctionPromptTemplate';
 import { ActionPromptTemplate } from './templates/ActionPromptTemplate';
 import { StaticProvider } from './providers/StaticProvider';
+import { configManager } from '../../config/ConfigManager';
 import { 
   SYSTEM_PROMPT_TEMPLATE,
   FUNCTION_SELECTION_TEMPLATE,
@@ -43,17 +43,12 @@ export async function setupPrompts(): Promise<void> {
   const staticProvider = new StaticProvider();
   
   // Aggiungi alcune conoscenze statiche di base
-  staticProvider.addKnowledge('caffè', [
-    'Il nostro caffè viene da piantagioni sostenibili in Etiopia e Colombia.',
-    'Abbiamo diverse varietà di caffè, tra cui Arabica, Robusta e miscele speciali.',
-    'Il caffè più venduto è l\'Arabica Specialty Etiopia Yirgacheffe.'
-  ]);
-  
-  staticProvider.addKnowledge('menu', [
-    'Il nostro menu varia durante la giornata: colazione (6-12), pranzo (12-18), aperitivo (18-22).',
-    'Offriamo prodotti da forno freschi ogni giorno.',
-    'Tutti gli ingredienti sono selezionati da fornitori locali quando possibile.'
-  ]);
+  const appConfig = configManager.getConfig();
+  if (appConfig.knowledgeBase) {
+    appConfig.knowledgeBase.forEach(entry => {
+      staticProvider.addKnowledge(entry.key, entry.facts);
+    });
+  }
   
   promptService.registerProvider(staticProvider);
   

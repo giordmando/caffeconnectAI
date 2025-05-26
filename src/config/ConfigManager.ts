@@ -246,7 +246,27 @@ enableAdvancedFunctionSupport: true // Nuova proprietà
           functional: 'Permette di memorizzare le conversazioni per migliorare l\'esperienza.',
           analytics: 'Ci permette di analizzare le conversazioni per personalizzare le risposte.'
         }
-      }
+      },
+      knowledgeBase: [
+        { 
+          key: "caffè qualità", // Esempio di chiave più specifica
+          facts: [
+            "Il nostro caffè viene da piantagioni sostenibili in Etiopia e Colombia.",
+            "Abbiamo diverse varietà di caffè, tra cui Arabica, Robusta e miscele speciali.",
+            "Il caffè più venduto è l'Arabica Specialty Etiopia Yirgacheffe."
+          ],
+          scope: "global"
+        },
+        {
+          key: "menu variazioni",
+          facts: [
+            "Il nostro menu varia durante la giornata: colazione (generalmente dalle 7 alle 12), pranzo (dalle 12 alle 18), aperitivo (dalle 18 alle 22).",
+            "Offriamo prodotti da forno freschi ogni giorno.",
+            "Tutti gli ingredienti sono selezionati da fornitori locali quando possibile."
+          ],
+          scope: "global"
+        }
+      ]
     };
   }
 }

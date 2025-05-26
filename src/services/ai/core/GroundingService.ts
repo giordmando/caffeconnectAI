@@ -30,28 +30,7 @@ export class GroundingService {
     // Aggiungi contesto aggiuntivo
     dataContext.addCustomData('additional_context', additionalContext);
     
-    // Determina se è una conversazione in corso
-    const isOngoingConversation = conversation.length > 2 && additionalContext.isOngoingConversation;
-    
     const messages: Message[] =[];
-    // Prepara i messaggi per l'AI
-   /* const messages: Message[] = [
-      {
-        role: 'system',
-        content: 'Sei un assistente specializzato per CaféConnect. Rispondi in modo cordiale e preciso.',
-        timestamp: Date.now()
-      }
-    ];
-    */
-    
-    // Aggiungi istruzione per evitare saluti ripetuti se la conversazione è in corso
-    /*if (isOngoingConversation) {
-      messages.push({
-        role: 'system',
-        content: 'IMPORTANTE: Questa è una conversazione in corso. Non ripetere saluti come "Buongiorno" o introduzioni.',
-        timestamp: Date.now()
-      });
-    }*/
     
     // Aggiungi il prompt di grounding
     messages.push({
