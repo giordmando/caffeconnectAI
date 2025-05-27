@@ -1,301 +1,136 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { IAIService } from '../services/ai/interfaces/IAIService';
-import { IUserContextService } from '../services/user/interfaces/IUserContextService';
-import { ISuggestionService } from '../services/action/interfaces/ISuggestionService';
-import { ICatalogService } from '../services/catalog/interfaces/ICatalogService';
-import { IFunctionService } from '../services/function/interfaces/IFunctionService';
-import { IConsentService } from '../services/analytics/interfaces/IConsentService';
-import { IConfigManager } from '../config/interfaces/IConfigManager';
-import { IThemeService } from '../services/theme/interfaces/IThemeService'; 
-import { IActionService } from '../services/action/interfaces/IActionService';
-import { IAnalyticsService } from '../services/analytics/interfaces/IAnalyticsService';
-
-// Importazioni delle implementazioni concrete (solo per inizializzazione);
-import { userContextService } from '../services/user/UserContextService';
-import { FunctionRegistry } from '../services/function/FunctionRegistry';
-import { catalogService } from '../services/catalog/CatalogService';
-import { SimpleConsentService } from '../services/analytics/SimpleConsentService';
-import { AnalyticsService } from '../services/analytics/AnalyticsService';
-import { NLPIntegrationService, nlpIntegrationService } from '../services/analytics/nlp/NLPIntegrationService';
-import { configManager } from '../config/ConfigManager';
-import { themeService } from '../services/theme/ThemeService';
+// src/contexts/ServiceProvider.tsx
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { AIProviderConfig } from '../types/AIProvider';
-import { EnhancedAIServiceFactory } from '../services/ai/EnhancedAIServiceFactory';
-import { setupPrompts } from '../services/prompt/setupPrompts';
-import { promptService } from '../services/prompt/PromptService';
-import { retrievalService } from '../services/prompt/retrieval/RetrievalService';
-import { InMemoryVectorStore } from '../services/prompt/retrieval/stores/InMemoryVectorStore';
+import { InitializedServices, initializeAppServices } from '../initialization/AppServicesInitializer';
+import { AppConfig } from '../config/interfaces/IAppConfig';
+import { configManager } from '../config/ConfigManager'; // Importa configManager
 
-
-
-// Definizione dell'interfaccia per tutti i servizi - Con interfacce invece di implementazioni concrete
-export interface AppServices {
-  // Servizi principali
-  aiService: IAIService;
-  userService: IUserContextService;
-  suggestionService: ISuggestionService;
-  catalogService: ICatalogService;
-  functionRegistry: IFunctionService;
-  themeService: IThemeService;
-  actionService: IActionService;
-  
-  // Servizi analitici
-  consentService: IConsentService;
-  nlpService: NLPIntegrationService;
-  analyticsService: IAnalyticsService;
-  
-  // Configurazione
-  configManager: IConfigManager;
-  
-  // Valori e metodi esposti al contesto
+export interface AppServicesContextType extends Omit<InitializedServices, 'currentAiProvider' | 'appConfig'> {
   isInitialized: boolean;
   initializationError: string | null;
-  currentProvider: string;
-  changeAIProvider: (provider: string, config: AIProviderConfig) => void;
+  currentAiProvider: string;
+  appConfig: AppConfig | null;
+  changeAIProvider: (provider: string, model: string, apiKey: string, options: AppConfig['ai']['activeOptions']) => void; // Modificata la firma
   reloadServices: () => Promise<void>;
 }
 
-// Creazione del contesto
-const ServiceContext = createContext<AppServices | undefined>(undefined);
+const ServiceContext = createContext<AppServicesContextType | undefined>(undefined);
 
-/**
- * Provider per tutti i servizi dell'applicazione
- * Centralizza l'accesso ai servizi e gestisce l'inizializzazione
- */
-export const ServiceProvider: React.FC<{
-  children: React.ReactNode;
-}> = ({ children }) => {
-  // Stato di inizializzazione
+export const ServiceProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [initializedServices, setInitializedServices] = useState<InitializedServices | null>(null);
   const [isInitialized, setIsInitialized] = useState<boolean>(false);
   const [initializationError, setInitializationError] = useState<string | null>(null);
-  const [currentProvider, setCurrentProvider] = useState<string>('initializing...');
-  
-  // Creazione delle istanze dei servizi di base
-  const consentService = new SimpleConsentService();
-  
-  // Istanze dei servizi 
-  // Nota: qui usiamo le implementazioni concrete solo per l'inizializzazione,
-  // ma esponiamo solo le interfacce attraverso il context
-  const [services, setServices] = useState<{
-    aiService: IAIService;
-    userService: IUserContextService;
-    suggestionService: ISuggestionService;
-    actionService: IActionService;
-    catalogService: ICatalogService;
-    functionRegistry: IFunctionService;
-    themeService: IThemeService;
-    consentService: IConsentService;
-    nlpService: NLPIntegrationService;
-    analyticsService: IAnalyticsService;
-    configManager: IConfigManager;
-  }>(() => {
-    // Creiamo le dipendenze in sequenza per assicurarci che vengano inizializzate correttamente
-    const consentServiceInstance = consentService as IConsentService;
-    const analyticsServiceInstance = new AnalyticsService(consentServiceInstance) as IAnalyticsService;
-    const functionRegistryInstance = FunctionRegistry.getInstance() as IFunctionService;
-    const userServiceInstance = userContextService as IUserContextService;
-    const catalogServiceInstance = catalogService as ICatalogService;
-    const themeServiceInstance = themeService as IThemeService;
-    const configManagerInstance = configManager as IConfigManager;
-    
-    // Inizializzazione del provider AI - gestione separata necessaria per configurare correttamente
-    // Per ora inizializziamo con un'istanza vuota, sarà valorizzata correttamente in initializeServices
-    const aiServiceInstance = {} as IAIService;
-    
-    // Creiamo servizi che dipendono da altri servizi
-    // Per ora li inizializziamo vuoti, saranno valorizzati correttamente in initializeServices
-    const suggestionServiceInstance = {} as ISuggestionService;
-    const actionServiceInstance = {} as IActionService;
-    
-    return {
-      aiService: aiServiceInstance,
-      userService: userServiceInstance,
-      suggestionService: suggestionServiceInstance,
-      actionService: actionServiceInstance,
-      catalogService: catalogServiceInstance,
-      functionRegistry: functionRegistryInstance,
-      themeService: themeServiceInstance,
-      consentService: consentServiceInstance,
-      nlpService: nlpIntegrationService,
-      analyticsService: analyticsServiceInstance,
-      configManager: configManagerInstance
-    };
-  });
+  const [currentAiProvider, setCurrentAiProvider] = useState<string>('loading...');
+  const [currentAppConfig, setCurrentAppConfig] = useState<AppConfig | null>(null);
 
-  // Cambia provider AI
-  const changeAIProvider = (provider: string, config: AIProviderConfig) => {
+
+  const loadServices = useCallback(async () => {
+    console.log("ServiceProvider: Initiating service loading...");
+    setIsInitialized(false);
+    setInitializedServices(null);
+    setInitializationError(null);
+    setCurrentAiProvider('loading...');
+    setCurrentAppConfig(null);
     try {
-      // Logica esistente per cambiare provider...
-      services.aiService.changeProvider(provider, config);
-      setCurrentProvider(provider);
-    } catch (error) {
-      console.error('Errore nel cambio provider:', error);
-    }
-  };
-  
-  // Funzione per inizializzare tutti i servizi
-  const initializeServices = async () => {
-    try {
-
-      // Configura il vector store temporaneo
-      retrievalService.setVectorStore(new InMemoryVectorStore());
-      await retrievalService.initialize();
-
-      // Inizializza il servizio prompt
-      await setupPrompts();
-
-      console.log('Inizializzazione dei servizi in corso...');
-      setIsInitialized(false);
-      setInitializationError(null);
-      
-      // 1. Carica prima la configurazione
-      await (services.configManager as any).initialize(); // Cast temporaneo fino a quando IConfigManager non è completo
-      
-      // 2. Inizializza i servizi di base in parallelo
-      await Promise.all([
-        services.themeService.initialize(),
-        services.functionRegistry.initialize()
-      ]);
-      
-      // 3. Inizializza i servizi analitici
-      await services.analyticsService.initialize();
-      
-      try {
-        await services.nlpService.initialize();
-        console.log('NLP Service initialized successfully');
-      } catch (nlpError) {
-        console.warn('NLP Service initialization failed, continuing without NLP:', nlpError);
-        // Non bloccare l'inizializzazione se NLP fallisce
-      }
-      
-     
-      // Recupera la configurazione AI
-      const aiConfig = services.configManager.getSection('ai');
-      
-
-      // 4. Carica configurazione da localStorage o usa default
-      let savedConfig = getSavedConfig(aiConfig);
-      // Crea provider specifici per il business type
-      const businessType = services.configManager.getSection('business').type;
-
-      // Usa la factory esistente che ora internamente usa quella nuova
-    const { aiService, suggestionService, actionService } = EnhancedAIServiceFactory.createAIService({
-      provider: savedConfig.provider,
-      providerConfig: savedConfig.config,
-      functionService: services.functionRegistry,
-      catalogService: services.catalogService,
-      businessType: businessType,
-      configManager: services.configManager
-    });
-    
-    // Aggiorna i servizi - questo codice rimane invariato
-    setServices(prevServices => {
-      const updatedServices = {
-        ...prevServices,
-        aiService,
-        suggestionService,
-        actionService
-      };
-      return updatedServices;
-    });
-  
-      setCurrentProvider(savedConfig.provider);
-      
-      console.log('Tutti i servizi inizializzati con successo');
+      const services = await initializeAppServices();
+      setInitializedServices(services);
+      setCurrentAiProvider(services.currentAiProvider);
+      setCurrentAppConfig(services.appConfig); // Salva l'appConfig caricato
       setIsInitialized(true);
+      console.log("ServiceProvider: Services loaded and context updated.");
     } catch (error) {
-      console.error('Errore durante l\'inizializzazione dei servizi:', error);
-      setInitializationError(error instanceof Error ? error.message : 'Errore sconosciuto');
+      const errorMessage = error instanceof Error ? error.message : 'Unknown critical initialization error';
+      console.error('FATAL: Error during service initialization in ServiceProvider:', errorMessage, error);
+      setInitializationError(errorMessage);
+      setInitializedServices(null);
+      setCurrentAppConfig(null);
+      setIsInitialized(true);
     }
-  };
-  
-  // Funzione di supporto per ottenere la configurazione salvata
-function getSavedConfig(aiConfig: any) {
-  try {
-    const configString = localStorage.getItem('cafeconnect-ai-config');
-    return configString ? JSON.parse(configString) : {
-      provider: aiConfig.defaultProvider,
-      config: {
-        apiKey: '',
-        model: aiConfig.providers[aiConfig.defaultProvider].defaultModel,
-        options: {
-          enableAdvancedFunctionSupport: aiConfig.enableAdvancedFunctionSupport || false,
-          useMockFunctions: false
-        }
-      }
-    };
-  } catch (error) {
-    console.warn('Error loading AI config from localStorage, using defaults:', error);
-    return {
-      provider: aiConfig.defaultProvider,
-      config: {
-        apiKey: '',
-        model: aiConfig.providers[aiConfig.defaultProvider].defaultModel,
-        options: {
-          enableAdvancedFunctionSupport: aiConfig.enableAdvancedFunctionSupport || false,
-          useMockFunctions: false
-        }
-      }
-    };
-  }
-}
-
-  // Funzione per ricaricare i servizi (utile dopo cambiamenti nella configurazione)
-  const reloadServices = async () => {
-    await initializeServices();
-  };
-  
-  // Inizializza i servizi al primo caricamento
-  useEffect(() => {
-    initializeServices();
-    
-    // Cleanup all'unmount
-    return () => {
-      // Chiusura pulita dei servizi
-      try {
-        (services.analyticsService as any).dispose?.();
-        (services.nlpService as any).dispose?.();
-      } catch (error) {
-        console.error('Error during service cleanup:', error);
-      }
-    };
   }, []);
-  
-  // Crea il valore del contesto
-  const contextValue: AppServices = {
-    ...services,
-    isInitialized,
-    initializationError,
-    currentProvider,
-    changeAIProvider,
-    reloadServices
-  };
-  
+
+  useEffect(() => {
+    loadServices();
+  }, [loadServices]);
+
+  const changeAIProvider = useCallback(
+    async (provider: string, model: string, apiKey: string, options: AppConfig['ai']['activeOptions']) => {
+    if (!initializedServices) {
+      console.warn('Attempted to change AI provider before services are fully initialized.');
+      return;
+    }
+    try {
+      console.log(`Attempting to change AI provider to ${provider} with model ${model}`);
+      // 1. Aggiorna ConfigManager
+      configManager.updateSection('ai', {
+        activeProvider: provider,
+        activeModel: model,
+        apiKey: apiKey, // Salva l'API key nella configurazione (sarà in localStorage)
+        activeOptions: options,
+      });
+      console.log('ConfigManager updated with new AI settings.');
+
+      // 2. Ricarica i servizi per applicare la nuova configurazione
+      // reloadServices() aggiornerà currentAiProvider e appConfig nello stato del ServiceProvider
+      await loadServices();
+      console.log(`AI Provider changed to ${provider} and services reloaded.`);
+
+    } catch (error) {
+      console.error('Error changing AI provider and reloading services:', error);
+      // Potresti voler impostare un errore specifico per il cambio provider qui
+      // e/o fare un revert della configurazione se il reload fallisce.
+      setInitializationError(`Errore durante il cambio del provider AI: ${error instanceof Error ? error.message : 'Errore sconosciuto'}`);
+    }
+  }, [initializedServices, loadServices]); // Aggiungi loadServices alle dipendenze
+
+  const contextValue: AppServicesContextType = initializedServices
+    ? {
+        ...initializedServices,
+        isInitialized,
+        initializationError,
+        currentAiProvider,
+        appConfig: currentAppConfig, // Usa lo stato locale per appConfig
+        changeAIProvider,
+        reloadServices: loadServices,
+      }
+    : ({
+        isInitialized: false,
+        initializationError: null,
+        currentAiProvider: 'loading...',
+        appConfig: null,
+        changeAIProvider: () => console.warn("Services not ready to change AI provider"),
+        reloadServices: async () => console.warn("Services not ready to reload"),
+      } as unknown as AppServicesContextType);
+
   return (
     <ServiceContext.Provider value={contextValue}>
-      {isInitialized ? children : <div>Loading services...</div>}
+      {children}
     </ServiceContext.Provider>
   );
 };
 
-// Hook per utilizzare il contesto dei servizi
-export const useServices = (): AppServices => {
+export const useServices = (): AppServicesContextType => {
   const context = useContext(ServiceContext);
-  
   if (context === undefined) {
-    throw new Error('useServices deve essere utilizzato all\'interno di un ServiceProvider');
+    throw new Error('useServices must be used within a ServiceProvider');
   }
-  
   return context;
 };
 
-// Hook per accedere a un singolo servizio specifico
-export function useService<K extends keyof AppServices>(serviceName: K): AppServices[K] {
+export function useService<K extends keyof Omit<AppServicesContextType, 'isInitialized' | 'initializationError' | 'currentAiProvider' | 'appConfig' | 'changeAIProvider' | 'reloadServices'>>(
+    serviceName: K
+  ): AppServicesContextType[K] {
   const services = useServices();
+  if (!services.isInitialized && !services.initializationError) {
+      console.warn(`useService: Attempting to access service "${String(serviceName)}" before services are fully initialized. This might lead to undefined behavior or runtime errors if the service is not yet available. Ensure that components consuming services handle the loading state appropriately (e.g., by checking 'isInitialized' from useServices).`);
+  }
+  if (services.initializationError && services[serviceName] === undefined) {
+    throw new Error(
+      `useService: Service "${String(serviceName)}" is unavailable due to a critical initialization error: ${services.initializationError}. Check console for details.`
+    );
+  }
   return services[serviceName];
 }
 
-// Esporta anche servizi individuali per casi speciali
 export const useAIService = () => useService('aiService');
 export const useUserService = () => useService('userService');
 export const useCatalogService = () => useService('catalogService');

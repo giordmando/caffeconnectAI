@@ -1,12 +1,13 @@
-import React, { useState } from 'react';
-// Aggiungi questi import
+// src/App.tsx
+import React, { useState, useEffect } from 'react';
 import { useServices, useService } from './contexts/ServiceProvider';
 import AIConfigPanel from './components/AIConfigPanel';
 import BusinessConfigPanel from './components/BusinessConfigPanel';
 import CompleteChatInterface from './components/ContextChatUI';
 import { interpolateConfig } from './config/ConfigManager';
 import './styles/App.css';
-import { functionRegistry } from './services/function/FunctionRegistry';
+// Rimossa l'importazione diretta di functionRegistry perché ora è accessibile tramite useService
+// import { functionRegistry } from './services/function/FunctionRegistry';
 
 /**
  * Componente principale dell'applicazione
@@ -16,28 +17,45 @@ function App() {
   // Stati dell'applicazione
   const [isConfigPanelOpen, setIsConfigPanelOpen] = useState(false);
   const [isBusinessPanelOpen, setIsBusinessPanelOpen] = useState(false);
+
   // Ottieni servizi dal nuovo context
-  const { currentProvider, reloadServices } = useServices();
-  const configManager = useService('configManager');
-  const functionRegistry = useService('functionRegistry');
-  // Ottieni configurazione
-  const appConfig = configManager.getConfig();
-  // Funzioni disponibili
-  const availableFunctions = functionRegistry.getAllFunctions().map(fn => fn.name);
-  
+  // CORREZIONE: currentProvider -> currentAiProvider
+  const { currentAiProvider, reloadServices, appConfig, isInitialized, initializationError } = useServices();
+  const functionRegistry = useService('functionRegistry'); // configManager è già in appConfig
+
+  // Stato locale per le funzioni disponibili, aggiornato dopo l'inizializzazione
+  const [availableFunctions, setAvailableFunctions] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (isInitialized && !initializationError && functionRegistry) {
+      setAvailableFunctions(functionRegistry.getAllFunctions().map(fn => fn.name));
+    }
+  }, [isInitialized, initializationError, functionRegistry]);
+
+
   // Gestione della reinizializzazione dopo cambio configurazione business
   const handleBusinessConfigSave = async () => {
     try {
-      // Il nuovo AppInitializer mostrerà automaticamente lo stato di caricamento
-      await reloadServices();
+      await reloadServices(); // AppInitializer gestirà lo stato di caricamento
     } catch (error) {
-      console.error('Error reinitializing app:', error);
+      console.error('Error reinitializing app after business config save:', error);
     }
   };
-  
+
+  // Se i servizi non sono ancora inizializzati o c'è un errore critico durante l'init,
+  // AppInitializer (usato in index.tsx) dovrebbe gestire la visualizzazione del caricamento/errore.
+  // Qui potremmo aggiungere un ulteriore controllo se App viene renderizzato prima che AppInitializer abbia finito.
+  if (!isInitialized || !appConfig) {
+    // Questo stato dovrebbe essere gestito da AppInitializer, ma come fallback:
+    return <div>Inizializzazione dell'applicazione in corso o fallita...</div>;
+  }
+
   // Sostituisci i segnaposto nel messaggio di benvenuto
-  const welcomeMessage = interpolateConfig(appConfig.ui.welcomeMessage, appConfig);
-  
+  // Assicurati che appConfig.ui e appConfig.business siano definiti
+  const welcomeMessage = appConfig.ui?.welcomeMessage && appConfig.business?.name
+    ? interpolateConfig(appConfig.ui.welcomeMessage, appConfig)
+    : "Benvenuto! Come posso aiutarti?";
+
   return (
     <div className="app-container">
       <header className="app-header">
@@ -45,21 +63,22 @@ function App() {
           <img src={appConfig.business.logo} alt={appConfig.business.name} />
           <h1>{appConfig.business.name}</h1>
         </div>
-        
+
         <div className="header-actions">
           <div className="provider-info">
             <span className="provider-label">AI:</span>
-            <span className="provider-name">{currentProvider}</span>
+            {/* CORREZIONE: currentProvider -> currentAiProvider */}
+            <span className="provider-name">{currentAiProvider}</span>
           </div>
-          
-          <button 
+
+          <button
             className="config-button"
             onClick={() => setIsConfigPanelOpen(true)}
           >
             Configurazione AI
           </button>
-          
-          <button 
+
+          <button
             className="business-config-button"
             onClick={() => setIsBusinessPanelOpen(true)}
           >
@@ -67,10 +86,9 @@ function App() {
           </button>
         </div>
       </header>
-      
+
       <main className="app-main">
-        {/* Usa il nuovo componente unificato che supporta tutte le funzionalità */}
-        <CompleteChatInterface 
+        <CompleteChatInterface
           initialConfig={{
             welcomeMessage: welcomeMessage,
             showSidebar: appConfig.ui.showSidebar,
@@ -81,7 +99,7 @@ function App() {
           }}
         />
       </main>
-      
+
       <footer className="app-footer">
         <div className="functions-info">
           <span>Funzioni disponibili: {availableFunctions.length}</span>
@@ -95,18 +113,18 @@ function App() {
           <p>{appConfig.business.name} &copy; {new Date().getFullYear()}</p>
         </div>
       </footer>
-      
+
       {isConfigPanelOpen && (
         <div className="modal-overlay">
-          <AIConfigPanel 
+          <AIConfigPanel
             onClose={() => setIsConfigPanelOpen(false)}
           />
         </div>
       )}
-      
+
       {isBusinessPanelOpen && (
         <div className="modal-overlay">
-          <BusinessConfigPanel 
+          <BusinessConfigPanel
             onClose={() => setIsBusinessPanelOpen(false)}
             onSave={handleBusinessConfigSave}
           />
