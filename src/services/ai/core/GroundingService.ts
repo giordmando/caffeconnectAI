@@ -37,8 +37,8 @@ export class GroundingService {
       role: 'system',
       content: await promptService.getPrompt('rag_context', {
         retrievedContent: dataContext.buildPrompt(),
-        userPreferredDrinks: additionalContext.userPreferredDrinks || 'Nessuna preferenza registrata',
-        userPreferredFood: additionalContext.userPreferredFood || 'Nessuna preferenza registrata',
+        //userPreferredDrinks: additionalContext.userPreferredDrinks || 'Nessuna preferenza registrata',
+        //userPreferredFood: additionalContext.userPreferredFood || 'Nessuna preferenza registrata',
         dietaryRestrictions: additionalContext.dietaryRestrictions || 'Nessuna restrizione'
       }),
       timestamp: Date.now()

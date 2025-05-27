@@ -207,13 +207,6 @@ export const ChatProvider: React.FC<{
     suggestionService, messages.length
   ]);
 
-  const handleNewUIComponents = (components: UIComponent[]) => {
-    // Aggiungi i componenti al manager invece di fare setState
-    componentManager.addComponents(components);
-    
-    // Forza un aggiornamento
-    // Removed setUIComponentsUpdated as it is not defined
-  };
   // Aggiungi messaggio
   const addMessage = (message: Message) => {
     setMessages(prev => [...prev, message]);
@@ -461,6 +454,8 @@ export const ChatProvider: React.FC<{
       userService.updatePreference({
         itemId: payload.id,
         itemType: payload.type,
+        itemName: payload.name || 'Sconosciuto',
+        itemCategory: payload.category || 'Generico',
         rating: 4,
         timestamp: Date.now()
       });

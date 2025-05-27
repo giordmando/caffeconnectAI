@@ -25,12 +25,12 @@ export class GroundingHandler extends BaseMessageHandler {
     try {
        // Estrai preferenze utente in un formato utilizzabile
       const userPreferredDrinks = request.userContext.preferences
-        .filter(p => p.itemType === 'beverage')
+        .filter(p => p.itemCategory === 'beverage')
         .map(p => p.itemId)
         .join(', ');
       
       const userPreferredFood = request.userContext.preferences
-        .filter(p => p.itemType === 'food')
+        .filter(p => p.itemCategory === 'food')
         .map(p => p.itemId)
         .join(', ');
       

@@ -3,6 +3,8 @@ import { configManager } from '../../config/ConfigManager';
 import { IFunctionService } from './interfaces/IFunctionService';
 import { catalogService } from '../catalog/CatalogService';
 import { getTimeOfDay } from '../../utils/timeContext';
+import { userContextService } from '../user/UserContextService'; // Assicurati che sia importato
+
 
 /**
  * Registry per funzioni personalizzabili
@@ -515,14 +517,49 @@ export class FunctionRegistry implements IFunctionService {
             enum: ['menuItem', 'product'],
             description: 'Tipo di item'
           },
+          itemName: { 
+            type: 'string',
+            description: "Nome dell'item correlato all'azione."
+          },
+          itemCategory: {
+            type: 'string',
+            description: "Categoria specifica dell'item (es. 'coffee', 'pastry', 'main_course', 'accessory')."
+          },
           rating: {
             type: 'number',
             description: 'Valutazione (1-5)'
           }
         },
-        required: ['userId', 'actionType', 'itemId', 'itemType']
+        required: ['userId', 'actionType', 'itemId', 'itemType', 'itemName', 'itemCategory']
       },
-      handler: async (params) => {
+      handler: async (params: {
+        userId: string;
+        actionType: string;
+        itemId: string;
+        itemName: string;
+        itemType: string; 
+        itemCategory: string;
+        rating?: number;
+        metadata?: Record<string, any>;
+      }) => {
+        // Logica per tracciare l'azione.
+        // Per ora, aggiorniamo solo le preferenze utente se l'azione è 'order', 'favorite', o 'rate'
+        console.log(`Azione utente tracciata: ${params.actionType} per l'item ${params.itemName} (ID: ${params.itemId})`);
+
+        if (['order', 'favorite', 'rate'].includes(params.actionType)) {
+          userContextService.updatePreference({
+            itemId: params.itemId,
+            itemName: params.itemName,
+            itemType: params.itemType,
+            itemCategory: params.itemCategory,
+            rating: params.rating || (params.actionType === 'favorite' ? 5 : 4), // Default rating per favorite/order
+            timestamp: Date.now()
+          });
+          return {
+            success: true,
+            message: `Azione ${params.actionType} per '${params.itemName}' tracciata e preferenza aggiornata.`
+          };
+        }
         return {
           success: true,
           message: `Azione ${params.actionType} tracciata con successo`

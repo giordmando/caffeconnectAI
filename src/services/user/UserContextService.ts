@@ -49,6 +49,8 @@ export class UserContextService implements IUserContextService {
       this.context.preferences[existingIndex] = {
         ...this.context.preferences[existingIndex],
         rating: preference.rating,
+        itemName: preference.itemName, // Salva il nuovo campo
+        itemCategory: preference.itemCategory, // Salva il nuovo campo
         timestamp: Date.now()
       };
     } else {

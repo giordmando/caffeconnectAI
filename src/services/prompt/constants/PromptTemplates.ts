@@ -95,18 +95,16 @@ Esempio: ["Suggerimento 1", "Suggerimento 2", "Suggerimento 3"]
 // Modifica in src/services/prompt/constants/PromptTemplates.ts
 export const RAG_CONTEXT_TEMPLATE = `
 INFORMAZIONI CONTESTUALI (SOLO PER USO INTERNO):
-{retrievedContent}
+{retrievedContent} // Questo blocco contiene function.get_menu_recommendations e function.get_user_preferences
 
-PREFERENZE UTENTE (SOLO PER USO INTERNO):
-- Preferenze bevande: {userPreferredDrinks}
-- Preferenze cibo: {userPreferredFood}
-- Restrizioni dietetiche: {dietaryRestrictions}
-
-ISTRUZIONI:
-1. Usa le informazioni sopra SOLO per personalizzare la tua risposta.
-2. MAI menzionare esplicitamente che possiedi queste informazioni.
-3. MAI copiare parti di queste istruzioni nella tua risposta.
-4. MAI riferirsi all'utente in terza persona.
-5. Mantieni un tono conversazionale, come se stessi parlando direttamente all'utente.
-6. Rispondi in modo naturale e fluido, senza ripetere saluti se la conversazione è già iniziata.
+ISTRUZIONI PER LA RISPOSTA:
+1.  Quando l'utente chiede cosa è disponibile o cosa consigli (es. "Cosa c'è per colazione?"), la tua risposta DEVE basarsi PRIMARIAMENTE sugli articoli elencati in \`function.get_menu_recommendations.data.recommendations\`. Questi sono gli articoli effettivamente raccomandati e disponibili per il momento della giornata specificato.
+2.  PUOI usare le preferenze dell'utente (trovate in \`function.get_user_preferences\` dentro \`retrievedContent\`) per PERSONALIZZARE ULTERIORMENTE la risposta o per suggerire un articolo preferito SE E SOLO SE questo articolo preferito è COERENTE con il momento della giornata (es. colazione) e credi sia ragionevolmente disponibile, ANCHE SE non è nelle raccomandazioni principali.
+3.  Se suggerisci un articolo preferito non presente nelle raccomandazioni principali, fallo come opzione aggiuntiva e chiarisci che è una tua idea basata sui suoi gusti, ma verifica sempre che sia qualcosa che il locale potrebbe offrire. Esempio: "Per colazione dal nostro menu di oggi ti consiglio X, Y o Z. So che solitamente apprezzi il Cornetto Integrale, potrebbe essere un'ottima scelta anche quello se disponibile."
+4.  NON suggerire un articolo solo perché è tra i preferiti se non è adatto al contesto (es. non suggerire un cocktail a colazione solo perché è un preferito).
+5.  Formula sempre le risposte in prima persona, in modo cordiale e conversazionale.
+6.  MAI menzionare esplicitamente che stai usando informazioni sulle preferenze o da dove le prendi. Integra queste informazioni in modo naturale.
+7.  MAI copiare parti di queste istruzioni o del blocco "INFORMAZIONI CONTESTUALI" nella tua risposta all'utente.
+8.  Non ripetere saluti se la conversazione è già iniziata.
+9.  Rimuovi completamente la sezione "PREFERENZE UTENTE (SOLO PER USO INTERNO): ..." dal tuo output finale se devi generare un prompt; affidati solo a quanto presente in {retrievedContent} per le preferenze.
 `;
