@@ -44,11 +44,22 @@ const BusinessConfigPanel: React.FC<BusinessConfigPanelProps> = ({ onClose, onSa
   // Carica funzioni e categorie all'avvio
   useEffect(() => {
     const loadData = async () => {
-      setAvailableFunctions(functionRegistry.getAllFunctions().map(fn => fn.name));
-      setCatalogCategories(catalogService.getCategories());
+      // Assicurati che functionRegistry sia inizializzato prima di chiamare getAllFunctions
+      if (functionRegistry && typeof functionRegistry.getAllFunctions === 'function') {
+        setAvailableFunctions(functionRegistry.getAllFunctions().map(fn => fn.name));
+      } else {
+        console.warn("functionRegistry non ancora pronto o getAllFunctions non disponibile in BusinessConfigPanel useEffect");
+        // Potresti voler impostare un valore di fallback o attendere l'inizializzazione
+      }
+      // Assicurati che catalogService sia inizializzato
+      if (catalogService && typeof catalogService.getCategories === 'function') {
+        setCatalogCategories(catalogService.getCategories());
+      } else {
+        console.warn("catalogService non ancora pronto o getCategories non disponibile in BusinessConfigPanel useEffect");
+      }
     };
     loadData();
-  }, []);
+  }, []); // Considera di aggiungere dipendenze se functionRegistry o catalogService possono cambiare
 
   const handleLoadFunctionsFromEndpoint = async () => {
     const endpoint = config.functions.customFunctionEndpoint;
@@ -94,6 +105,7 @@ const BusinessConfigPanel: React.FC<BusinessConfigPanelProps> = ({ onClose, onSa
         const parts = field.split('.');
         let current: any = newConfig[section];
         for (let i = 0; i < parts.length - 1; i++) {
+          if (!current[parts[i]]) current[parts[i]] = {}; // Assicura che il percorso esista
           current = current[parts[i]];
         }
         current[parts[parts.length - 1]] = value;
@@ -116,8 +128,8 @@ const BusinessConfigPanel: React.FC<BusinessConfigPanelProps> = ({ onClose, onSa
       bgColor: config.business.theme.backgroundColor,
       textColor: config.business.theme.textColor
     });
-    onSave();
-    onClose();
+    onSave(); // Questa dovrebbe triggerare reloadServices in App.tsx
+    // onClose(); // Non chiudere qui, lascia che sia App.tsx a decidere o l'utente
   };
 
   // Esporta configurazione
@@ -146,6 +158,18 @@ const BusinessConfigPanel: React.FC<BusinessConfigPanelProps> = ({ onClose, onSa
         if (!importedConfig.knowledgeBase || !Array.isArray(importedConfig.knowledgeBase)) {
             importedConfig.knowledgeBase = [];
         }
+        // Assicurati che ai.activeOptions esista e abbia i campi necessari
+        const defaultConfigOptions = configManager.getConfig().ai.activeOptions; // Usa i default correnti come base
+        if (importedConfig.ai) {
+            importedConfig.ai.activeOptions = {
+                ...defaultConfigOptions, // Inizia con i default per assicurare che tutti i campi esistano
+                ...(importedConfig.ai.activeOptions || {}) // Sovrascrivi con quelli importati, se esistono
+            };
+        } else { // Se la sezione 'ai' non esiste affatto nell'importazione
+            importedConfig.ai = { ...configManager.getConfig().ai }; // Usa l'intera sezione 'ai' di default
+        }
+
+
         setConfig(importedConfig);
         setIsDirty(true);
       } catch (error) {
@@ -537,9 +561,8 @@ const BusinessConfigPanel: React.FC<BusinessConfigPanelProps> = ({ onClose, onSa
         )}
         {activeTab === 'ai' && (
           <div className="tab-content">
-            {/* ... contenuto tab AI ... */}
-             <div className="form-group">
-              <label htmlFor="default-provider">Provider AI Predefinito</label>
+            <div className="form-group">
+              <label htmlFor="default-provider">Provider AI Predefinito (usato se nessuna selezione utente)</label>
               <select
                 id="default-provider"
                 value={config.ai.defaultProvider}
@@ -571,15 +594,15 @@ const BusinessConfigPanel: React.FC<BusinessConfigPanelProps> = ({ onClose, onSa
                     <input
                         type="checkbox"
                         id="enableAdvancedFunctionSupport"
-                        checked={config.ai.enableAdvancedFunctionSupport}
-                        onChange={(e) => handleConfigChange('ai', 'enableAdvancedFunctionSupport', e.target.checked)}
+                        checked={config.ai.activeOptions.enableAdvancedFunctionSupport}
+                        onChange={(e) => handleConfigChange('ai', 'activeOptions.enableAdvancedFunctionSupport', e.target.checked)}
                     />
                     <label htmlFor="enableAdvancedFunctionSupport">Abilita supporto avanzato alle funzioni (ciclo chiamate multiple)</label>
                 </div>
             </div>
 
             <div className="providers-container">
-              <h3 className="section-title">Provider AI configurati</h3>
+              <h3 className="section-title">Provider AI (Definizioni)</h3>
               {Object.entries(config.ai.providers).map(([key, provider]) => (
                 <div key={key} className="provider-card">
                   <h4>{provider.displayName}</h4>
@@ -590,7 +613,7 @@ const BusinessConfigPanel: React.FC<BusinessConfigPanelProps> = ({ onClose, onSa
                         <li key={model.id}>
                           {model.name}
                           {model.id === provider.defaultModel && (
-                            <span className="default-badge">default</span>
+                            <span className="default-badge"> (default per questo provider)</span>
                           )}
                         </li>
                       ))}
@@ -599,6 +622,9 @@ const BusinessConfigPanel: React.FC<BusinessConfigPanelProps> = ({ onClose, onSa
                 </div>
               ))}
             </div>
+            <p className="form-text">
+                Le impostazioni del provider AI attivo (modello, API key) vengono gestite nel pannello "Configurazione AI" accessibile dall'header dell'applicazione.
+            </p>
           </div>
         )}
         {activeTab === 'catalog' && (
@@ -901,7 +927,7 @@ const BusinessConfigPanel: React.FC<BusinessConfigPanelProps> = ({ onClose, onSa
                     [functionName]: e.target.value.trim() === '' ? undefined : e.target.value.trim() // Rimuovi se vuoto
                   };
                   // Rimuovi chiavi con valori undefined
-                  Object.keys(newEndpoints).forEach(key => newEndpoints[key] === undefined && delete newEndpoints[key]);
+                  Object.keys(newEndpoints).forEach(key => newEndpoints[key] === undefined && delete (newEndpoints as any)[key]);
                   handleConfigChange('functions', 'functionDataEndpoints', newEndpoints);
                 }}
                 placeholder={`URL endpoint per ${functionName} (es. https://api.tuosito.com/data/${functionName})`}

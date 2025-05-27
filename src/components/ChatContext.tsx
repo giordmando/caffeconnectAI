@@ -1,363 +1,247 @@
-import React, { createContext, useContext, useState, useEffect, useRef, useMemo } from 'react';
+// src/components/ChatContext.tsx
+import React, { createContext, useContext, useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { Message } from '../types/Message';
 import { UIComponent } from '../types/UI';
 import { IConversationTracker } from '../services/analytics/interfaces/IConversationTracker';
-import { getConversationTracker } from '../services/analytics/setupAnalytics';
 import { nlpIntegrationService } from '../services/analytics/nlp/NLPIntegrationService';
 import { AnalysisType } from '../services/analytics/nlp/interfaces/INLPService';
 import { useServices } from '../contexts/ServiceProvider';
 import { ComponentManager } from '../services/ui/ComponentManager';
-
-// Definizione delle proprietà di configurazione
-export interface ChatConfig {
-  welcomeMessage?: string;
-  showSidebar?: boolean;
-  enableSuggestions?: boolean;
-  enableDynamicComponents?: boolean;
-  enableNLP?: boolean;
-  maxRecommendations?: number;
-}
+import { AppConfig, ChatConfig } from '../config/interfaces/IAppConfig'; // Importa ChatConfig da IAppConfig
 
 // Definizione del contesto della chat
-interface ChatContextType {
-  // Configurazione
+export interface ChatContextType {
   config: ChatConfig;
   updateConfig: (newConfig: Partial<ChatConfig>) => void;
-  
-  // Stato dei messaggi
   messages: Message[];
   addMessage: (message: Message) => void;
   clearMessages: () => void;
-  
-  // Input utente
   inputValue: string;
   setInputValue: (input: string) => void;
   handleInputChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   handleKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => void;
   handleSendMessage: () => Promise<void>;
   isTyping: boolean;
-  
-  // Componenti UI e suggerimenti
-  uiComponents: UIComponent[];
   suggestedPrompts: string[];
   nlpComponents: UIComponent[];
   handleSuggestionClick: (suggestion: string) => void;
   handleUIAction: (action: string, payload: any) => void;
-  availableActions: any[]; // Aggiungi questa proprietà
-  componentManager: ComponentManager; // Aggiungi questa proprietà
+  availableActions: any[];
+  componentManager: ComponentManager;
   uiComponentsUpdated: number;
-  //handleActionClick: (action: string, payload: any) => void; // Aggiungi questa funzione
-  // Servizi e tracking
   conversationId: string | null;
   isNLPInitialized: boolean;
   messagesEndRef: React.RefObject<HTMLDivElement>;
 }
 
-// Creazione del contesto
 const ChatContext = createContext<ChatContextType | undefined>(undefined);
 
-/**
- * Provider per il contesto della chat
- * Gestisce lo stato e la logica centralizzata per tutti i componenti dell'interfaccia di chat
- */
 export const ChatProvider: React.FC<{
   children: React.ReactNode;
-  initialConfig?: ChatConfig;
+  initialConfig?: Partial<ChatConfig>; // Usa Partial<ChatConfig> per initialConfig
 }> = ({ children, initialConfig = {} }) => {
-  // Configurazione
-  const [config, setConfig] = useState<ChatConfig>({
-    showSidebar: true,
-    enableSuggestions: true,
-    enableDynamicComponents: true,
-    enableNLP: false,
-    maxRecommendations: 3,
+  const { aiService, userService, suggestionService, functionRegistry, catalogService, conversationTracker, appConfig } = useServices();
+
+  const [config, setConfig] = useState<ChatConfig>(() => ({
+    showSidebar: appConfig?.ui?.showSidebar ?? true,
+    enableSuggestions: appConfig?.ui?.enableSuggestions ?? true,
+    enableDynamicComponents: appConfig?.ui?.enableDynamicComponents ?? true,
+    enableNLP: appConfig?.ui?.enableNLP ?? false,
+    maxRecommendations: appConfig?.ui?.maxRecommendations ?? 3,
+    welcomeMessage: appConfig?.ui?.welcomeMessage ? interpolateConfig(appConfig.ui.welcomeMessage, appConfig as AppConfig) : "Benvenuto! Come posso aiutarti?",
     ...initialConfig
-  });
-  
-  // Stato base
+  }));
+
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState<string>('');
   const [isTyping, setIsTyping] = useState<boolean>(false);
-  const [uiComponents, setUIComponents] = useState<UIComponent[]>([]);
   const [suggestedPrompts, setSuggestedPrompts] = useState<string[]>([]);
   const [nlpComponents, setNLPComponents] = useState<UIComponent[]>([]);
-  const [conversationId, setConversationId] = useState<string | null>(null);
+  const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
   const [isNLPInitialized, setIsNLPInitialized] = useState<boolean>(false);
   const [availableActions, setAvailableActions] = useState<any[]>([]);
-  
-  // Riferimenti
-  const messagesEndRef = useRef<HTMLDivElement>(null!);
-  const conversationTracker = useRef<IConversationTracker | null>(null);
-  
-  // Servizi
-  const { aiService, userService, suggestionService, functionRegistry } = useServices();
-  const userContext = userService.getUserContext();
-  
-  // Contatore per forzare aggiornamenti UI quando i componenti cambiano
-  const [uiComponentsUpdated, setUIComponentsUpdated] = useState<number>(0);
-  
-  // Istanzia ComponentManager come valore memorizzato
-  const componentManager = useMemo(() => new ComponentManager(), []);
 
-  // Aggiorna configurazione
+  const messagesEndRef = useRef<HTMLDivElement>(null!);
+
+  const componentManager = useMemo(() => new ComponentManager(), []);
+  const [uiComponentsUpdated, setUIComponentsUpdated] = useState<number>(0);
+
   const updateConfig = (newConfig: Partial<ChatConfig>) => {
-    setConfig(prev => ({ ...prev, ...newConfig }));
+    setConfig((prev: ChatConfig) => ({ ...prev, ...newConfig })); // Tipo esplicito per prev
   };
-  
-  // Inizializza tracker conversazione
+
   useEffect(() => {
-    const initialize = async () => {
-      // Inizializza conversation tracker
-      try {
-        const tracker = await getConversationTracker();
-        conversationTracker.current = tracker;
-        
-        if (tracker) {
-          const newConversationId = await tracker.startConversation();
-          setConversationId(newConversationId);
-        }
-      } catch (error) {
-        console.error('Errore nell\'inizializzazione del conversation tracker:', error);
-      }
-      
-      // Inizializza NLP se abilitato
-      if (config.enableNLP) {
+    const initializeConversation = async () => {
+      if (conversationTracker && !currentConversationId) {
         try {
-          await nlpIntegrationService.initialize();
-          setIsNLPInitialized(nlpIntegrationService.isServiceInitialized());
+          const newConvId = await conversationTracker.startConversation(userService.getUserContext().userId);
+          setCurrentConversationId(newConvId);
+          console.log('[ChatContext] Conversation started with ID:', newConvId);
         } catch (error) {
-          console.error('Errore nell\'inizializzazione del servizio NLP:', error);
-          setIsNLPInitialized(false);
+          console.error('[ChatContext] Error starting conversation:', error);
         }
       }
     };
-    
-    initialize();
-    
-    // Cleanup alla chiusura
-    return () => {
-      if (conversationId && conversationTracker.current) {
-        conversationTracker.current.endConversation(conversationId)
-          .catch(error => console.error('Errore nella chiusura conversazione:', error));
-      }
-    };
-  }, [config.enableNLP]);
-  
-  // Auto-scroll quando arrivano nuovi messaggi
+    initializeConversation();
+  }, [conversationTracker, userService, currentConversationId]);
+
+
+  useEffect(() => {
+    if (config.enableNLP && !isNLPInitialized) {
+      nlpIntegrationService.initialize().then(() => {
+        setIsNLPInitialized(nlpIntegrationService.isServiceInitialized());
+        console.log('[ChatContext] NLP Service initialized via ChatContext effect.');
+      }).catch(error => {
+        console.error('[ChatContext] Error initializing NLP service via ChatContext effect:', error);
+        setIsNLPInitialized(false);
+      });
+    }
+  }, [config.enableNLP, isNLPInitialized]);
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, uiComponents]);
-  
-  // Carica messaggio di benvenuto iniziale
+  }, [messages, uiComponentsUpdated]);
+
   useEffect(() => {
     const loadWelcomeMessage = async () => {
-      if (messages.length > 0) return; // Evita caricamenti multipli
-      
+      if (messages.length > 0 || !appConfig) return; // Non caricare se ci sono già messaggi o appConfig non è pronto
       setIsTyping(true);
-      
-      try {
-        if (config.welcomeMessage) {
-          const welcomeMsg: Message = {
-            role: 'assistant',
-            content: config.welcomeMessage,
-            timestamp: Date.now()
-          };
-          
-          setMessages([welcomeMsg]);
-          
-          if (config.enableSuggestions) {
-            const initialSuggestions = await suggestionService.getSuggestedPrompts(welcomeMsg, userContext);
+      const welcomeMsgContent = config.welcomeMessage || "Benvenuto! Come posso aiutarti?";
+      const welcomeMsg: Message = {
+        role: 'assistant',
+        content: welcomeMsgContent,
+        timestamp: Date.now()
+      };
+      setMessages([welcomeMsg]);
+      if (config.enableSuggestions) {
+        try {
+            const initialSuggestions = await suggestionService.getSuggestedPrompts(welcomeMsg, userService.getUserContext());
             setSuggestedPrompts(initialSuggestions);
-          }
-        } else {
-          const response = await aiService.sendMessage(
-            "Ciao! Sono nuovo qui.", 
-            userContext
-          );
-          
-          setMessages([response.message]);
-          
-          if (response.uiComponents && config.enableDynamicComponents) {
-            setUIComponents(response.uiComponents);
-          }
-          
-          if (response.suggestedPrompts && config.enableSuggestions) {
-            setSuggestedPrompts(response.suggestedPrompts);
-          }
+        } catch (e) {
+            console.error("Error getting initial suggestions:", e);
+            setSuggestedPrompts([]);
         }
-        
-        userService.addInteraction(config.welcomeMessage || "Initial welcome message");
-      } catch (error) {
-        console.error('Errore nel caricamento del messaggio di benvenuto:', error);
-        
-        setMessages([{
-          role: 'assistant',
-          content: config.welcomeMessage || 'Benvenuto! Come posso aiutarti oggi?',
-          timestamp: Date.now()
-        }]);
       }
-      
+      userService.addInteraction(welcomeMsgContent);
+      if (currentConversationId && conversationTracker) {
+        await trackMessage(welcomeMsgContent, 'assistant', null, currentConversationId, conversationTracker);
+      }
       setIsTyping(false);
     };
-    
-    loadWelcomeMessage();
-  }, [
-    aiService, userService, userContext, 
-    config.welcomeMessage, config.enableDynamicComponents, config.enableSuggestions, 
-    suggestionService, messages.length
-  ]);
+    if (appConfig) {
+        loadWelcomeMessage();
+    }
+  }, [appConfig, userService, suggestionService, config.welcomeMessage, config.enableSuggestions, currentConversationId, conversationTracker, messages.length]);
 
-  // Aggiungi messaggio
+
   const addMessage = (message: Message) => {
     setMessages(prev => [...prev, message]);
   };
-  
-  // Cancella messaggi
+
   const clearMessages = () => {
     setMessages([]);
+    componentManager.getAllComponents().forEach(c => componentManager.removeComponent(c.id));
+    setUIComponentsUpdated(prev => prev + 1);
   };
-  
-  // Gestione input
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setInputValue(e.target.value);
   };
-  
-  // Gestione tasto invio
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       handleSendMessage();
     }
   };
 
-  
-
-  // Traccia i messaggi
-  const trackMessage = async (message: any, role: 'user' | 'assistant', nlpAnalysis?: any) => {
-    if (!conversationId || !conversationTracker.current) return;
-    
+  const trackMessage = useCallback(async (messageContent: string, role: 'user' | 'assistant', nlpAnalysis: any, convId: string, tracker: IConversationTracker) => {
+    if (!convId || !tracker) {
+      console.warn('[ChatContext] trackMessage: conversationId or tracker not available.');
+      return;
+    }
     try {
-      // Prepara dati base dell'evento
-      const eventData: any = {
-        role,
-        content: message,
-        timestamp: Date.now()
-      };
-      
-      // Aggiungi dati NLP se disponibili
-      if (nlpAnalysis) {
+      const eventData: any = { role, content: messageContent, timestamp: Date.now() };
+      if (nlpAnalysis && config.enableNLP) {
         eventData.nlpData = {
           sentiment: nlpAnalysis[AnalysisType.SENTIMENT]?.[0] || null,
           intents: nlpAnalysis[AnalysisType.INTENT] || [],
           topics: nlpAnalysis[AnalysisType.TOPIC] || [],
-          entities: nlpAnalysis[AnalysisType.ENTITY] || []
         };
       }
-      
-      await conversationTracker.current.trackEvent({
+      await tracker.trackEvent({
         type: 'message',
-        conversationId,
+        conversationId: convId,
         data: eventData,
         timestamp: Date.now()
       });
     } catch (error) {
-      console.error('Errore nel tracciamento messaggio:', error);
+      console.error('[ChatContext] Error tracking message:', error);
     }
-  };
-  
-  // Analizza messaggio con NLP
-  const analyzeMessage = async (message: string): Promise<any> => {
-    if (!isNLPInitialized || !config.enableNLP) {
+  }, [config.enableNLP]);
+
+  const analyzeMessage = useCallback(async (message: string): Promise<any> => {
+    if (!isNLPInitialized || !config.enableNLP || !nlpIntegrationService) {
       return null;
     }
-    
     try {
-      // Esegui analisi NLP
-      const analysis = await nlpIntegrationService.analyzeUserMessage(message);
-      return analysis;
+      return await nlpIntegrationService.analyzeUserMessage(message);
     } catch (error) {
-      console.error('Errore nell\'analisi NLP del messaggio:', error);
+      console.error('[ChatContext] Error analyzing NLP message:', error);
       return null;
     }
-  };
-  
-  // Gestione invio messaggio
+  }, [isNLPInitialized, config.enableNLP]);
+
   const handleSendMessage = async () => {
-    if (inputValue.trim() === '' || isTyping) return;
-    
-    const userMessage: Message = {
-      role: 'user',
-      content: inputValue,
-      timestamp: Date.now()
-    };
-    
-    // Aggiorna UI immediatamente con il messaggio utente
+    if (inputValue.trim() === '' || isTyping || !currentConversationId || !conversationTracker) return;
+
+    const userMessageContent = inputValue;
+    const userMessage: Message = { role: 'user', content: userMessageContent, timestamp: Date.now() };
+
     addMessage(userMessage);
     setInputValue('');
     setIsTyping(true);
-    
-    // Esegui analisi NLP se abilitata
+    setSuggestedPrompts([]);
+
     let nlpAnalysis = null;
-    if (config.enableNLP && isNLPInitialized) {
-      nlpAnalysis = await analyzeMessage(inputValue);
-      // 👇 Popola i componenti NLP qui
+    if (config.enableNLP) {
+      nlpAnalysis = await analyzeMessage(userMessageContent);
       if (nlpAnalysis) {
         const newNLPComponents = nlpIntegrationService.generateNLPBasedComponents(userMessage, nlpAnalysis);
         setNLPComponents(newNLPComponents);
       }
     }
-    
-    // Traccia messaggio utente
-    await trackMessage(inputValue, 'user', nlpAnalysis);
-    
-    // Aggiorna interazioni utente
-    userService.addInteraction(inputValue);
-    
+
+    await trackMessage(userMessageContent, 'user', nlpAnalysis, currentConversationId, conversationTracker);
+    userService.addInteraction(userMessageContent);
+
     try {
-      // Preparazione del contesto esteso
-      let extendedContext = { ...userContext };
-      
-      // Recupera contesto aggiuntivo se disponibile
-      try {
-        if (conversationTracker.current) {
-          const aiContext = await conversationTracker.current.getUserContext();
-          extendedContext = { ...extendedContext, aiContext } as typeof extendedContext & { aiContext: any };
-        }
-      } catch (error) {
-        console.error('Errore nel recupero del contesto:', error);
-      }
-      
-      // Invia messaggio all'AI
-      const response = await aiService.sendMessage(
-        inputValue, 
-        extendedContext
-      );
-      
-      // Aggiorna messaggi con la risposta dell'AI
-      addMessage({
-        role: response.message.role,
-        content: response.message.content,
-        timestamp: response.message.timestamp || Date.now()
-      });
-      
-      // Traccia risposta AI
-      await trackMessage(response.message.content, 'assistant');
-      
-      // Aggiorna componenti UI se presenti e abilitati
+      const userCtx = userService.getUserContext();
+      const aiContextForAnalytics = conversationTracker ? await conversationTracker.getUserContext(userCtx.userId) : {};
+      const extendedContext = { ...userCtx, aiContext: aiContextForAnalytics };
+
+      const response = await aiService.sendMessage(userMessageContent, extendedContext);
+      addMessage(response.message);
+      await trackMessage(response.message.content, 'assistant', null, currentConversationId, conversationTracker);
+
       if (response.uiComponents && config.enableDynamicComponents) {
-        // Aggiungi tutti i componenti UI al manager
-        componentManager.addComponents(response.uiComponents);   
-        // Forza un re-render incrementando il contatore
+        console.log("[ChatContext] AI response included UI components:", response.uiComponents);
+        response.uiComponents.forEach(comp => {
+            if (comp.type === 'productDetail' && comp.data?.product?.id) {
+                comp.id = `product-detail-${comp.data.product.id}`;
+            } else if (!comp.id) {
+                comp.id = `${comp.type}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+            }
+            comp._updated = Date.now();
+            componentManager.addComponent(comp);
+        });
         setUIComponentsUpdated(prev => prev + 1);
-      }
-      
-      // Aggiorna suggerimenti se abilitati
-      if (response.suggestedPrompts && config.enableSuggestions) {
-        setSuggestedPrompts(response.suggestedPrompts);
       } else {
-        setSuggestedPrompts([]);
+        console.log("[ChatContext] AI response did not include UI components or dynamic components are disabled.");
       }
 
-      // Aggiorna le actions se presenti nella risposta
+      if (response.suggestedPrompts && config.enableSuggestions) {
+        setSuggestedPrompts(response.suggestedPrompts);
+      }
       if (response.availableActions) {
         setAvailableActions(response.availableActions);
       } else {
@@ -365,147 +249,182 @@ export const ChatProvider: React.FC<{
       }
 
     } catch (error) {
-      console.error('Errore nella comunicazione con l\'AI:', error);
-      
-      // Messaggio di errore
+      console.error('[ChatContext] Error sending message to AI:', error);
       addMessage({
         role: 'assistant',
-        content: 'Mi dispiace, ho avuto un problema nel processare la tua richiesta. Puoi riprovare?',
+        content: 'Mi dispiace, ho avuto un problema. Riprova.',
         timestamp: Date.now()
       });
     }
-    
     setIsTyping(false);
   };
-  
-  // Gestione click suggerimento
+
   const handleSuggestionClick = (suggestion: string) => {
     setInputValue(suggestion);
-    handleSendMessage();
   };
-  
-  // Gestione azione UI
-  const handleUIAction = async (action: string, payload: any) => {
-    console.log(`UI Action: ${action}`, payload);
-    
 
-      // Aggiungi questo nuovo case per gestire l'esecuzione di funzioni
-      if (action === 'execute_function') {
-        const { functionName, parameters } = payload;
-        
-        // Mostra un indicatore di caricamento
-        setIsTyping(true);
-        
-        try {
-          // Esegui la funzione richiesta
-          const functionService = functionRegistry;
-          const result = await functionService.executeFunction(functionName, parameters);
-          
-          // Aggiorna contesto utente
-          userService.addInteraction(`Esecuzione funzione: ${functionName}`);
-          
-          // Aggiungi messaggio AI se necessario
-          if (result.message) {
-            addMessage({
-              role: 'assistant',
-              content: result.message,
-              timestamp: Date.now()
-            });
-          }
-          
-          // Aggiungi componenti UI se presenti nel risultato
-          if (result.data.uiComponent && config.enableDynamicComponents) {
-            const newComponent = {
-              type:result.data.uiComponent.type,
-              data:result.data.uiComponent?.data || result.data?.product || {},
-              id: `${functionName}-${Date.now()}`,
-              placement: result.data.uiComponent.placement || 'inline'
-            };
-            
-            setUIComponents(prev => [newComponent, ...prev]);
-        
-            // Forza un re-render incrementando il contatore
-            setUIComponentsUpdated(prev => prev + 1);
-            componentManager.addComponents(uiComponents);   
-          }
-        } catch (error) {
-          console.error(`Error executing function ${functionName}:`, error);
-          
-          // Messaggio di errore
-          addMessage({
-            role: 'assistant',
-            content: `Mi dispiace, ho avuto un problema nell'eseguire questa azione. Dettaglio: ${error instanceof Error ? error.message : 'Errore sconosciuto'}`,
-            timestamp: Date.now()
-          });
-        } finally {
-          setIsTyping(false);
+  const handleUIAction = useCallback(async (action: string, payload: any) => {
+    console.log(`[ChatContext] UI Action received: ${action}`, payload);
+    const currentConfig = config;
+
+    if (action === 'execute_function') {
+      const { functionName, parameters } = payload;
+      setIsTyping(true);
+      try {
+        const result = await functionRegistry.executeFunction(functionName, parameters);
+        userService.addInteraction(`Azione UI: Esecuzione funzione ${functionName}`);
+
+        let assistantResponseContent = `Azione ${functionName} eseguita.`;
+        if (result.success && result.data?.message) {
+            assistantResponseContent = result.data.message;
+        } else if (result.success && typeof result.data === 'string') {
+            assistantResponseContent = result.data;
+        } else if (!result.success && result.error) {
+            assistantResponseContent = `Errore nell'eseguire ${functionName}: ${result.error}`;
         }
         
-        return;
-      }
+        addMessage({ role: 'assistant', content: assistantResponseContent, timestamp: Date.now() });
+        if (currentConversationId && conversationTracker) {
+            await trackMessage(assistantResponseContent, 'assistant', null, currentConversationId, conversationTracker);
+        }
 
-    // Logica per azioni comuni
+        const uiComponentData = result.data?.uiComponent || result.uiComponent;
+        if (uiComponentData && currentConfig.enableDynamicComponents) {
+          const newComponent: UIComponent = {
+            type: uiComponentData.type,
+            data: uiComponentData.data || uiComponentData.product || {},
+            id: uiComponentData.type === 'productDetail' && uiComponentData.data?.id
+                ? `product-detail-${uiComponentData.data.id}`
+                : `${functionName}-${uiComponentData.data?.id || ''}-${Date.now()}`,
+            placement: uiComponentData.placement || 'inline',
+            _updated: Date.now(),
+          };
+          console.log('[ChatContext] Adding component from function result to ComponentManager:', newComponent);
+          componentManager.addComponent(newComponent);
+          setUIComponentsUpdated(prev => prev + 1);
+        }
+      } catch (error) {
+        console.error(`[ChatContext] Error in 'execute_function' for ${functionName}:`, error);
+        const errorMsg = `Mi dispiace, errore nell'azione: ${error instanceof Error ? error.message : 'Sconosciuto'}`;
+        addMessage({ role: 'assistant', content: errorMsg, timestamp: Date.now() });
+        if (currentConversationId && conversationTracker) {
+            await trackMessage(errorMsg, 'assistant', null, currentConversationId, conversationTracker);
+        }
+      } finally {
+        setIsTyping(false);
+      }
+      return;
+    }
+
     if (action === 'view_item') {
-      alert(`Visualizzazione dettagli per: ${payload.id}`);
-    } else if (action === 'order_item' || action === 'buy_item') {
-      alert(`Aggiunto al carrello: ${payload.id}`);
-      
-      // Aggiorna preferenze utente
-      userService.updatePreference({
-        itemId: payload.id,
-        itemType: payload.type,
-        itemName: payload.name || 'Sconosciuto',
-        itemCategory: payload.category || 'Generico',
-        rating: 4,
-        timestamp: Date.now()
-      });
+        const itemType = payload.type as 'menuItem' | 'product';
+        let itemDetails = null;
+        try {
+            itemDetails = itemType === 'menuItem'
+            ? await catalogService.getMenuItemById(payload.id)
+            : await catalogService.getProductById(payload.id);
+        } catch (e) {
+            console.error("Error fetching item details for view_item:", e);
+        }
+
+        if (itemDetails && currentConfig.enableDynamicComponents) {
+            const productDetailComponentData = {
+                type: 'productDetail',
+                data: { product: itemDetails },
+                id: `product-detail-${itemDetails.id}`,
+                placement: 'inline',
+                _updated: Date.now(),
+            };
+            console.log('[ChatContext] Creating ProductDetailComponent for view_item:', productDetailComponentData);
+            componentManager.addComponent(productDetailComponentData);
+            setUIComponentsUpdated(prev => prev + 1);
+
+            const detailMsg = `Ecco i dettagli per ${itemDetails.name}.`;
+            addMessage({ role: 'assistant', content: detailMsg, timestamp: Date.now() });
+            if (currentConversationId && conversationTracker) {
+                await trackMessage(detailMsg, 'assistant', null, currentConversationId, conversationTracker);
+            }
+
+        } else {
+            const errorMsg = `Non ho trovato i dettagli per l'item selezionato.`;
+            addMessage({ role: 'assistant', content: errorMsg, timestamp: Date.now() });
+            if (currentConversationId && conversationTracker) {
+                await trackMessage(errorMsg, 'assistant', null, currentConversationId, conversationTracker);
+            }
+        }
+    } else if (['order_item', 'buy_item', 'add_to_cart'].includes(action)) {
+        let itemName = payload.name;
+        let itemCategory = payload.category;
+        const itemType = payload.type as 'menuItem' | 'product';
+
+        if (!itemName || !itemCategory) {
+            try {
+                const itemDetails = itemType === 'menuItem'
+                ? await catalogService.getMenuItemById(payload.id)
+                : await catalogService.getProductById(payload.id);
+                if (itemDetails) {
+                itemName = itemDetails.name;
+                itemCategory = itemDetails.category;
+                } else {
+                itemName = itemName || 'Item Sconosciuto';
+                itemCategory = itemCategory || 'Categoria Sconosciuta';
+                }
+            } catch (e) {
+                console.error("[ChatContext] Errore nel recuperare dettagli item per tracking/preferenza:", e);
+                itemName = itemName || 'Item Sconosciuto';
+                itemCategory = itemCategory || 'Categoria Sconosciuta';
+            }
+        }
+        const confirmationMsg = `Ok, ${itemName} è stato aggiunto al tuo ordine!`;
+        addMessage({ role: 'assistant', content: confirmationMsg, timestamp: Date.now() });
+        if (currentConversationId && conversationTracker) {
+            await trackMessage(confirmationMsg, 'assistant', null, currentConversationId, conversationTracker);
+        }
+
+        userService.updatePreference({
+            itemId: payload.id,
+            itemName: itemName,
+            itemType: itemType,
+            itemCategory: itemCategory,
+            rating: 4,
+            timestamp: Date.now()
+        });
     }
-    
-    // Azioni specifiche per NLP
+
     if (action === 'topic_selected') {
-      console.log(`Topic selezionato: ${payload.topic.name}`);
-      // Implementare la logica di gestione del topic
+      const topicMsg = `Parliamo di più di ${payload.topic.name}. Cosa vorresti sapere?`;
+      setInputValue(topicMsg);
     } else if (action === 'intent_selected') {
-      console.log(`Intent selezionato: ${payload.intent.name}`);
-      // Implementare la logica di gestione dell'intent
+      const intentMsg = `${payload.intent.name || payload.intent.category}`;
+      setInputValue(intentMsg);
     }
-  };
-  
-  // Valore del contesto
+  }, [config, currentConversationId, conversationTracker, userService, aiService, functionRegistry, catalogService, componentManager, analyzeMessage, trackMessage, addMessage]);
+
+
   const contextValue: ChatContextType = {
-    // Configurazione
     config,
     updateConfig,
-
-    // Stato messaggi
     messages,
     addMessage,
     clearMessages,
-
-    // Input utente
     inputValue,
     setInputValue,
     handleInputChange,
     handleKeyDown,
     handleSendMessage,
     isTyping,
-
-    // Componenti UI e suggerimenti
-    uiComponents,
     suggestedPrompts,
     nlpComponents,
-    availableActions,
-    componentManager,
     handleSuggestionClick,
     handleUIAction,
-
-    // Servizi e tracking
-    conversationId,
+    availableActions,
+    componentManager,
+    uiComponentsUpdated,
+    conversationId: currentConversationId,
     isNLPInitialized,
     messagesEndRef,
-    uiComponentsUpdated: 0
   };
- 
+
   return (
     <ChatContext.Provider value={contextValue}>
       {children}
@@ -513,13 +432,15 @@ export const ChatProvider: React.FC<{
   );
 };
 
-// Hook per utilizzare il contesto della chat
 export const useChatContext = (): ChatContextType => {
   const context = useContext(ChatContext);
-  
   if (context === undefined) {
-    throw new Error('useChatContext deve essere utilizzato all\'interno di un ChatProvider');
+    throw new Error('useChatContext must be used within a ChatProvider');
   }
-  
   return context;
 };
+
+function interpolateConfig(text: string, config: AppConfig | null): string { // Accetta AppConfig | null
+    if (!text || !config) return text || ''; // Gestisce config null
+    return text.replace(/\{business\.name\}/g, config.business?.name || 'il nostro locale');
+}
