@@ -1,5 +1,3 @@
-// src/services/analytics/EnhancedConversationTracker.ts
-
 import { ConversationRecord, BaseEvent, ConsentLevel } from './types';
 import { IStorageService } from './interfaces/IStorageService';
 import { IConsentService } from './interfaces/IConsentService';

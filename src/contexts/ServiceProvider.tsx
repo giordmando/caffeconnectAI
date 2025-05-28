@@ -1,4 +1,3 @@
-// src/contexts/ServiceProvider.tsx
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { InitializedServices, initializeAppServices } from '../initialization/AppServicesInitializer';
 import { AppConfig } from '../config/interfaces/IAppConfig';

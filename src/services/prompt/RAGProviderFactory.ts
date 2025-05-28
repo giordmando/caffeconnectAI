@@ -1,4 +1,3 @@
-// src/services/prompt/RAGProviderFactory.ts
 import { IPromptProvider } from './interfaces/IPromptProvider';
 import { StaticProvider } from './providers/StaticProvider';
 import { VectorDBProvider } from './providers/VectorDBProvider';

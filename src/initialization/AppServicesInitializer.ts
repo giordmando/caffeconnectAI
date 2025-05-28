@@ -1,11 +1,10 @@
-// src/initialization/AppServicesInitializer.ts
 import { configManager } from '../config/ConfigManager';
 import { IConfigManager } from '../config/interfaces/IConfigManager';
 import { themeService } from '../services/theme/ThemeService';
 import { IThemeService } from '../services/theme/interfaces/IThemeService';
 import { catalogService } from '../services/catalog/CatalogService';
 import { ICatalogService } from '../services/catalog/interfaces/ICatalogService';
-import { FunctionRegistry, functionRegistry } from '../services/function/FunctionRegistry';
+import { functionRegistry } from '../services/function/FunctionRegistry';
 import { IFunctionService } from '../services/function/interfaces/IFunctionService';
 import { userContextService } from '../services/user/UserContextService';
 import { IUserContextService } from '../services/user/interfaces/IUserContextService';

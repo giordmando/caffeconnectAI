@@ -1,4 +1,3 @@
-// src/App.tsx
 import React, { useState, useEffect } from 'react';
 import { useServices, useService } from './contexts/ServiceProvider';
 import AIConfigPanel from './components/AIConfigPanel';

@@ -1,4 +1,3 @@
-// src/services/ui/factories/ComponentFactoryRegistry.ts
 import { IComponentFactory } from './IComponentFactory';
 import { LoyaltyCardFactory } from './LoyaltyCardFactory';
 import { MenuCarouselFactory } from './MenuCarouselFactory';

@@ -1,4 +1,3 @@
-// src/components/ChatContext.tsx
 import React, { createContext, useContext, useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { Message } from '../types/Message';
 import { UIComponent } from '../types/UI';

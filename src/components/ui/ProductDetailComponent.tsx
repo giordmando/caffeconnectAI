@@ -1,4 +1,3 @@
-// src/components/ui/ProductDetailComponent.tsx
 import React, { useState } from 'react';
 import { formatPrice } from '../../utils/formatters';
 import { useCart } from '../../hooks/useCart';

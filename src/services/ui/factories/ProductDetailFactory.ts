@@ -1,4 +1,3 @@
-
 import { UIComponent } from '../../../types/UI';
 import { IComponentFactory } from './IComponentFactory';
 
