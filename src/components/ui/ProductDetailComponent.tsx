@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { formatPrice } from '../../utils/formatters';
+import { useCart } from '../../hooks/useCart';
 
 // Interfacce
 interface ProductDetailProps {
@@ -11,8 +12,10 @@ interface ProductDetailProps {
 export const ProductDetailComponent: React.FC<ProductDetailProps> = ({ product, id, onAction }) => {
   const [quantity, setQuantity] = useState(1);
   const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>({});
+  // Aggiungi stato per feedback:
+  const [showSuccess, setShowSuccess] = useState(false);
   const [notes, setNotes] = useState('');
-  
+  const { addItem } = useCart();
   if (!product) {
     return (
       <div className="product-detail-loading" id={id}>
@@ -23,17 +26,27 @@ export const ProductDetailComponent: React.FC<ProductDetailProps> = ({ product, 
   }
   
   const handleAddToCart = () => {
-    if (onAction) {
-      onAction('add_to_cart', {
-        id: product.id,
-        type: product.category.includes('food') ? 'menuItem' : 'product',
-        name: product.name,
-        price: product.price,
-        quantity,
-        options: selectedOptions,
-        notes
-      });
+      // Crea l'item con le opzioni selezionate
+    const cartItem = {
+      ...product,
+      quantity,
+      options: selectedOptions,
+      notes
+    };
+    
+    // Aggiungi al carrello
+    for (let i = 0; i < quantity; i++) {
+      addItem(product, product.category.includes('food') ? 'menuItem' : 'product');
     }
+    
+    // Feedback
+    setShowSuccess(true);
+    setTimeout(() => setShowSuccess(false), 2000);
+    
+    // Reset form
+    setQuantity(1);
+    setSelectedOptions({});
+    setNotes('');
   };
   
   const handleQuantityChange = (delta: number) => {
@@ -74,8 +87,12 @@ export const ProductDetailComponent: React.FC<ProductDetailProps> = ({ product, 
         
         <div className="product-info">
           <p className="product-description">{product.description}</p>
-          
-          {/* Sezione ingredienti per cibi e bevande */}
+          {showSuccess && (
+            <div className="success-message">
+              ✓ Aggiunto al carrello!
+            </div>
+          )}
+                    {/* Sezione ingredienti per cibi e bevande */}
           {(isFood || isBeverage) && product.ingredients && product.ingredients.length > 0 && (
             <div className="product-ingredients">
               <h4>Ingredienti:</h4>

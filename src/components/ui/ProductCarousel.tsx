@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { mockApiGetProducts } from '../../api/mockApi';
+import { useCart } from '../../hooks/useCart';
 
 interface ProductRecommendation {
   id: string;
@@ -20,7 +21,7 @@ export const ProductCarousel: React.FC<ProductCarouselProps> = ({
 }) => {
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  
+  const { addItem } = useCart();
   useEffect(() => {
     const fetchProducts = async () => {
       try {
@@ -66,14 +67,19 @@ export const ProductCarousel: React.FC<ProductCarouselProps> = ({
   };
   
   const handleBuyClick = (e: React.MouseEvent, product: any) => {
-    e.stopPropagation(); // Preveni il click sul prodotto
-    if (onAction) {
-      onAction('buy_item', {
-        id: product.id,
-        type: 'product',
-        name: product.name
-      });
-    }
+    e.stopPropagation();
+  
+    addItem(product, 'product');
+    
+    // Feedback
+    const button = e.currentTarget as HTMLButtonElement;
+    button.textContent = '✓ Aggiunto';
+    button.classList.add('added');
+    
+    setTimeout(() => {
+      button.textContent = 'Acquista';
+      button.classList.remove('added');
+    }, 1500);
   };
   
   if (loading) {

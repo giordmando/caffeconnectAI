@@ -522,6 +522,19 @@ const BusinessConfigPanel: React.FC<BusinessConfigPanelProps> = ({ onClose, onSa
                 />
               </div>
             </div>
+            <div className="form-group">
+            <label htmlFor="whatsapp-business">WhatsApp Business</label>
+            <input
+              id="whatsapp-business"
+              type="text"
+              value={config.business.whatsappBusiness || ''}
+              onChange={(e) => handleConfigChange('business', 'whatsappBusiness', e.target.value)}
+              placeholder="+39 333 1234567"
+            />
+            <small className="form-text">
+              Numero WhatsApp Business per ricevere ordini
+            </small>
+          </div>
             <div className="theme-preview" style={{
               backgroundColor: config.business.theme.backgroundColor,
               color: config.business.theme.textColor,

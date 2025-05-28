@@ -1,6 +1,7 @@
 // Placeholder for MenuCarousel component
 import React from 'react';
 import { mockApiGetMenuItems } from '../../api/mockApi';
+import { useCart } from '../../hooks/useCart';
 
 interface MenuRecommendation {
   id: string;
@@ -23,7 +24,8 @@ export const MenuCarousel: React.FC<MenuCarouselProps> = ({
 }) => {
   const [menuItems, setMenuItems] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(true);
-  
+  const { addItem } = useCart();
+
   React.useEffect(() => {
     const fetchMenuItems = async () => {
       try {
@@ -84,13 +86,19 @@ export const MenuCarousel: React.FC<MenuCarouselProps> = ({
   
   const handleOrderClick = (e: React.MouseEvent, item: any) => {
     e.stopPropagation(); // Previeni il click sull'item
-    if (onAction) {
-      onAction('order_item', {
-        id: item.id,
-        type: 'menuItem',
-        name: item.name
-      });
-    }
+
+    // Aggiungi al carrello invece di action generica
+    addItem(item, 'menuItem');
+  
+    // Feedback visivo
+    const button = e.currentTarget as HTMLButtonElement;
+    button.textContent = '✓ Aggiunto';
+    button.classList.add('added');
+  
+    setTimeout(() => {
+      button.textContent = 'Ordina';
+      button.classList.remove('added');
+    }, 1500);
   };
   
   if (loading) {
@@ -143,7 +151,7 @@ export const MenuCarousel: React.FC<MenuCarouselProps> = ({
                   className="order-button"
                   onClick={(e) => handleOrderClick(e, item)}
                 >
-                  Ordina
+                  Aggiungi
                 </button>
               </div>
             </div>
