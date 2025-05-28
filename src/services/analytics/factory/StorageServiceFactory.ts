@@ -1,4 +1,3 @@
-import { FirebaseStorageService } from '../../db/firebase/FirebaseStorageService';
 import { IStorageService } from '../interfaces/IStorageService';
 import { EnhancedStorageService } from '../EnhancedStorageService';
 
@@ -18,7 +17,7 @@ export class StorageServiceFactory {
         if (typeof window !== 'undefined' && 
             window.location.hostname !== 'localhost' && 
             window.location.hostname !== '127.0.0.1') {
-          return new FirebaseStorageService();
+          return new EnhancedStorageService(); // TODO implementare storage su db forse supabase
         } else {
           console.warn('Firebase not configured for local development, using EnhancedStorageService instead');
           return new EnhancedStorageService();

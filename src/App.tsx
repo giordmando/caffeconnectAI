@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useServices, useService } from './contexts/ServiceProvider';
 import AIConfigPanel from './components/AIConfigPanel';
-import BusinessConfigPanel from './components/BusinessConfigPanel';
 import CompleteChatInterface from './components/ContextChatUI';
 import { interpolateConfig } from './config/ConfigManager';
 import './styles/App.css';
 import { CartDrawer } from './components/cart/CartDrawer';
 import { CartButton } from './components/cart/CartButton';
+import { ConfigPanelOrchestrator } from './components/config/ConfigPanelOrchestrator';
 // Rimossa l'importazione diretta di functionRegistry perché ora è accessibile tramite useService
 // import { functionRegistry } from './services/function/FunctionRegistry';
 
@@ -130,7 +130,7 @@ function App() {
 
       {isBusinessPanelOpen && (
         <div className="modal-overlay">
-          <BusinessConfigPanel
+          <ConfigPanelOrchestrator
             onClose={() => setIsBusinessPanelOpen(false)}
             onSave={handleBusinessConfigSave}
           />

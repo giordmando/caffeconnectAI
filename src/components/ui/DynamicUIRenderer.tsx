@@ -1,7 +1,7 @@
 // src/components/ui/DynamicUIRenderer.tsx
 import React, { useEffect, useState } from 'react';
 import { UIComponent } from '../../types/UI';
-import { uiComponentRegistry } from './registry/UIComponentRegistry';
+import { uiComponentFactory } from '../../factories/ui/UIComponentFactory';
 import { ComponentManager } from '../../services/ui/ComponentManager';
 
 interface DynamicUIRendererProps {
@@ -69,7 +69,7 @@ export const DynamicUIRenderer: React.FC<DynamicUIRendererProps> = ({
     <div className={containerClassName}>
       {componentsToRender.map((component) => (
         <div key={component.id} className="dynamic-ui-item">
-          {uiComponentRegistry.createComponent(component, onAction)}
+          {uiComponentFactory.create(component, onAction)}
         </div>
       ))}
     </div>

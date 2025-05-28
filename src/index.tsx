@@ -12,11 +12,12 @@ import { extendComponentRegistration } from './components/ui/registry/NLPCompone
 
 import { ServiceProvider } from './contexts/ServiceProvider';
 import AppInitializer from './initialization/AppInitializer';
-
+import { registerUIComponentCreators } from './factories/ui/creators';
 // Registra componenti UI standard e NLP
 registerComponents(); //
 extendComponentRegistration(); //
-
+// All'inizio dell'app:
+registerUIComponentCreators();
 const root = ReactDOM.createRoot(
   document.getElementById('root') as HTMLElement
 );

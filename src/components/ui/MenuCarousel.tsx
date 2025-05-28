@@ -1,4 +1,3 @@
-// Placeholder for MenuCarousel component
 import React from 'react';
 import { mockApiGetMenuItems } from '../../api/mockApi';
 import { useCart } from '../../hooks/useCart';
