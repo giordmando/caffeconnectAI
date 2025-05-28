@@ -272,13 +272,13 @@ export const ChatProvider: React.FC<{
       setIsTyping(true);
       try {
         const result = await functionRegistry.executeFunction(functionName, parameters);
-        userService.addInteraction(`Azione UI: Esecuzione funzione ${functionName}`);
 
-        let assistantResponseContent = `Azione ${functionName} eseguita.`;
-        if (result.success && result.data?.message) {
+        let assistantResponseContent = `Azione ${functionName} processata.`; // Default message
+
+        if (result.message) { // Usa sempre il messaggio fornito dalla funzione se disponibile
+            assistantResponseContent = result.message;
+        } else if (result.success && result.data?.message) { // Vecchio fallback
             assistantResponseContent = result.data.message;
-        } else if (result.success && typeof result.data === 'string') {
-            assistantResponseContent = result.data;
         } else if (!result.success && result.error) {
             assistantResponseContent = `Errore nell'eseguire ${functionName}: ${result.error}`;
         }
@@ -288,24 +288,38 @@ export const ChatProvider: React.FC<{
             await trackMessage(assistantResponseContent, 'assistant', null, currentConversationId, conversationTracker);
         }
 
-        const uiComponentData = result.data?.uiComponent || result.uiComponent;
-        if (uiComponentData && currentConfig.enableDynamicComponents) {
-          const newComponent: UIComponent = {
-            type: uiComponentData.type,
-            data: uiComponentData.data || uiComponentData.product || {},
-            id: uiComponentData.type === 'productDetail' && uiComponentData.data?.id
-                ? `product-detail-${uiComponentData.data.id}`
-                : `${functionName}-${uiComponentData.data?.id || ''}-${Date.now()}`,
-            placement: uiComponentData.placement || 'inline',
-            _updated: Date.now(),
-          };
-          console.log('[ChatContext] Adding component from function result to ComponentManager:', newComponent);
-          componentManager.addComponent(newComponent);
-          setUIComponentsUpdated(prev => prev + 1);
+        // Aggiungi il componente UI SOLO se la funzione ha avuto successo E ha fornito i dati uiComponent
+        if (result.success && result.data?.uiComponent) {
+          const uiComponentDataFromFunc = result.data.uiComponent; // Prendi direttamente l'oggetto uiComponent
+          if (config.enableDynamicComponents) { // Usa config dallo stato di ChatContext
+            const componentDataForFactory = uiComponentDataFromFunc.data; // Questo è l'oggetto 'item'
+
+            // Valida che i dati per ProductDetailComponent siano sufficienti
+            if (uiComponentDataFromFunc.type === 'productDetail' && 
+                (!componentDataForFactory || !componentDataForFactory.id || !componentDataForFactory.name || typeof componentDataForFactory.category !== 'string')) {
+              console.warn('[ChatContext] Dati insufficienti o non validi per creare ProductDetailComponent da risultato funzione:', componentDataForFactory);
+              // Non creare il componente se i dati essenziali mancano
+            } else {
+              const newComponentToAdd: UIComponent = {
+                type: uiComponentDataFromFunc.type,
+                data: componentDataForFactory, // Passa direttamente l'oggetto item (prodotto/menu)
+                // Assicura un ID univoco per il componente UI, anche se l'item viene mostrato più volte
+                id: `${uiComponentDataFromFunc.type}-${componentDataForFactory.id}-${Date.now()}`,
+                placement: uiComponentDataFromFunc.placement || 'inline',
+                _updated: Date.now(),
+              };
+              console.log('[ChatContext] Aggiunta componente da risultato funzione a ComponentManager:', newComponentToAdd);
+              componentManager.addComponent(newComponentToAdd);
+              setUIComponentsUpdated(prev => prev + 1);
+            }
+          }
+        } else if (!result.success) {
+            console.warn(`[ChatContext] La funzione ${functionName} non ha avuto successo o non ha fornito uiComponent. Dettagli:`, result);
         }
+
       } catch (error) {
-        console.error(`[ChatContext] Error in 'execute_function' for ${functionName}:`, error);
-        const errorMsg = `Mi dispiace, errore nell'azione: ${error instanceof Error ? error.message : 'Sconosciuto'}`;
+        console.error(`[ChatContext] Errore critico durante 'execute_function' per ${functionName}:`, error);
+        const errorMsg = `Mi dispiace, si è verificato un errore imprevisto durante l'elaborazione della tua azione.`;
         addMessage({ role: 'assistant', content: errorMsg, timestamp: Date.now() });
         if (currentConversationId && conversationTracker) {
             await trackMessage(errorMsg, 'assistant', null, currentConversationId, conversationTracker);
@@ -313,7 +327,7 @@ export const ChatProvider: React.FC<{
       } finally {
         setIsTyping(false);
       }
-      return;
+      return; 
     }
 
     if (action === 'view_item') {

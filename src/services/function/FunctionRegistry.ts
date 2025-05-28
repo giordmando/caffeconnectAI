@@ -63,24 +63,23 @@ export class FunctionRegistry implements IFunctionService {
    * Inizializza il registry con le funzioni base e quelle personalizzate
    */
   public async initialize(): Promise<void> {
-    if (this.isInitialized) {
-      console.log('Function registry already initialized');
-      return;
-    }
+    if (this.isInitialized) return;
+  
+    // SEMPRE registra le funzioni core prima
+    this.registerCoreFunctions();
     
-    // Carica funzioni personalizzate se configurate
+    // POI prova a caricare quelle custom
     const functionsConfig = configManager.getSection('functions');
     if (functionsConfig.customFunctionEndpoint) {
-      await this.loadCustomFunctions(functionsConfig.customFunctionEndpoint);
-    }else {
-      // Registra le funzioni base
-      this.registerCoreFunctions();
+      try {
+        await this.loadCustomFunctions(functionsConfig.customFunctionEndpoint);
+      } catch (error) {
+        console.warn('Failed to load custom functions, using core functions only:', error);
+      }
     }
-    // Filtra le funzioni in base alla configurazione
-    this.filterEnabledFunctions();
     
+    this.filterEnabledFunctions();
     this.isInitialized = true;
-    console.log(`Function registry initialized with ${this.functions.size} functions`);
   }
   
   /**
@@ -587,6 +586,15 @@ export class FunctionRegistry implements IFunctionService {
       },
       handler: async (params) => {
         try {
+          // Assicurati che itemId sia una stringa e non sia null/undefined prima di procedere
+          if (typeof params.itemId !== 'string' || !params.itemId) {
+            console.warn(`[FunctionRegistry] view_item_details: itemId non valido o mancante:`, params.itemId);
+            return {
+              success: false,
+              error: `ID item non valido: ${params.itemId}`,
+              message: `Non riesco a trovare i dettagli perché l'identificativo dell'articolo non è corretto. Potresti riformulare la tua richiesta?`
+            };
+          }
           // Recupera i dettagli completi in base al tipo
           const item = params.itemType === 'menuItem' 
             ? await catalogService.getMenuItemById(params.itemId)
@@ -674,6 +682,8 @@ export class FunctionRegistry implements IFunctionService {
               ...matchingItems.map(item => ({
                 id: item.id,
                 name: item.name,
+                category: item.category,
+                subcategory: item.subcategory,
                 type: 'menuItem',
                 description: item.description,
                 price: item.price
@@ -704,6 +714,7 @@ export class FunctionRegistry implements IFunctionService {
               ...matchingProducts.map(product => ({
                 id: product.id,
                 name: product.name,
+                category: product.category,
                 type: 'product',
                 description: product.description,
                 price: product.price

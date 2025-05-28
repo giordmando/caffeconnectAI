@@ -64,7 +64,6 @@ export class UIResponseGenerator implements IUIResponseGenerator {
     return data?.data || data;
   }
   
- // Implementazione corretta del metodo handleSearchProductResults
   private handleSearchProductResults(result: any): void {
     console.log('Handling search product results:', result);
     

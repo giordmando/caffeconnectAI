@@ -29,10 +29,6 @@ export function isVenueOpen(): boolean {
   const hour = now.getHours();
   const day = now.getDay(); // 0 = Domenica, 6 = Sabato
   
-  // Orari di apertura:
-  // Lunedì-Venerdì: 7:00-22:00
-  // Sabato-Domenica: 8:00-23:00
-  
   if (day >= 1 && day <= 5) { // Lunedì-Venerdì
     return hour >= 7 && hour < 22;
   } else { // Sabato-Domenica
