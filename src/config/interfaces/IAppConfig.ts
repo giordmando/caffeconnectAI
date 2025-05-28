@@ -39,6 +39,10 @@ export interface AppConfig {
         backgroundColor: string;
         textColor: string;
       };
+      whatsappBusiness?: string;
+      orderEmail?: string;
+      ecommerceUrl?: string;
+      orderWebhook?: string;
     };
 
     // Configurazione AI

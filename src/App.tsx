@@ -6,6 +6,8 @@ import BusinessConfigPanel from './components/BusinessConfigPanel';
 import CompleteChatInterface from './components/ContextChatUI';
 import { interpolateConfig } from './config/ConfigManager';
 import './styles/App.css';
+import { CartDrawer } from './components/cart/CartDrawer';
+import { CartButton } from './components/cart/CartButton';
 // Rimossa l'importazione diretta di functionRegistry perché ora è accessibile tramite useService
 // import { functionRegistry } from './services/function/FunctionRegistry';
 
@@ -17,7 +19,7 @@ function App() {
   // Stati dell'applicazione
   const [isConfigPanelOpen, setIsConfigPanelOpen] = useState(false);
   const [isBusinessPanelOpen, setIsBusinessPanelOpen] = useState(false);
-
+  const [isCartOpen, setIsCartOpen] = useState(false);
   // Ottieni servizi dal nuovo context
   // CORREZIONE: currentProvider -> currentAiProvider
   const { currentAiProvider, reloadServices, appConfig, isInitialized, initializationError } = useServices();
@@ -99,7 +101,12 @@ function App() {
           }}
         />
       </main>
-
+      {/* Cart Components */}
+      <CartButton onClick={() => setIsCartOpen(true)} />
+          <CartDrawer 
+            isOpen={isCartOpen} 
+            onClose={() => setIsCartOpen(false)} 
+          />
       <footer className="app-footer">
         <div className="functions-info">
           <span>Funzioni disponibili: {availableFunctions.length}</span>

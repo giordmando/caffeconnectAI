@@ -1,9 +1,11 @@
 // src/contexts/ServiceProvider.tsx
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { AIProviderConfig } from '../types/AIProvider';
 import { InitializedServices, initializeAppServices } from '../initialization/AppServicesInitializer';
 import { AppConfig } from '../config/interfaces/IAppConfig';
 import { configManager } from '../config/ConfigManager'; // Importa configManager
+import { orderOrchestrator } from '../services/order/OrderOrchestrator';
+import { WhatsAppOrderStrategy } from '../services/order/strategies/WhatsAppOrderStrategy';
+
 
 export interface AppServicesContextType extends Omit<InitializedServices, 'currentAiProvider' | 'appConfig'> {
   isInitialized: boolean;
@@ -100,7 +102,7 @@ export const ServiceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         changeAIProvider: () => console.warn("Services not ready to change AI provider"),
         reloadServices: async () => console.warn("Services not ready to reload"),
       } as unknown as AppServicesContextType);
-
+    orderOrchestrator.registerStrategy('whatsapp', new WhatsAppOrderStrategy());
   return (
     <ServiceContext.Provider value={contextValue}>
       {children}
