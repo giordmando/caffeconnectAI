@@ -5,6 +5,7 @@ import { MenuCarousel } from '../MenuCarousel';
 import { ProductCarousel } from '../ProductCarousel';
 import { PreferencesCard } from '../PreferencesCard';
 import { ProductDetailComponent } from '../ProductDetailComponent';
+import { UIComponent } from '../../../types/UI';
 
 export function registerComponents(): void {
   console.log("Registering UI components...");
@@ -63,12 +64,14 @@ export function registerComponents(): void {
     );
   });
   
-  uiComponentRegistry.register('productDetail', (component, onAction) => {
-    console.log("Rendering ProductDetailComponent with data:", component.data);
-    
+  uiComponentRegistry.register('productDetail', (component: UIComponent, onAction) => {
+    console.log("[Factory productDetail] component.data ricevuto:", JSON.stringify(component.data, null, 2));
+    const productObject = component.data?.product; // <<< ESTRAE DA component.data.product >>>
+
+    console.log("[Factory productDetail] Oggetto estratto per ProductDetailComponent:", JSON.stringify(productObject, null, 2));
     return (
-      <ProductDetailComponent 
-        product={component.data?.product || component.data || {}}
+      <ProductDetailComponent
+        product={productObject || {}} // Passa l'oggetto prodotto effettivo (o un oggetto vuoto se non trovato)
         id={component.id}
         onAction={onAction}
       />

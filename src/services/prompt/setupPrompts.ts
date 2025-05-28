@@ -49,7 +49,10 @@ export async function setupPrompts(): Promise<void> {
 
   // Popola StaticProvider con la knowledgeBase
   // Assicurati che knowledgeBase sia un array prima di iterare
-  if (appConfig.knowledgeBase && Array.isArray(appConfig.knowledgeBase)) {
+  if (appConfig.knowledgeBase && !Array.isArray(appConfig.knowledgeBase)) {
+    appConfig.knowledgeBase = Object.values(appConfig.knowledgeBase);
+  }
+  if (appConfig.knowledgeBase && Array.isArray(appConfig.knowledgeBase) && appConfig.knowledgeBase.length > 0) {
     appConfig.knowledgeBase.forEach(entry => {
       if (entry && entry.key && Array.isArray(entry.facts)) { // Controllo aggiuntivo sulla struttura dell'entry
         staticProvider.addKnowledge(entry.key, entry.facts);

@@ -42,11 +42,34 @@ Non includere spiegazioni o altro testo, solo l'array JSON.
 export const FUNCTION_PARAM_EXTRACTION_TEMPLATE = `
 Messaggio utente: "{userMessage}"
 
-Per la funzione "{functionName}" ({functionDescription}), estrai i seguenti parametri richiesti:
+Per la funzione "{functionName}" ({functionDescription}), estrai i seguenti parametri richiesti dallo schema sottostante:
 {parameterDescriptions}
 
-Restituisci SOLO un oggetto JSON con i parametri estratti.
-Se non riesci a identificare un parametro, usa null.
+REGOLE IMPORTANTI PER L'ESTRAZIONE DEI PARAMETRI:
+1.  La tua risposta DEVE essere ESCLUSIVAMENTE un singolo oggetto JSON valido. Non includere testo esplicativo prima o dopo il JSON.
+2.  Se un parametro non è chiaramente menzionato o deducibile dal messaggio utente e non ha un valore di default implicito (come timeOfDay), imposta il suo valore a \`null\` nel JSON. Non inventare valori.
+3.  Per il parametro \`itemId\` della funzione \`view_item_details\`:
+    * Se l'utente menziona un NOME di prodotto (es. "cornetto integrale", "cappuccino"), popola \`itemId\` con ESATTAMENTE QUEL NOME (stringa).
+    * Se l'utente fornisce un CODICE o ID specifico (es. "prodotto-123", "pastry-1"), usa quello come valore per \`itemId\`.
+4.  Per il parametro \`itemType\` della funzione \`view_item_details\`:
+    * Cerca di dedurlo dal contesto (es. 'menuItem' per cibo/bevande del locale, 'product' per articoli in vendita come caffè in grani o accessori).
+    * Se non specificato o incerto, puoi impostarlo a 'menuItem' come default ragionevole o \`null\`.
+
+Esempio di output JSON per view_item_details se l'utente chiede "dettagli del cornetto classico":
+\`\`\`json
+{
+  "itemId": "cornetto classico",
+  "itemType": "menuItem"
+}
+\`\`\`
+Esempio di output JSON per get_menu_recommendations se l'utente chiede "cosa c'è per colazione":
+\`\`\`json
+{
+  "userId": "user-xyz", // (Questo di solito viene fornito dal sistema, ma l'AI potrebbe non doverlo estrarre)
+  "timeOfDay": "morning",
+  "category": "all"
+}
+\`\`\`
 `;
 
 export const ACTION_GENERATION_TEMPLATE = `
