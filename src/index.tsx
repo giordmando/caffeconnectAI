@@ -5,19 +5,13 @@ import './styles/App.css'; //
 import './styles/carousel.css'; //
 import './styles/nlp.css'; //
 import * as serviceWorker from './serviceWorker'; //
-// La registrazione dei componenti UI può avvenire qui o essere importata
-// in un punto più alto dell'inizializzazione se necessario.
-import { registerComponents } from './components/ui/registry/ComponentRegistration'; //
-import { extendComponentRegistration } from './components/ui/registry/NLPComponentRegistration'; //
 
 import { ServiceProvider } from './contexts/ServiceProvider';
 import AppInitializer from './initialization/AppInitializer';
-import { registerUIComponentCreators } from './factories/ui/creators';
-// Registra componenti UI standard e NLP
-registerComponents(); //
-extendComponentRegistration(); //
-// All'inizio dell'app:
-registerUIComponentCreators();
+import { registerAllUIComponents } from './factories/ui/registration';
+
+registerAllUIComponents();
+
 const root = ReactDOM.createRoot(
   document.getElementById('root') as HTMLElement
 );

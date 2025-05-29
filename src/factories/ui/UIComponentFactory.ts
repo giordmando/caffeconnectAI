@@ -21,6 +21,19 @@ export class UIComponentFactory {
     });
   }
   
+  // Supporto per registrazione diretta di factory functions
+  registerFunction(
+    type: string, 
+    factory: (component: UIComponent, onAction?: any) => React.ReactElement
+  ): void {
+    const creator: IComponentCreator = {
+      supports: (t: string) => t === type,
+      create: factory
+    };
+    this.creators.set(type, creator);
+    console.log(`Registered function creator for type: ${type}`);
+  }
+  
   private getCreatorTypes(creator: IComponentCreator): string[] {
     if ('componentType' in creator) {
       return [(creator as any).componentType];
@@ -46,6 +59,21 @@ export class UIComponentFactory {
         `Error creating component: ${error instanceof Error ? error.message : 'Unknown error'}`
       );
     }
+  }
+  
+  // Alias per compatibilità con vecchio codice
+  createComponent(component: UIComponent, onAction?: any): React.ReactElement {
+    return this.create(component, onAction);
+  }
+  
+  // Metodo per verificare se un tipo è registrato
+  hasComponent(type: string): boolean {
+    return this.creators.has(type);
+  }
+  
+  // Metodo per ottenere tutti i tipi registrati
+  getRegisteredTypes(): string[] {
+    return Array.from(this.creators.keys());
   }
 }
 

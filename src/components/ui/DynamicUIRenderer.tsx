@@ -1,4 +1,3 @@
-// src/components/ui/DynamicUIRenderer.tsx
 import React, { useEffect, useState } from 'react';
 import { UIComponent } from '../../types/UI';
 import { uiComponentFactory } from '../../factories/ui/UIComponentFactory';
@@ -8,38 +7,29 @@ interface DynamicUIRendererProps {
   components: UIComponent[];
   placement: string;
   onAction?: (action: string, payload: any) => void;
-  componentManager?: ComponentManager; // Opzionale, per casi speciali
+  componentManager?: ComponentManager;
 }
 
-/**
- * Component for rendering dynamic UI components
- * Uses the registry pattern for extensibility
- */
 export const DynamicUIRenderer: React.FC<DynamicUIRendererProps> = ({ 
   components, 
   placement, 
   onAction,
   componentManager
 }) => {
-  // Stato locale per i componenti da renderizzare
   const [componentsToRender, setComponentsToRender] = useState<UIComponent[]>([]);
 
-  // Effect per ottenere i componenti dal manager o dai props
   useEffect(() => {
     if (componentManager) {
-      // Se abbiamo un manager, ottieni i componenti per questo placement
       const dedupedComponents = componentManager.getDeduplicatedComponents(placement);
       setComponentsToRender(dedupedComponents);
       console.log(`DynamicUIRenderer (${placement}): Got ${dedupedComponents.length} components from manager`);
     } else {
-      // Altrimenti usa i componenti passati direttamente
       const filteredComponents = components.filter(comp => comp.placement === placement);
       setComponentsToRender(filteredComponents);
       console.log(`DynamicUIRenderer (${placement}): Got ${filteredComponents.length} components from props`);
     }
   }, [components, placement, componentManager]);
   
-  // Determine CSS class based on placement
   let containerClassName = "dynamic-ui-container";
   
   switch (placement) {
@@ -56,8 +46,6 @@ export const DynamicUIRenderer: React.FC<DynamicUIRendererProps> = ({
       containerClassName += " dynamic-ui-default";
   }
 
-  
-  // Se non ci sono componenti da renderizzare, ritorna null
   if (componentsToRender.length === 0) {
     console.log(`DynamicUIRenderer (${placement}): No components to render`);
     return null;

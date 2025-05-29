@@ -2,7 +2,7 @@ import { IActionService } from './interfaces/IActionService';
 import { ActionService } from './ActionService';
 import { ICatalogService } from '../catalog/interfaces/ICatalogService';
 import { IAIProvider } from '../ai/interfaces/IAIProvider';
-import { ActionProviderFactory } from './ActionProviderFactory.ts';
+import { ActionProviderFactory } from './ActionProviderFactory';
 
 export class ActionServiceFactory {
   static createService(
