@@ -8,10 +8,10 @@ import * as serviceWorker from './serviceWorker'; //
 
 import { ServiceProvider } from './contexts/ServiceProvider';
 import AppInitializer from './initialization/AppInitializer';
-import { registerAllUIComponents } from './factories/ui/registration';
+import { registerAllComponents } from './services/ui/component/registration/completeRegistration';
 
-registerAllUIComponents();
-
+//registerAllUIComponents();
+registerAllComponents();
 const root = ReactDOM.createRoot(
   document.getElementById('root') as HTMLElement
 );

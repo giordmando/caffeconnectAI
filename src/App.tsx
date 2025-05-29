@@ -7,8 +7,6 @@ import './styles/App.css';
 import { CartDrawer } from './components/cart/CartDrawer';
 import { CartButton } from './components/cart/CartButton';
 import { ConfigPanelOrchestrator } from './components/config/ConfigPanelOrchestrator';
-// Rimossa l'importazione diretta di functionRegistry perché ora è accessibile tramite useService
-// import { functionRegistry } from './services/function/FunctionRegistry';
 
 /**
  * Componente principale dell'applicazione
@@ -19,8 +17,7 @@ function App() {
   const [isConfigPanelOpen, setIsConfigPanelOpen] = useState(false);
   const [isBusinessPanelOpen, setIsBusinessPanelOpen] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
-  // Ottieni servizi dal nuovo context
-  // CORREZIONE: currentProvider -> currentAiProvider
+
   const { currentAiProvider, reloadServices, appConfig, isInitialized, initializationError } = useServices();
   const functionRegistry = useService('functionRegistry'); // configManager è già in appConfig
 

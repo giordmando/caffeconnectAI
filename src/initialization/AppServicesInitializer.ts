@@ -25,6 +25,7 @@ import { AIProviderConfig } from '../types/AIProvider';
 import { getConversationTracker } from '../services/analytics/setupAnalytics';
 import { IConversationTracker } from '../services/analytics/interfaces/IConversationTracker';
 import { AppConfig } from '../config/interfaces/IAppConfig';
+import { ComponentManager } from '../services/ui/compstore/ComponentManager';
 
 export interface InitializedServices {
   configManager: IConfigManager;
@@ -37,7 +38,7 @@ export interface InitializedServices {
   nlpService: NLPIntegrationServiceClass;
   analyticsService: IAnalyticsService;
   consentService: IConsentService;
-  aiService: IAIService;
+  aiService: IAIService & { getComponentManager(): ComponentManager };
   suggestionService: ISuggestionService;
   actionService: IActionService;
   conversationTracker: IConversationTracker;
@@ -112,7 +113,7 @@ export async function initializeAppServices(): Promise<InitializedServices> {
     nlpService: nlpIntegrationService,
     analyticsService: analyticsServiceInstance,
     consentService: consentServiceInstance,
-    aiService,
+    aiService: aiService as IAIService & { getComponentManager(): ComponentManager },
     suggestionService,
     actionService,
     conversationTracker: conversationTrackerInstance,

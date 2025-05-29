@@ -4,6 +4,8 @@ import { AppConfig } from '../config/interfaces/IAppConfig';
 import { configManager } from '../config/ConfigManager'; // Importa configManager
 import { orderOrchestrator } from '../services/order/OrderOrchestrator';
 import { WhatsAppOrderStrategy } from '../services/order/strategies/WhatsAppOrderStrategy';
+import { IAIService } from '../services/ai/interfaces/IAIService';
+import { ComponentManager } from '../services/ui/compstore/ComponentManager';
 
 
 export interface AppServicesContextType extends Omit<InitializedServices, 'currentAiProvider' | 'appConfig'> {

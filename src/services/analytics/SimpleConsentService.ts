@@ -1,5 +1,3 @@
-// src/services/analytics/SimpleConsentService.ts
-
 import { ConsentLevel } from './types';
 import { IConsentService } from './interfaces/IConsentService';
 

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { UIComponent } from '../../../types/UI';
-import { uiComponentFactory } from '../../../factories/ui/UIComponentFactory';
+import { componentFactory } from '../../../services/ui/component/ComponentFactory';
 
 interface NLPInsightsPanelProps {
   components: UIComponent[];
@@ -63,7 +63,7 @@ export const NLPInsightsPanel: React.FC<NLPInsightsPanelProps> = ({
               <h4>Analisi del Sentiment</h4>
               {sentimentComponents.map(comp => (
                 <div key={comp.id} className="insight-item">
-                  {uiComponentFactory.create(comp, onAction)}
+                  {componentFactory.createReactElement(comp, onAction)}
                 </div>
               ))}
             </div>
@@ -74,7 +74,7 @@ export const NLPInsightsPanel: React.FC<NLPInsightsPanelProps> = ({
               <h4>Intenti rilevati</h4>
               {intentComponents.map(comp => (
                 <div key={comp.id} className="insight-item">
-                  {uiComponentFactory.create(comp, onAction)}
+                  {componentFactory.createReactElement(comp, onAction)}
                 </div>
               ))}
             </div>
@@ -85,7 +85,7 @@ export const NLPInsightsPanel: React.FC<NLPInsightsPanelProps> = ({
               <h4>Argomenti nei tuoi messaggi</h4>
               {userTopicComponents.map(comp => (
                 <div key={comp.id} className="insight-item">
-                  {uiComponentFactory.create(comp, onAction)}
+                  {componentFactory.createReactElement(comp, onAction)}
                 </div>
               ))}
             </div>
@@ -96,7 +96,7 @@ export const NLPInsightsPanel: React.FC<NLPInsightsPanelProps> = ({
               <h4>Argomenti nelle risposte dell'assistente</h4>
               {aiTopicComponents.map(comp => (
                 <div key={comp.id} className="insight-item">
-                  {uiComponentFactory.create(comp, onAction)}
+                  {componentFactory.createReactElement(comp, onAction)}
                 </div>
               ))}
             </div>
@@ -107,7 +107,7 @@ export const NLPInsightsPanel: React.FC<NLPInsightsPanelProps> = ({
               <h4>Insights avanzati</h4>
               {nlpInsightComponents.map(comp => (
                 <div key={comp.id} className="insight-item">
-                  {uiComponentFactory.create(comp, onAction)}
+                  {componentFactory.createReactElement(comp, onAction)}
                 </div>
               ))}
             </div>
