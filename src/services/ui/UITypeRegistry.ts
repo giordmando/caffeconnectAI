@@ -1,4 +1,3 @@
-// src/services/ui/UITypeRegistry.ts
 export interface ComponentTypeDefinition {
     isUnique: boolean;
     limit?: number;
