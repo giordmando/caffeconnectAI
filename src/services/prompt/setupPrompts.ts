@@ -1,4 +1,3 @@
-// src/services/prompt/setupPrompts.ts
 import { promptService } from './PromptService';
 import { SystemPromptTemplate } from './templates/SystemPromptTemplate';
 import { FunctionPromptTemplate } from './templates/FunctionPromptTemplate';

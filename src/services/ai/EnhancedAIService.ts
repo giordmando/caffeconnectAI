@@ -21,6 +21,7 @@ import { FunctionDetectionHandler } from "./pipeline/handlers/FunctionDetectionH
 import { AIGuidedFunctionStrategy } from "./strategies/AIGuidedFunctionStrategy";
 import { GroundingHandler } from "./pipeline/handlers/GroundingHandler ";
 import { GroundingService } from "./core/GroundingService";
+import { ComponentManager } from "../ui/compstore/ComponentManager";
 
 export class EnhancedAIService implements IAIService {
     private pipeline: IMessageHandler;
@@ -28,20 +29,22 @@ export class EnhancedAIService implements IAIService {
     private aiProviderService: AIProviderService;
     private uiResponseGenerator: UIResponseGenerator;
     private functionOrchestrator: FunctionOrchestrator;
-
+    private componentManager: ComponentManager;
+    
     constructor(
       aiProvider: IAIProvider,
       functionService: IFunctionService,
       suggestionService: ISuggestionService,
       actionService: IActionService
     ) {
+      this.componentManager = new ComponentManager();
       // Inizializza i servizi core
 
       const conversationService = new ConversationService();
       const aiProviderService = new AIProviderService(aiProvider);
       const functionStrategy = new AIGuidedFunctionStrategy(aiProvider, functionService);
       const groundingService = new GroundingService(aiProviderService);
-      this.uiResponseGenerator = new UIResponseGenerator(suggestionService, actionService);
+      this.uiResponseGenerator = new UIResponseGenerator(suggestionService, actionService, this.componentManager);
       this.functionOrchestrator = new FunctionOrchestrator(functionService, functionStrategy);
 
       
@@ -115,6 +118,11 @@ export class EnhancedAIService implements IAIService {
     async generateUIComponents(message: Message, userContext: UserContext, conversation: Message[]): Promise<UIComponent[]> {
       // Delega al generatore di UI
       return this.uiResponseGenerator.generateUIComponents(message, userContext, conversation);
+    }
+
+    // Metodo pubblico per accedere al ComponentManager
+    getComponentManager(): ComponentManager {
+      return this.componentManager;
     }
     
     // Metodi helper

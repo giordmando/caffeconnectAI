@@ -1,6 +1,4 @@
-// src/components/AIConfigPanel.tsx
 import React, { useState, useEffect } from 'react';
-import { AIProviderConfig } from '../types/AIProvider';
 import { useServices } from '../contexts/ServiceProvider';
 import { configManager } from '../config/ConfigManager';
 import { AppConfig } from '../config/interfaces/IAppConfig';

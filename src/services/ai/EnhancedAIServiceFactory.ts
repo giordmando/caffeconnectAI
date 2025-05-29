@@ -9,6 +9,7 @@ import { registerAllProviders } from "./providers/registerAllProviders";
 import { ICatalogService } from "../catalog/interfaces/ICatalogService";
 import { IFunctionService } from "../function/interfaces/IFunctionService";
 import { EnhancedAIService } from "./EnhancedAIService";
+import { ComponentManager } from "../ui/compstore/ComponentManager";
 
 export class EnhancedAIServiceFactory {
     static createAIService(params: {
@@ -19,7 +20,7 @@ export class EnhancedAIServiceFactory {
       businessType: string;
       configManager: any;
     }): {
-      aiService: IAIService;
+      aiService: IAIService & { getComponentManager(): ComponentManager };
       suggestionService: ISuggestionService;
       actionService: IActionService;
     } {
@@ -43,16 +44,12 @@ export class EnhancedAIServiceFactory {
         aiProvider
       );
       
-      // Determina se abilitare il supporto funzioni avanzato
-      //const enableAdvancedFunctionSupport = params.providerConfig.options?.enableAdvancedFunctionSupport || false;
-      
       // Crea il servizio AI migliorato
       const aiService = new EnhancedAIService(
         aiProvider,
         params.functionService,
         suggestionService,
-        actionService,
-        //{ enableAdvancedFunctionSupport }
+        actionService
       );
       
       return {

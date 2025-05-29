@@ -1,5 +1,3 @@
-// src/config/interfaces/IAppConfig.ts
-
 // Definizione per la configurazione specifica della UI della Chat
 export interface ChatConfig {
   welcomeMessage?: string;

@@ -1,11 +1,10 @@
-// src/initialization/AppServicesInitializer.ts
 import { configManager } from '../config/ConfigManager';
 import { IConfigManager } from '../config/interfaces/IConfigManager';
 import { themeService } from '../services/theme/ThemeService';
 import { IThemeService } from '../services/theme/interfaces/IThemeService';
 import { catalogService } from '../services/catalog/CatalogService';
 import { ICatalogService } from '../services/catalog/interfaces/ICatalogService';
-import { FunctionRegistry, functionRegistry } from '../services/function/FunctionRegistry';
+import { functionRegistry } from '../services/function/FunctionRegistry';
 import { IFunctionService } from '../services/function/interfaces/IFunctionService';
 import { userContextService } from '../services/user/UserContextService';
 import { IUserContextService } from '../services/user/interfaces/IUserContextService';
@@ -26,6 +25,7 @@ import { AIProviderConfig } from '../types/AIProvider';
 import { getConversationTracker } from '../services/analytics/setupAnalytics';
 import { IConversationTracker } from '../services/analytics/interfaces/IConversationTracker';
 import { AppConfig } from '../config/interfaces/IAppConfig';
+import { ComponentManager } from '../services/ui/compstore/ComponentManager';
 
 export interface InitializedServices {
   configManager: IConfigManager;
@@ -38,7 +38,7 @@ export interface InitializedServices {
   nlpService: NLPIntegrationServiceClass;
   analyticsService: IAnalyticsService;
   consentService: IConsentService;
-  aiService: IAIService;
+  aiService: IAIService & { getComponentManager(): ComponentManager };
   suggestionService: ISuggestionService;
   actionService: IActionService;
   conversationTracker: IConversationTracker;
@@ -113,7 +113,7 @@ export async function initializeAppServices(): Promise<InitializedServices> {
     nlpService: nlpIntegrationService,
     analyticsService: analyticsServiceInstance,
     consentService: consentServiceInstance,
-    aiService,
+    aiService: aiService as IAIService & { getComponentManager(): ComponentManager },
     suggestionService,
     actionService,
     conversationTracker: conversationTrackerInstance,

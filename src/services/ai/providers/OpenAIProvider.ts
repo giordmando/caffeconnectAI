@@ -1,4 +1,3 @@
-// src/services/ai/providers/OpenAIProvider.ts
 import { IAIProvider} from '../interfaces/IAIProvider';
 import { AIProviderConfig } from '../../../types/AIProvider';
 import { Message } from '../../../types/Message';

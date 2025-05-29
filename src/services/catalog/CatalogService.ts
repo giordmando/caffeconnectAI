@@ -1,4 +1,3 @@
-// src/services/catalog/CatalogService.ts
 import { MenuItem } from '../../types/MenuItem';
 import { Product } from '../../types/Product';
 import { configManager } from '../../config/ConfigManager';

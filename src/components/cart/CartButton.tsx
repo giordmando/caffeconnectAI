@@ -1,4 +1,3 @@
-// src/components/cart/CartButton.tsx
 import React from 'react';
 import { useCart } from '../../hooks/useCart';
 import { formatPrice } from '../../utils/formatters';

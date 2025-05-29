@@ -1,10 +1,11 @@
-// src/contexts/ServiceProvider.tsx
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { InitializedServices, initializeAppServices } from '../initialization/AppServicesInitializer';
 import { AppConfig } from '../config/interfaces/IAppConfig';
 import { configManager } from '../config/ConfigManager'; // Importa configManager
 import { orderOrchestrator } from '../services/order/OrderOrchestrator';
 import { WhatsAppOrderStrategy } from '../services/order/strategies/WhatsAppOrderStrategy';
+import { IAIService } from '../services/ai/interfaces/IAIService';
+import { ComponentManager } from '../services/ui/compstore/ComponentManager';
 
 
 export interface AppServicesContextType extends Omit<InitializedServices, 'currentAiProvider' | 'appConfig'> {

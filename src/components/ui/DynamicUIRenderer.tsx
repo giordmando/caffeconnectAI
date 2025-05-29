@@ -1,75 +1,51 @@
-// src/components/ui/DynamicUIRenderer.tsx
 import React, { useEffect, useState } from 'react';
 import { UIComponent } from '../../types/UI';
-import { uiComponentRegistry } from './registry/UIComponentRegistry';
-import { ComponentManager } from '../../services/ui/ComponentManager';
+
+import { componentFactory } from '../../services/ui/component/ComponentFactory';
+import { ComponentManager } from '../../services/ui/compstore/ComponentManager';
 
 interface DynamicUIRendererProps {
-  components: UIComponent[];
   placement: string;
   onAction?: (action: string, payload: any) => void;
-  componentManager?: ComponentManager; // Opzionale, per casi speciali
+  componentManager: ComponentManager;
 }
 
-/**
- * Component for rendering dynamic UI components
- * Uses the registry pattern for extensibility
- */
 export const DynamicUIRenderer: React.FC<DynamicUIRendererProps> = ({ 
-  components, 
   placement, 
   onAction,
   componentManager
 }) => {
-  // Stato locale per i componenti da renderizzare
-  const [componentsToRender, setComponentsToRender] = useState<UIComponent[]>([]);
+  const [components, setComponents] = useState<UIComponent[]>([]);
+  const [updateTrigger, setUpdateTrigger] = useState(0);
 
-  // Effect per ottenere i componenti dal manager o dai props
   useEffect(() => {
-    if (componentManager) {
-      // Se abbiamo un manager, ottieni i componenti per questo placement
-      const dedupedComponents = componentManager.getDeduplicatedComponents(placement);
-      setComponentsToRender(dedupedComponents);
-      console.log(`DynamicUIRenderer (${placement}): Got ${dedupedComponents.length} components from manager`);
-    } else {
-      // Altrimenti usa i componenti passati direttamente
-      const filteredComponents = components.filter(comp => comp.placement === placement);
-      setComponentsToRender(filteredComponents);
-      console.log(`DynamicUIRenderer (${placement}): Got ${filteredComponents.length} components from props`);
-    }
-  }, [components, placement, componentManager]);
+    // Ottieni componenti già deduplicati dal manager
+    const deduplicatedComponents = componentManager.getComponentsForPlacement(placement);
+    setComponents(deduplicatedComponents);
+    
+    console.log(`DynamicUIRenderer (${placement}): Rendering ${deduplicatedComponents.length} components`);
+  }, [placement, componentManager, updateTrigger]);
   
-  // Determine CSS class based on placement
-  let containerClassName = "dynamic-ui-container";
+  // Metodo per forzare un re-render quando i componenti cambiano
+  const forceUpdate = () => setUpdateTrigger(prev => prev + 1);
   
-  switch (placement) {
-    case 'inline':
-      containerClassName += " dynamic-ui-inline";
-      break;
-    case 'bottom':
-      containerClassName += " dynamic-ui-bottom";
-      break;
-    case 'sidebar':
-      containerClassName += " dynamic-ui-sidebar";
-      break;
-    default:
-      containerClassName += " dynamic-ui-default";
-  }
+  useEffect(() => {
+    // Ascolta i cambiamenti nel component manager
+    const interval = setInterval(forceUpdate, 1000); // Check ogni secondo
+    return () => clearInterval(interval);
+  }, []);
 
-  
-  // Se non ci sono componenti da renderizzare, ritorna null
-  if (componentsToRender.length === 0) {
-    console.log(`DynamicUIRenderer (${placement}): No components to render`);
+  if (components.length === 0) {
     return null;
   }
 
-  console.log(`DynamicUIRenderer (${placement}): Rendering ${componentsToRender.length} components`);
+  const containerClassName = `dynamic-ui-container dynamic-ui-${placement}`;
 
   return (
     <div className={containerClassName}>
-      {componentsToRender.map((component) => (
+      {components.map((component) => (
         <div key={component.id} className="dynamic-ui-item">
-          {uiComponentRegistry.createComponent(component, onAction)}
+          {componentFactory.createReactElement(component, onAction)}
         </div>
       ))}
     </div>

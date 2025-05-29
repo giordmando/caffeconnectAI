@@ -1,15 +1,12 @@
-// src/App.tsx
 import React, { useState, useEffect } from 'react';
 import { useServices, useService } from './contexts/ServiceProvider';
 import AIConfigPanel from './components/AIConfigPanel';
-import BusinessConfigPanel from './components/BusinessConfigPanel';
 import CompleteChatInterface from './components/ContextChatUI';
 import { interpolateConfig } from './config/ConfigManager';
 import './styles/App.css';
 import { CartDrawer } from './components/cart/CartDrawer';
 import { CartButton } from './components/cart/CartButton';
-// Rimossa l'importazione diretta di functionRegistry perché ora è accessibile tramite useService
-// import { functionRegistry } from './services/function/FunctionRegistry';
+import { ConfigPanelOrchestrator } from './components/config/ConfigPanelOrchestrator';
 
 /**
  * Componente principale dell'applicazione
@@ -20,8 +17,7 @@ function App() {
   const [isConfigPanelOpen, setIsConfigPanelOpen] = useState(false);
   const [isBusinessPanelOpen, setIsBusinessPanelOpen] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
-  // Ottieni servizi dal nuovo context
-  // CORREZIONE: currentProvider -> currentAiProvider
+
   const { currentAiProvider, reloadServices, appConfig, isInitialized, initializationError } = useServices();
   const functionRegistry = useService('functionRegistry'); // configManager è già in appConfig
 
@@ -131,7 +127,7 @@ function App() {
 
       {isBusinessPanelOpen && (
         <div className="modal-overlay">
-          <BusinessConfigPanel
+          <ConfigPanelOrchestrator
             onClose={() => setIsBusinessPanelOpen(false)}
             onSave={handleBusinessConfigSave}
           />

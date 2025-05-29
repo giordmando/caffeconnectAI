@@ -337,8 +337,3 @@ export function interpolateConfig(text: string, config: AppConfig): string {
     return String(value);
   });
 }
-
-// Rimuovi la chiamata a setupPrompts da qui, sarà gestita in AppServicesInitializer
-// (async () => {
-//   await setupPrompts();
-// })();
