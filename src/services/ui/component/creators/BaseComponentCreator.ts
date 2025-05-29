@@ -4,7 +4,7 @@ import { IComponentCreator } from "../interfaces/IComponentCreator";
 export abstract class BaseComponentCreator implements IComponentCreator {
     abstract componentType: string;
     abstract functionNames: string[];
-    
+    protected isUniqueComponent: boolean = false;
     getComponentType(): string {
       return this.componentType;
     }
@@ -25,6 +25,11 @@ export abstract class BaseComponentCreator implements IComponentCreator {
     }
     
     protected generateComponentId(prefix: string, data: any): string {
+
+      if (this.isUniqueComponent) {
+        return `${this.componentType}-singleton`;
+      }
+      
       const timestamp = Date.now();
       const random = Math.random().toString(36).substr(2, 5);
       const dataId = data.id || data.name || 'default';

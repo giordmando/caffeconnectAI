@@ -25,14 +25,12 @@ export interface ChatContextType {
   handleSendMessage: () => Promise<void>;
   isTyping: boolean;
   suggestedPrompts: string[];
-  nlpComponents: UIComponent[];
   handleSuggestionClick: (suggestion: string) => void;
   handleUIAction: (action: string, payload: any) => void;
   availableActions: any[];
   componentManager: ComponentManager; // Aggiornato al nuovo tipo
   uiComponentsUpdated: number;
   conversationId: string | null;
-  isNLPInitialized: boolean;
   messagesEndRef: React.RefObject<HTMLDivElement>;
 }
 
@@ -273,20 +271,22 @@ export const ChatProvider: React.FC<{
           nlpAnalysis
         );
         
-        // Usa il sistema unificato per creare componenti NLP
-        newNLPComponents.forEach(nlpComp => {
-          const uiComponent = componentFactory.createUIComponent(
-            nlpComp.type,
-            nlpComp.data,
-            nlpComp.placement
+        if (newNLPComponents.length > 0) {
+          const nlpPanelComponent = componentFactory.createUIComponent(
+            'nlpInsightsPanel',
+            {
+              components: newNLPComponents,
+              analysis: nlpAnalysis,
+              message: userMessage.content
+            },
+            'sidebar'
           );
           
-          if (uiComponent) {
-            componentManager.addComponent(uiComponent);
+          if (nlpPanelComponent) {
+            componentManager.addComponent(nlpPanelComponent);
           }
-        });
+        }
         
-        setNLPComponents(newNLPComponents);
       }
     }
 
@@ -508,14 +508,12 @@ export const ChatProvider: React.FC<{
     handleSendMessage,
     isTyping,
     suggestedPrompts,
-    nlpComponents,
     handleSuggestionClick,
     handleUIAction,
     availableActions,
     componentManager,
     uiComponentsUpdated,
     conversationId: currentConversationId,
-    isNLPInitialized,
     messagesEndRef,
   };
 

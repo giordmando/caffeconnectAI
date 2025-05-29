@@ -6,6 +6,7 @@ import { BaseComponentCreator } from './BaseComponentCreator';
 export class PreferencesCardCreator extends BaseComponentCreator {
   componentType = 'preferencesCard';
   functionNames = ['get_user_preferences'];
+  protected isUniqueComponent = true;
   
   createReactElement(component: UIComponent, onAction?: (action: string, payload: any) => void): React.ReactElement {
     const { preferences } = component.data;

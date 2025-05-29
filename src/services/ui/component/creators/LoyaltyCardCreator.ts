@@ -6,6 +6,7 @@ import { BaseComponentCreator } from './BaseComponentCreator';
 export class LoyaltyCardCreator extends BaseComponentCreator {
   componentType = 'loyaltyCard';
   functionNames = ['get_user_loyalty_points'];
+  protected isUniqueComponent = true;
   
   createReactElement(component: UIComponent, onAction?: (action: string, payload: any) => void): React.ReactElement {
     const { points, tier, nextTier, history } = component.data;

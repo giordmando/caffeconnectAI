@@ -6,6 +6,7 @@ import { MenuCarouselCreator } from '../creators/MenuCarouselCreator';
 import { LoyaltyCardCreator } from '../creators/LoyaltyCardCreator';
 import { PreferencesCardCreator } from '../creators/PreferencesCardCreator';
 import { ProductCarouselCreator } from '../creators/ProductCarouselCreator';
+import { NLPInsightsPanelCreator } from '../creators/nlp/NLPInsightsPanelCreator';
 
 // Import NLP creators
 import {
@@ -30,13 +31,14 @@ export function registerAllComponents(): void {
     new ProductCarouselCreator()
   ];
   
-  // Register NLP components
   const nlpCreators = [
     new SentimentIndicatorCreator(),
     new IntentSuggestionsCreator(),
     new TopicTagsCreator(),
-    new NLPInsightsCardCreator()
+    new NLPInsightsCardCreator(),
+    new NLPInsightsPanelCreator()
   ];
+
   
   // Register all creators
   [...standardCreators, ...nlpCreators].forEach(creator => {
@@ -56,6 +58,11 @@ export function registerAllComponents(): void {
   uiTypeRegistry.registerType('intentSuggestions', { isUnique: false, limit: 3, displayName: 'Intent Suggestions' });
   uiTypeRegistry.registerType('topicTags', { isUnique: false, limit: 5, displayName: 'Topic Tags' });
   uiTypeRegistry.registerType('nlpInsights', { isUnique: false, limit: 1, displayName: 'NLP Insights' });
+  
+  uiTypeRegistry.registerType('nlpInsightsPanel', { 
+    isUnique: true, 
+    displayName: 'NLP Insights Panel' 
+  });
   
   console.log('✅ All unified components registered successfully!');
   console.log(`Total registered types: ${componentFactory.getRegisteredTypes().length}`);

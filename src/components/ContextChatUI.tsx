@@ -1,9 +1,7 @@
-// src/components/ContextChatUI.tsx - Versione aggiornata
 import React from 'react';
 import { ChatProvider, useChatContext } from './ChatContext';
 import { ChatConfig } from '../config/interfaces/IAppConfig';
 import { DynamicUIRenderer } from './ui/DynamicUIRenderer';
-import { NLPInsightsPanel } from './ui/nlp/NLPInsightsPanel';
 import { SimpleConsentBanner } from './SimpleConsentBanner';
 import { SimpleConsentService } from '../services/analytics/SimpleConsentService';
 import { ConsentLevel } from '../services/analytics/types';
@@ -21,7 +19,6 @@ const ChatInterface: React.FC = () => {
     componentManager,
     uiComponentsUpdated,
     suggestedPrompts,
-    nlpComponents,
     config,
     availableActions,
     handleInputChange,
@@ -29,8 +26,7 @@ const ChatInterface: React.FC = () => {
     handleSendMessage,
     handleSuggestionClick,
     handleUIAction,
-    messagesEndRef,
-    isNLPInitialized
+    messagesEndRef
   } = useChatContext();
 
   const { appConfig } = useServices();
@@ -87,13 +83,6 @@ const ChatInterface: React.FC = () => {
               />
             )}
             
-            {config.enableNLP && isNLPInitialized && nlpComponents.length > 0 && (
-              <NLPInsightsPanel
-                components={nlpComponents}
-                placement="sidebar"
-                onAction={handleUIAction}
-              />
-            )}
           </div>
         )}
       </div>
