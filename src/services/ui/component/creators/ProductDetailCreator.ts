@@ -9,8 +9,8 @@ export class ProductDetailCreator extends BaseComponentCreator {
   functionNames = ['view_item_details', 'search_product_by_name'];
   
   createReactElement(component: UIComponent, onAction?: (action: string, payload: any) => void): React.ReactElement {
-    const product = component.data?.product || component.data || {};
-    
+    let product = component.data?.product || component.data || {};
+    product = product?.results?.[0];
     return React.createElement(ProductDetailComponent, {
       product: product,
       id: component.id,

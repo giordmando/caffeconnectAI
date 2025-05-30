@@ -1,5 +1,4 @@
 
-  // src/types/Message.ts
   export interface Message {
     role: 'user' | 'assistant' | 'system' | 'function';
     content: string;

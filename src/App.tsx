@@ -48,12 +48,6 @@ function App() {
     return <div>Inizializzazione dell'applicazione in corso o fallita...</div>;
   }
 
-  // Sostituisci i segnaposto nel messaggio di benvenuto
-  // Assicurati che appConfig.ui e appConfig.business siano definiti
-  const welcomeMessage = appConfig.ui?.welcomeMessage && appConfig.business?.name
-    ? interpolateConfig(appConfig.ui.welcomeMessage, appConfig)
-    : "Benvenuto! Come posso aiutarti?";
-
   return (
     <div className="app-container">
       <header className="app-header">
@@ -88,7 +82,6 @@ function App() {
       <main className="app-main">
         <CompleteChatInterface
           initialConfig={{
-            welcomeMessage: welcomeMessage,
             showSidebar: appConfig.ui.showSidebar,
             enableSuggestions: appConfig.ui.enableSuggestions,
             enableDynamicComponents: appConfig.ui.enableDynamicComponents,
