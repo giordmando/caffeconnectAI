@@ -1,0 +1,148 @@
+﻿<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CafeConnect AI Gateway Manual Test</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; background: #f7fafc; color: #1f2933; }
+    main { max-width: 960px; margin: 0 auto; padding: 24px; }
+    header { margin-bottom: 20px; }
+    h1 { font-size: 24px; margin: 0 0 8px; }
+    .status { display: inline-flex; gap: 8px; align-items: center; padding: 6px 10px; border-radius: 6px; background: #e2e8f0; font-size: 13px; }
+    .ok { background: #dcfce7; color: #166534; }
+    .error { background: #fee2e2; color: #991b1b; }
+    .panel { background: white; border: 1px solid #d9e2ec; border-radius: 8px; padding: 16px; margin: 14px 0; }
+    .row { display: flex; gap: 8px; }
+    input { flex: 1; padding: 12px; border: 1px solid #bcccdc; border-radius: 6px; font-size: 15px; }
+    button { padding: 10px 14px; border: 0; border-radius: 6px; background: #2a4365; color: white; cursor: pointer; }
+    button.secondary { background: #64748b; }
+    .quick { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+    .message { line-height: 1.5; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
+    .card { border: 1px solid #d9e2ec; border-radius: 8px; background: #fff; padding: 12px; }
+    .card h3 { margin: 0 0 6px; font-size: 16px; }
+    .muted { color: #64748b; font-size: 13px; }
+    .price { margin-top: 8px; font-weight: bold; }
+    pre { white-space: pre-wrap; word-break: break-word; background: #111827; color: #e5e7eb; padding: 12px; border-radius: 8px; max-height: 280px; overflow: auto; }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>CafeConnect AI Gateway Manual Test</h1>
+      <div id="status" class="status">Gateway: controllo...</div>
+    </header>
+
+    <section class="panel">
+      <div class="row">
+        <input id="message" value="Cosa mi consigli per colazione?" />
+        <button id="send">Invia</button>
+      </div>
+      <div class="quick">
+        <button class="secondary" data-prompt="Cosa mi consigli per colazione?">Colazione</button>
+        <button class="secondary" data-prompt="Mi consigli qualcosa per pranzo?">Pranzo</button>
+        <button class="secondary" data-prompt="Vorrei vedere prodotti da acquistare">Prodotti</button>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Risposta</h2>
+      <div id="answer" class="message muted">Invia un messaggio per iniziare.</div>
+    </section>
+
+    <section class="panel">
+      <h2>Risultati Tool</h2>
+      <div id="cards" class="grid"></div>
+    </section>
+
+    <section class="panel">
+      <h2>Payload raw</h2>
+      <pre id="raw">{}</pre>
+    </section>
+  </main>
+
+  <script>
+    const gatewayUrl = 'https://caffeconnect-ai-gateway.onrender.com';
+    const statusEl = document.getElementById('status');
+    const answerEl = document.getElementById('answer');
+    const cardsEl = document.getElementById('cards');
+    const rawEl = document.getElementById('raw');
+    const inputEl = document.getElementById('message');
+
+    async function checkHealth() {
+      try {
+        const res = await fetch(`${gatewayUrl}/health`);
+        const data = await res.json();
+        statusEl.className = 'status ok';
+        statusEl.textContent = `Gateway: ${data.mode} | tools: ${data.tools.join(', ')}`;
+      } catch (error) {
+        statusEl.className = 'status error';
+        statusEl.textContent = 'Gateway non raggiungibile. Avvia server/ai-gateway/server.js';
+      }
+    }
+
+    function renderCards(response) {
+      cardsEl.innerHTML = '';
+      const calls = response.toolCalls || [];
+      const entries = [];
+
+      calls.forEach(call => {
+        const result = call.result || {};
+        (result.items || []).forEach(item => entries.push({ ...item, source: call.name }));
+        (result.products || []).forEach(item => entries.push({ ...item, source: call.name }));
+        if (result.item) entries.push({ ...result.item, source: call.name });
+      });
+
+      if (!entries.length) {
+        cardsEl.innerHTML = '<div class="muted">Nessun item restituito dal tool.</div>';
+        return;
+      }
+
+      entries.forEach(item => {
+        const card = document.createElement('article');
+        card.className = 'card';
+        card.innerHTML = `
+          <h3>${item.name || item.id}</h3>
+          <div class="muted">${item.category || ''} ${item.subcategory ? '- ' + item.subcategory : ''}</div>
+          <p>${item.description || ''}</p>
+          <div class="price">${typeof item.price === 'number' ? item.price.toFixed(2) + ' EUR' : ''}</div>
+          <div class="muted">Tool: ${item.source}</div>
+        `;
+        cardsEl.appendChild(card);
+      });
+    }
+
+    async function sendMessage() {
+      answerEl.textContent = 'Invio...';
+      cardsEl.innerHTML = '';
+      const message = inputEl.value.trim();
+
+      try {
+        const res = await fetch(`${gatewayUrl}/v1/chat`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message, conversationId: 'manual-test' })
+        });
+        const data = await res.json();
+        answerEl.textContent = data.message || '(nessuna risposta)';
+        rawEl.textContent = JSON.stringify(data, null, 2);
+        renderCards(data);
+      } catch (error) {
+        answerEl.textContent = `Errore: ${error.message}`;
+      }
+    }
+
+    document.getElementById('send').addEventListener('click', sendMessage);
+    inputEl.addEventListener('keydown', event => { if (event.key === 'Enter') sendMessage(); });
+    document.querySelectorAll('[data-prompt]').forEach(button => {
+      button.addEventListener('click', () => {
+        inputEl.value = button.dataset.prompt;
+        sendMessage();
+      });
+    });
+
+    checkHealth();
+  </script>
+</body>
+</html>

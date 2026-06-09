@@ -23,7 +23,9 @@
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "gateway:start": "node server/ai-gateway/server.js",
+    "gateway:dev": "node server/ai-gateway/server.js"
   },
   "eslintConfig": {
     "extends": [
