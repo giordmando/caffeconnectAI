@@ -73,8 +73,10 @@ class AgentOrchestrator {
       });
     }
 
+    const modelText = this.openaiClient.extractText(response) || 'Ho elaborato la richiesta.';
+
     return {
-      message: this.openaiClient.extractText(response) || 'Ho elaborato la richiesta.',
+      message: this.summarizeToolBackedResponse(modelText, executedToolCalls),
       responseId: response.id,
       toolCalls: executedToolCalls,
       mode: 'openai-responses'
@@ -92,7 +94,7 @@ class AgentOrchestrator {
 
       return {
         message: result.products.length
-          ? 'Ho trovato alcuni prodotti interessanti. Posso mostrarti i dettagli o prepararli nel carrello.'
+          ? 'Ho trovato alcuni prodotti interessanti: li trovi nelle card qui sotto.'
           : 'Non ho trovato prodotti coerenti con la richiesta, ma posso cercare per categoria.',
         toolCalls,
         mode: 'demo'
@@ -117,11 +119,40 @@ class AgentOrchestrator {
 
     return {
       message: result.items.length
-        ? 'Ti propongo alcune opzioni dal menu. Posso spiegarti ingredienti, alternative o aggiungerne una al carrello.'
+        ? 'Ti propongo alcune opzioni dal menu: le trovi nelle card qui sotto.'
         : 'Posso aiutarti con menu, prodotti acquistabili, carrello o ordine WhatsApp.',
       toolCalls,
       mode: 'demo'
     };
+  }
+
+  summarizeToolBackedResponse(modelText, toolCalls) {
+    const hasProducts = toolCalls.some(call => call.name === 'search_products' && call.result?.products?.length > 0);
+    if (hasProducts) {
+      return 'Ho trovato alcuni prodotti interessanti: li trovi nelle card qui sotto. Posso mostrarti i dettagli o aiutarti a preparare un ordine.';
+    }
+
+    const hasMenuItems = toolCalls.some(call => call.name === 'search_menu' && call.result?.items?.length > 0);
+    if (hasMenuItems) {
+      return 'Ti propongo alcune opzioni dal menu: le trovi nelle card qui sotto. Posso spiegarti ingredienti, allergeni o alternative.';
+    }
+
+    const hasDetail = toolCalls.some(call => call.name === 'get_item_detail' && call.result?.item);
+    if (hasDetail) {
+      return 'Ecco il dettaglio richiesto: puoi consultarlo nella card qui sotto.';
+    }
+
+    return this.cleanModelText(modelText);
+  }
+
+  cleanModelText(text) {
+    return String(text || '')
+      .replace(/\[[^\]]+\]\([^\)]+\)/g, '')
+      .replace(/https?:\/\/\S+/g, '')
+      .replace(/#{1,6}\s*/g, '')
+      .replace(/\*\*/g, '')
+      .replace(/\s{2,}/g, ' ')
+      .trim();
   }
 
   buildInstructions(payload) {
@@ -131,6 +162,9 @@ class AgentOrchestrator {
       'Sei CafeConnect AI, un assistente commerciale per bar, cafe e piccoli locali.',
       'Obiettivo: aiutare il cliente a scegliere, comprare o ordinare con precisione e tono naturale.',
       'Usa i tool quando servono dati di menu, prodotto, dettaglio o bozza ordine.',
+      'Rispondi in italiano con massimo 2 frasi brevi.',
+      'Non elencare tutti i dati dei tool: la UI mostra gia card e dettagli visivi.',
+      'Non inserire URL, markdown link, tabelle o liste numerate lunghe.',
       'Non inventare prezzi, disponibilita, allergeni o ingredienti: usa i tool o chiedi conferma.',
       'Se il cliente vuole ordinare, prepara una bozza e chiedi conferma prima dell invio.',
       business.name ? 'Locale attivo: ' + business.name + '.' : '',
