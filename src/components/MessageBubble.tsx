@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { Message } from '../types/Message';
 import { formatTime } from '../utils/formatters';
 
@@ -81,46 +81,56 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
 export const AnimatedMessageBubble: React.FC<MessageBubbleProps> = (props) => {
   const { message, className = '' } = props;
   const isUser = message.role === 'user';
+  const shouldAnimate = !isUser && message.role !== 'function';
   
-  // Se è un messaggio utente o non è un messaggio testuale, usa la versione normale
-  if (isUser || message.role === 'function') {
-    return <MessageBubble {...props} />;
-  }
-  
-  // Per i messaggi dell'assistente, implementiamo un effetto di digitazione
-  const [displayedContent, setDisplayedContent] = React.useState('');
-  const [isComplete, setIsComplete] = React.useState(false);
+  const [displayedContent, setDisplayedContent] = React.useState(
+    shouldAnimate ? '' : message.content
+  );
+  const [isComplete, setIsComplete] = React.useState(!shouldAnimate);
   
   React.useEffect(() => {
-    if (!message.content) return;
+    if (!shouldAnimate) {
+      setDisplayedContent(message.content);
+      setIsComplete(true);
+      return;
+    }
+
+    if (!message.content) {
+      setDisplayedContent('');
+      setIsComplete(true);
+      return;
+    }
     
     let currentIndex = 0;
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
     const content = message.content;
+
+    setDisplayedContent('');
+    setIsComplete(false);
     
-    // Funzione che aggiunge una lettera alla volta
     const typeNextCharacter = () => {
       if (currentIndex < content.length) {
         setDisplayedContent(content.slice(0, currentIndex + 1));
         currentIndex++;
-        
-        // Calcola un ritardo variabile in base al carattere
         const delay = content[currentIndex] === ' ' ? 20 : 30;
-        setTimeout(typeNextCharacter, delay);
+        timeoutId = setTimeout(typeNextCharacter, delay);
       } else {
         setIsComplete(true);
       }
     };
     
-    // Inizia l'animazione di digitazione
     typeNextCharacter();
     
-    // Cleanup
     return () => {
-      currentIndex = content.length; // Ferma l'animazione
+      currentIndex = content.length;
+      if (timeoutId) clearTimeout(timeoutId);
     };
-  }, [message.content]);
+  }, [message.content, shouldAnimate]);
   
-  // Crea una copia del messaggio con il contenuto parziale
+  if (!shouldAnimate) {
+    return <MessageBubble {...props} />;
+  }
+  
   const displayMessage: Message = {
     ...message,
     content: displayedContent
@@ -134,5 +144,4 @@ export const AnimatedMessageBubble: React.FC<MessageBubbleProps> = (props) => {
     />
   );
 };
-
 export default MessageBubble;
