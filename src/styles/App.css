@@ -640,6 +640,8 @@ input:focus, select:focus, textarea:focus {
 .remove-btn-small, .add-btn-small { padding: 4px 8px; font-size: 0.8rem; min-width: auto; border:none; color:white; }
 .add-btn-small { background-color: #28a745; }
 .remove-btn-small { background-color: #dc3545; }
+.template-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.template-actions .add-btn-small:disabled { background-color: #adb5bd; cursor: not-allowed; opacity: 0.75; }
 .add-btn { background-color: var(--primary-color); color:white; padding: 8px 15px; margin-top:10px; }
 .remove-btn { background-color: #6c757d; color:white; padding: 6px 10px; font-size: 0.9rem; }
 
