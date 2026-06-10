@@ -87,6 +87,20 @@ class AgentOrchestrator {
     const lower = message.toLowerCase();
     const toolCalls = [];
 
+    if (this.isKnowledgeQuestion(lower)) {
+      const args = { query: message, limit: 3 };
+      const result = await this.toolRegistry.execute('knowledge_search', args);
+      toolCalls.push({ name: 'knowledge_search', arguments: args, result });
+
+      return {
+        message: result.results.length
+          ? this.summarizeKnowledgeResult(result.results)
+          : 'Non ho trovato questa informazione nella base conoscenza. Posso aiutarti con menu, prodotti o ordini.',
+        toolCalls,
+        mode: 'demo'
+      };
+    }
+
     if (lower.includes('prodot') || lower.includes('comprare') || lower.includes('acquist')) {
       const args = { query: '', limit: 4 };
       const result = await this.toolRegistry.execute('search_products', args);
@@ -137,12 +151,36 @@ class AgentOrchestrator {
       return 'Ti propongo alcune opzioni dal menu: le trovi nelle card qui sotto. Posso spiegarti ingredienti, allergeni o alternative.';
     }
 
+    const hasKnowledge = toolCalls.find(call => call.name === 'knowledge_search' && call.result?.results?.length > 0);
+    if (hasKnowledge) {
+      return this.summarizeKnowledgeResult(hasKnowledge.result.results);
+    }
+
     const hasDetail = toolCalls.some(call => call.name === 'get_item_detail' && call.result?.item);
     if (hasDetail) {
       return 'Ecco il dettaglio richiesto: puoi consultarlo nella card qui sotto.';
     }
 
     return this.cleanModelText(modelText);
+  }
+
+  isKnowledgeQuestion(lower) {
+    return [
+      'orari', 'aperto', 'chiuso', 'storia', 'qualita', 'qualità', 'fornitori',
+      'allergeni', 'intolleranze', 'vegano', 'glutine', 'lattosio',
+      'policy', 'privacy', 'ritiro', 'whatsapp', 'ordine', 'ordini'
+    ].some(term => lower.includes(term));
+  }
+
+  summarizeKnowledgeResult(results) {
+    const first = results[0];
+    if (!first) {
+      return 'Non ho trovato questa informazione nella base conoscenza.';
+    }
+
+    const text = String(first.content || '').trim();
+    const shortText = text.length > 220 ? text.slice(0, 217).trim() + '...' : text;
+    return shortText || 'Ho trovato un riferimento nella base conoscenza dell esercente.';
   }
 
   cleanModelText(text) {
@@ -162,6 +200,7 @@ class AgentOrchestrator {
       'Sei CafeConnect AI, un assistente commerciale per bar, cafe e piccoli locali.',
       'Obiettivo: aiutare il cliente a scegliere, comprare o ordinare con precisione e tono naturale.',
       'Usa i tool quando servono dati di menu, prodotto, dettaglio o bozza ordine.',
+      'Usa knowledge_search per rispondere su storia del locale, orari, policy, allergeni, fornitori, offerte, FAQ o informazioni personalizzate dell esercente.',
       'Rispondi in italiano con massimo 2 frasi brevi.',
       'Non elencare tutti i dati dei tool: la UI mostra gia card e dettagli visivi.',
       'Non inserire URL, markdown link, tabelle o liste numerate lunghe.',
@@ -174,3 +213,4 @@ class AgentOrchestrator {
 }
 
 module.exports = { AgentOrchestrator };
+

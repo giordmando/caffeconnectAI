@@ -1,0 +1,30 @@
+﻿[
+  {
+    "id": "coffee-quality",
+    "title": "Qualita del caffe",
+    "content": "Il caffe CafeConnect proviene da piantagioni sostenibili in Etiopia e Colombia. Le miscele principali includono Arabica, Robusta e specialty monorigine. Il prodotto piu rappresentativo e l'Arabica Specialty Etiopia Yirgacheffe.",
+    "tags": ["caffe", "qualita", "arabica", "etiopia", "colombia"],
+    "source": "default-demo"
+  },
+  {
+    "id": "menu-dayparts",
+    "title": "Menu e momenti della giornata",
+    "content": "Il menu varia durante la giornata: colazione dalle 7 alle 12, pranzo dalle 12 alle 18, aperitivo dalle 18 alle 22. I prodotti da forno sono preparati freschi ogni giorno e gli ingredienti sono selezionati da fornitori locali quando possibile.",
+    "tags": ["menu", "colazione", "pranzo", "aperitivo", "orari"],
+    "source": "default-demo"
+  },
+  {
+    "id": "ordering-whatsapp",
+    "title": "Ordini e ritiro",
+    "content": "Gli ordini possono essere preparati come bozza e confermati via WhatsApp. Per una demo commerciale, chiedere sempre conferma prima di inviare o finalizzare un ordine.",
+    "tags": ["ordine", "whatsapp", "ritiro", "carrello"],
+    "source": "default-demo"
+  },
+  {
+    "id": "allergen-policy",
+    "title": "Allergeni e preferenze alimentari",
+    "content": "Quando il cliente chiede allergeni, intolleranze o preferenze alimentari, l'assistente deve rispondere solo con informazioni presenti nei dati prodotto o nella base conoscenza. Se un dato non e disponibile, deve invitare a verificare con il personale.",
+    "tags": ["allergeni", "intolleranze", "vegan", "gluten-free", "lattosio"],
+    "source": "default-demo"
+  }
+]

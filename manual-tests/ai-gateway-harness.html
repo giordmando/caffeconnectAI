@@ -43,6 +43,8 @@
         <button class="secondary" data-prompt="Cosa mi consigli per colazione?">Colazione</button>
         <button class="secondary" data-prompt="Mi consigli qualcosa per pranzo?">Pranzo</button>
         <button class="secondary" data-prompt="Vorrei vedere prodotti da acquistare">Prodotti</button>
+        <button class="secondary" data-prompt="Che allergeni devo considerare?">Allergeni</button>
+        <button class="secondary" data-prompt="Quali sono gli orari e come funziona il ritiro?">Orari e ritiro</button>
       </div>
     </section>
 
@@ -92,6 +94,12 @@
         (result.items || []).forEach(item => entries.push({ ...item, source: call.name }));
         (result.products || []).forEach(item => entries.push({ ...item, source: call.name }));
         if (result.item) entries.push({ ...result.item, source: call.name });
+        (result.results || []).forEach(item => entries.push({
+          name: item.title || item.id,
+          description: item.content,
+          category: 'knowledge',
+          source: item.source || call.name
+        }));
       });
 
       if (!entries.length) {
@@ -146,3 +154,5 @@
   </script>
 </body>
 </html>
+
+

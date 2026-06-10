@@ -32,3 +32,39 @@ Without `OPENAI_API_KEY`, the gateway runs in deterministic demo mode and uses t
 Replace the single orchestrator with an agent router: Triage, Menu Advisor, Product Sales, Order, Business Config, Analytics, Support, Privacy/Consent, and Campaign Agent.
 
 MCP integrations should attach below the tool registry, not directly in the React UI.
+
+## Merchant Knowledge Sources
+
+The gateway can search merchant-provided knowledge through the `knowledge_search` tool.
+
+Default demo data lives in:
+
+```text
+server/ai-gateway/data/defaultKnowledge.json
+```
+
+Remote sources can be configured with comma-separated URLs:
+
+```bash
+AI_GATEWAY_KNOWLEDGE_URLS=https://example.com/knowledge.json,https://example.com/faq.txt
+```
+
+Inline JSON can also be provided:
+
+```bash
+AI_GATEWAY_KNOWLEDGE_INLINE='[{"title":"Offerta del giorno","content":"Oggi cappuccino e cornetto a 3.50 euro","tags":["offerte","colazione"]}]'
+```
+
+Supported JSON shapes:
+
+```json
+[
+  { "title": "Orari", "content": "Aperti dalle 7 alle 20", "tags": ["orari"] }
+]
+```
+
+or:
+
+```json
+{ "knowledgeBase": [{ "key": "orari", "facts": ["Aperti dalle 7 alle 20"] }] }
+```

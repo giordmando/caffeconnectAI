@@ -7,7 +7,7 @@ const { AgentOrchestrator } = require('./agentOrchestrator');
 const { createDefaultToolRegistry } = require('./toolRegistry');
 
 const config = createGatewayConfig();
-const toolRegistry = createDefaultToolRegistry();
+const toolRegistry = createDefaultToolRegistry(config);
 const openaiClient = new OpenAIResponsesClient({
   apiKey: config.openaiApiKey,
   baseUrl: config.openaiBaseUrl,
@@ -151,3 +151,4 @@ server.listen(config.port, () => {
   console.log('[ai-gateway] listening on http://localhost:' + config.port);
   console.log('[ai-gateway] mode:', config.demoMode || !openaiClient.isConfigured() ? 'demo' : 'openai-responses');
 });
+
