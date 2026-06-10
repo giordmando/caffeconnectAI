@@ -151,11 +151,12 @@ export class ActionHandlerService implements IActionHandlerService {
     const itemType = payload.type as 'menuItem' | 'product';
     let itemName = payload.name;
     let itemCategory = payload.category;
+    let itemDetails: any = null;
     
     // Recupera dettagli se mancanti
-    if (!itemName || !itemCategory) {
+    if (!itemName || !itemCategory || typeof payload.price !== 'number') {
       try {
-        const itemDetails = itemType === 'menuItem'
+        itemDetails = itemType === 'menuItem'
           ? await this.catalogService.getMenuItemById(payload.id)
           : await this.catalogService.getProductById(payload.id);
           
@@ -175,7 +176,13 @@ export class ActionHandlerService implements IActionHandlerService {
     
     // Aggiungi al carrello
     if (this.addToCart) {
-      this.addToCart(payload, itemType);
+      this.addToCart({
+        ...itemDetails,
+        ...payload,
+        name: itemName,
+        category: itemCategory,
+        price: typeof payload.price === 'number' ? payload.price : itemDetails?.price ?? 0
+      }, itemType);
     }
     
     // Conferma messaggio

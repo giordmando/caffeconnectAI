@@ -54,13 +54,12 @@ export const ProductCarousel: React.FC<ProductCarouselProps> = ({
   
   const handleProductClick = (product: any) => {
     if (onAction) {
-      // Invece di chiamare semplicemente onAction('view_item', ...)
-      // Chiama la funzione view_item_details attraverso l'handler
-      onAction('execute_function', {
-        functionName: 'view_item_details',
-        parameters: {
-          itemId: product.id,
-          itemType: 'product'
+      onAction('view_item', {
+        id: product.id,
+        type: 'product',
+        item: {
+          ...product,
+          type: 'product'
         }
       });
     }

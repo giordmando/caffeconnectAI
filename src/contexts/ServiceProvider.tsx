@@ -55,6 +55,10 @@ export const ServiceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     loadServices();
   }, [loadServices]);
 
+  useEffect(() => {
+    orderOrchestrator.registerStrategy('whatsapp', new WhatsAppOrderStrategy());
+  }, []);
+
   const changeAIProvider = useCallback(
     async (provider: string, model: string, apiKey: string, options: AppConfig['ai']['activeOptions']) => {
     if (!initializedServices) {
@@ -103,7 +107,6 @@ export const ServiceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         changeAIProvider: () => console.warn("Services not ready to change AI provider"),
         reloadServices: async () => console.warn("Services not ready to reload"),
       } as unknown as AppServicesContextType);
-    orderOrchestrator.registerStrategy('whatsapp', new WhatsAppOrderStrategy());
   return (
     <ServiceContext.Provider value={contextValue}>
       {children}

@@ -12,17 +12,16 @@ interface CheckoutFlowProps {
 
 export const CheckoutFlow: React.FC<CheckoutFlowProps> = ({ onBack, onComplete }) => {
   const { items, subtotal, clear } = useCart();
+  const businessConfig = configManager.getSection('business');
+  const availableMethods = orderOrchestrator.getAvailableStrategies();
   const [userInfo, setUserInfo] = useState({
     name: '',
     phone: '',
     notes: ''
   });
-  const [selectedMethod, setSelectedMethod] = useState<string>('');
+  const [selectedMethod, setSelectedMethod] = useState<string>(availableMethods[0] || '');
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string>('');
-  
-  const businessConfig = configManager.getSection('business');
-  const availableMethods = orderOrchestrator.getAvailableStrategies();
   
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

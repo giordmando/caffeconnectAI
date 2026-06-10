@@ -17,19 +17,28 @@ export class CartService {
   }
   
   addItem(item: any, type: 'menuItem' | 'product'): void {
+    const quantityToAdd = Math.max(1, Number(item.quantity) || 1);
     const existingIndex = this.items.findIndex(
       cartItem => cartItem.id === item.id && cartItem.type === type
     );
     
     if (existingIndex >= 0) {
-      this.items[existingIndex].quantity += 1;
+      this.items[existingIndex].quantity += quantityToAdd;
+      if (item.options) {
+        this.items[existingIndex].options = item.options;
+      }
+      if (item.notes) {
+        this.items[existingIndex].notes = item.notes;
+      }
     } else {
       this.items.push({
         id: item.id,
         name: item.name,
         price: item.price,
-        quantity: 1,
-        type
+        quantity: quantityToAdd,
+        type,
+        options: item.options,
+        notes: item.notes
       });
     }
     
