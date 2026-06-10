@@ -1,5 +1,6 @@
-import React, { createContext, useContext, useState, useEffect, useRef, useMemo, useCallback } from 'react';
+﻿import React, { createContext, useContext, useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { Message } from '../types/Message';
+import { UIComponent } from '../types/UI';
 import { useServices } from '../contexts/ServiceProvider';
 import { ChatConfig } from '../config/interfaces/IAppConfig';
 import { useCart } from '../hooks/useCart';
@@ -12,6 +13,7 @@ import { ActionHandlerService, IActionHandlerService } from '../services/chat/Ac
 import { NLPAnalysisService, INLPAnalysisService } from '../services/chat/NLPAnalysisService';
 import { ConversationManagerService, IConversationManagerService } from '../services/chat/ConversationManagerService';
 import { ComponentManager } from '../services/ui/compstore/ComponentManager';
+import { AIGatewayClient, AIGatewayChatResponse } from '../services/ai/gateway/AIGatewayClient';
 
 // Interfaccia del contesto semplificata
 export interface ChatContextType {
@@ -114,6 +116,8 @@ export const ChatProvider: React.FC<{
     ),
     [conversationTracker, userService, suggestionService]
   );
+
+  const aiGatewayClient = useMemo(() => new AIGatewayClient(), []);
   
   // Stati locali (solo coordinamento)
   const [config, setConfig] = useState<ChatConfig>(() => ({
@@ -205,7 +209,145 @@ export const ChatProvider: React.FC<{
       handleSendMessage();
     }
   }, []);
-  
+  
+  const shouldUseAIGateway = useCallback((): boolean => {
+    return process.env.REACT_APP_ENABLE_AI_GATEWAY !== 'false';
+  }, []);
+
+  const createGatewayActions = useCallback((gatewayResponse: AIGatewayChatResponse): any[] => {
+    const actions: any[] = [];
+
+    (gatewayResponse.toolCalls || []).forEach(toolCall => {
+      const result: any = toolCall.result || {};
+      const items = result.items || result.products || [];
+
+      items.forEach((item: any) => {
+        if (!item || !item.id || !item.name) return;
+        actions.push({
+          type: 'view_item',
+          title: `Vedi ${item.name}`,
+          payload: {
+            id: item.id,
+            type: result.products ? 'product' : 'menuItem'
+          }
+        });
+      });
+    });
+
+    return actions.slice(0, 6);
+  }, []);
+
+  const createGatewayUIComponents = useCallback((gatewayResponse: AIGatewayChatResponse): UIComponent[] => {
+    const components: UIComponent[] = [];
+
+    (gatewayResponse.toolCalls || []).forEach((toolCall, toolIndex) => {
+      const result: any = toolCall.result || {};
+      const items = result.items || [];
+      const products = result.products || [];
+
+      if (toolCall.name === 'search_menu' && items.length > 0) {
+        components.push({
+          type: 'menuCarousel',
+          placement: 'inline',
+          id: `gateway-menu-${Date.now()}-${toolIndex}`,
+          data: {
+            recommendations: items.slice(0, config.maxRecommendations || 4).map((item: any, index: number) => ({
+              id: item.id,
+              name: item.name,
+              confidence: Math.max(0.75, 0.95 - index * 0.05)
+            })),
+            timeOfDay: toolCall.arguments && typeof toolCall.arguments === 'object'
+              ? (toolCall.arguments as any).timeOfDay || 'all'
+              : 'all',
+            category: 'all'
+          },
+          _updated: Date.now()
+        });
+      }
+
+      if (toolCall.name === 'search_products' && products.length > 0) {
+        components.push({
+          type: 'productCarousel',
+          placement: 'inline',
+          id: `gateway-products-${Date.now()}-${toolIndex}`,
+          data: {
+            recommendations: products.slice(0, config.maxRecommendations || 4).map((product: any, index: number) => ({
+              id: product.id,
+              name: product.name,
+              confidence: Math.max(0.75, 0.95 - index * 0.05)
+            })),
+            category: 'all'
+          },
+          _updated: Date.now()
+        });
+      }
+
+      if (toolCall.name === 'get_item_detail' && result.item) {
+        components.push({
+          type: 'productDetail',
+          placement: 'inline',
+          id: `gateway-detail-${result.item.id}-${Date.now()}`,
+          data: { product: result.item },
+          _updated: Date.now()
+        });
+      }
+    });
+
+    return components;
+  }, [config.maxRecommendations]);
+
+  const sendMessageThroughGateway = useCallback(async (
+    message: string,
+    conversationId: string,
+    userContext: any
+  ): Promise<boolean> => {
+    if (!shouldUseAIGateway()) return false;
+
+    try {
+      const gatewayResponse = await aiGatewayClient.sendMessage({
+        message,
+        conversationId,
+        userContext,
+        business: appConfig?.business
+          ? {
+              name: appConfig.business.name,
+              type: appConfig.business.type
+            }
+          : undefined,
+        knowledgeBase: appConfig?.knowledgeBase || [],
+        knowledgeSources: appConfig?.knowledgeSources || { urls: [], inlineText: '' }
+      });
+
+      const assistantMessage = messageService.createAssistantMessage(gatewayResponse.message);
+      messageService.addMessage(assistantMessage);
+      setMessages(messageService.getMessages());
+
+      await messageService.trackMessage(
+        assistantMessage,
+        conversationId,
+        userService.getUserContext()
+      );
+      if (config.enableDynamicComponents) {
+        uiComponentService.addComponents(createGatewayUIComponents(gatewayResponse));
+      }
+
+      setAvailableActions(createGatewayActions(gatewayResponse));
+      return true;
+    } catch (error) {
+      console.warn('[ChatContext] AI Gateway unavailable, falling back to current provider:', error);
+      return false;
+    }
+  }, [
+    aiGatewayClient,
+    appConfig,
+    config.enableDynamicComponents,
+    createGatewayActions,
+    createGatewayUIComponents,
+    messageService,
+    shouldUseAIGateway,
+    uiComponentService,
+    userService
+  ]);
   const handleSendMessage = useCallback(async () => {
     const conversationId = conversationManager.getCurrentConversationId();
     if (inputValue.trim() === '' || isTyping || !conversationId) return;
@@ -250,32 +392,40 @@ export const ChatProvider: React.FC<{
         : {};
       const extendedContext = { ...userCtx, aiContext: aiContextForAnalytics };
       
-      // Invia messaggio all'AI
-      const response = await aiService.sendMessage(userMessageContent, extendedContext);
-      
-      // Aggiungi risposta
-      messageService.addMessage(response.message);
-      setMessages(messageService.getMessages());
-      
-      // Track risposta
-      await messageService.trackMessage(
-        response.message,
+      // Invia prima al nuovo AI Gateway; se non disponibile, usa il provider corrente.
+      const handledByGateway = await sendMessageThroughGateway(
+        userMessageContent,
         conversationId,
-        userService.getUserContext()
+        extendedContext
       );
-      
-      // Gestisci componenti UI
-      if (response.uiComponents && config.enableDynamicComponents) {
-        uiComponentService.addComponents(response.uiComponents);
+
+      if (!handledByGateway) {
+        const response = await aiService.sendMessage(userMessageContent, extendedContext);
+        
+        // Aggiungi risposta
+        messageService.addMessage(response.message);
+        setMessages(messageService.getMessages());
+        
+        // Track risposta
+        await messageService.trackMessage(
+          response.message,
+          conversationId,
+          userService.getUserContext()
+        );
+        
+        // Gestisci componenti UI
+        if (response.uiComponents && config.enableDynamicComponents) {
+          uiComponentService.addComponents(response.uiComponents);
+        }
+        
+        // Aggiorna suggerimenti
+        if (response.suggestedPrompts && config.enableSuggestions) {
+          suggestionManagement.updateSuggestions(response.suggestedPrompts);
+        }
+        
+        // Aggiorna azioni disponibili
+        setAvailableActions(response.availableActions || []);
       }
-      
-      // Aggiorna suggerimenti
-      if (response.suggestedPrompts && config.enableSuggestions) {
-        suggestionManagement.updateSuggestions(response.suggestedPrompts);
-      }
-      
-      // Aggiorna azioni disponibili
-      setAvailableActions(response.availableActions || []);
       
     } catch (error) {
       console.error('[ChatContext] Error sending message:', error);
@@ -298,7 +448,8 @@ export const ChatProvider: React.FC<{
     conversationManager,
     userService,
     conversationTracker,
-    aiService
+    aiService,
+    sendMessageThroughGateway
   ]);
   
   const handleSuggestionClick = useCallback((suggestion: string) => {
@@ -351,3 +502,9 @@ export const useChatContext = (): ChatContextType => {
   }
   return context;
 };
+
+
+
+
+
+

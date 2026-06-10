@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+﻿import { useState, useCallback } from 'react';
 import { AppConfig } from '../../config/interfaces/IAppConfig';
 import { configManager } from '../../config/ConfigManager';
 
@@ -10,7 +10,9 @@ export const useConfigState = () => {
     setConfig(prevConfig => {
       const newConfig = JSON.parse(JSON.stringify(prevConfig)) as AppConfig;
       
-      if (field.includes('.')) {
+      if (section === field) {
+        (newConfig as any)[section] = value;
+      } else if (field.includes('.')) {
         const parts = field.split('.');
         let current: any = newConfig[section];
         for (let i = 0; i < parts.length - 1; i++) {

@@ -126,6 +126,13 @@ export class ConfigManager implements IConfigManager {
    * @param data Nuovi dati
    */
   public updateSection<K extends keyof AppConfig>(section: K, data: Partial<AppConfig[K]>): void {
+    if (Array.isArray(data)) {
+      this.config[section] = data as AppConfig[K];
+      this.saveToLocalStorage();
+      console.log(`Configuration section '${section}' updated and saved.`);
+      return;
+    }
+
     // Assicurati che la sezione esista prima di tentare di unirla
     const currentSection = this.config[section] || {};
     this.config[section] = this.deepMerge(currentSection, data) as AppConfig[K];
@@ -312,7 +319,11 @@ export class ConfigManager implements IConfigManager {
           ],
           scope: "global"
         }
-      ]
+      ],
+      knowledgeSources: {
+        urls: [],
+        inlineText: ''
+      }
     };
   }
 }

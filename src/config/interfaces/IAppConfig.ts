@@ -120,4 +120,9 @@ export interface AppConfig {
       scope?: 'global' | 'product' | 'category';
       itemId?: string;
     }>;
+
+    knowledgeSources?: {
+      urls: string[];
+      inlineText: string;
+    };
   }

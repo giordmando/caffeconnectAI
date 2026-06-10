@@ -3,17 +3,38 @@ import type { IConfigSection } from '../../interfaces/IConfigSection';
 import type { AppConfig } from '../../../../config/interfaces/IAppConfig';
 
 type KnowledgeBase = AppConfig['knowledgeBase'];
+type KnowledgeSources = AppConfig['knowledgeSources'];
 
 interface KnowledgeBasePanelProps extends IConfigSection<KnowledgeBase> {
   // Override per gestire l'array direttamente
   onChange: (field: string, value: KnowledgeBase) => void;
+  knowledgeSources?: KnowledgeSources;
+  onSourcesChange?: (value: KnowledgeSources) => void;
 }
 
 export const KnowledgeBasePanel: React.FC<KnowledgeBasePanelProps> = ({
   config,
   onChange,
+  knowledgeSources,
+  onSourcesChange,
   className = ''
 }) => {
+  const sources = knowledgeSources || { urls: [], inlineText: '' };
+
+  const handleUrlsChange = (value: string) => {
+    onSourcesChange?.({
+      ...sources,
+      urls: value.split('\n').map(url => url.trim()).filter(Boolean)
+    });
+  };
+
+  const handleInlineTextChange = (value: string) => {
+    onSourcesChange?.({
+      ...sources,
+      inlineText: value
+    });
+  };
+
   const handleAddEntry = () => {
     const newEntry = { key: '', facts: [''], scope: 'global' as const };
     onChange('_self', [...(config || []), newEntry]);
@@ -56,6 +77,33 @@ export const KnowledgeBasePanel: React.FC<KnowledgeBasePanelProps> = ({
       <p className="form-text">
         Aggiungi informazioni specifiche che l'AI deve conoscere.
       </p>
+
+      <div className="knowledge-entry-card">
+        <h4>Sorgenti aperte</h4>
+        <p className="form-text">
+          Collega fonti pubbliche dell'esercente: JSON, FAQ, testo, export o documenti pubblicati come URL.
+        </p>
+
+        <div className="form-group">
+          <label>URL sorgenti knowledge</label>
+          <textarea
+            rows={3}
+            value={(sources.urls || []).join('\n')}
+            onChange={(e) => handleUrlsChange(e.target.value)}
+            placeholder="https://example.com/faq.json&#10;https://example.com/menu-info.txt"
+          />
+        </div>
+
+        <div className="form-group">
+          <label>Testo libero esercente</label>
+          <textarea
+            rows={5}
+            value={sources.inlineText || ''}
+            onChange={(e) => handleInlineTextChange(e.target.value)}
+            placeholder="Es. Offerta del giorno, policy allergeni, storia del locale, regole per il ritiro..."
+          />
+        </div>
+      </div>
       
       {(config || []).map((entry, entryIndex) => (
         <div key={entryIndex} className="knowledge-entry-card">

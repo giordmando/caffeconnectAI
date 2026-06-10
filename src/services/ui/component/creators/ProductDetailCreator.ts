@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 
 import { UIComponent } from '../../../../types/UI';
 import { ProductDetailComponent } from '../../../../components/ui/ProductDetailComponent';
@@ -10,7 +10,9 @@ export class ProductDetailCreator extends BaseComponentCreator {
   
   createReactElement(component: UIComponent, onAction?: (action: string, payload: any) => void): React.ReactElement {
     let product = component.data?.product || component.data || {};
-    product = product?.results?.[0];
+    if (product?.results?.[0]) {
+      product = product.results[0];
+    }
     return React.createElement(ProductDetailComponent, {
       product: product,
       id: component.id,
@@ -36,7 +38,7 @@ export class ProductDetailCreator extends BaseComponentCreator {
     
     if (functionName === 'search_product_by_name' && result.results) {
       // Per la ricerca, crea un componente per ogni risultato
-      // Nota: questo è un caso speciale, normalmente restituirebbe un singolo componente
+      // Nota: questo Ã¨ un caso speciale, normalmente restituirebbe un singolo componente
       console.warn('Search results should be handled by a specialized component');
       return null;
     }

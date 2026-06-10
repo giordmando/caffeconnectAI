@@ -6,6 +6,16 @@
     name?: string;
     type?: string;
   };
+  knowledgeBase?: Array<{
+    key: string;
+    facts: string[];
+    scope?: 'global' | 'product' | 'category';
+    itemId?: string;
+  }>;
+  knowledgeSources?: {
+    urls: string[];
+    inlineText: string;
+  };
 }
 
 export interface AIGatewayChatResponse {
@@ -39,3 +49,4 @@ export class AIGatewayClient {
     return response.json();
   }
 }
+

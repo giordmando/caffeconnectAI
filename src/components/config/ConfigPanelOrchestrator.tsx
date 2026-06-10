@@ -65,6 +65,8 @@ const PANEL_COMPONENTS: Record<string, React.FC<PanelProps<any>>[]> = {
       <KnowledgeBasePanel
         {...props}
         config={props.config.knowledgeBase || []}
+        knowledgeSources={props.config.knowledgeSources || { urls: [], inlineText: '' }}
+        onSourcesChange={(value) => props.onChange('knowledgeSources', value)}
         onChange={(field, value) => {
           // KnowledgeBasePanel passa '_self' come field per aggiornare l'intero array
           // o il nome del campo se si aggiorna una proprietà specifica (improbabile con l'implementazione corrente di KnowledgeBasePanel)
@@ -132,6 +134,11 @@ export const ConfigPanelOrchestrator: React.FC<ConfigPanelOrchestratorProps> = (
         // La soluzione più pulita è che ogni panel sappia la sua `sectionKey` e la usi con `updateSection`.
         // Oppure, il mapping in `PANEL_COMPONENTS` adatta la chiamata.
         onChange: (sectionOrField: string, valueOrField: any, fieldValue?: any) => {
+            if (activeTab === 'knowledge' && (sectionOrField === 'knowledgeBase' || sectionOrField === 'knowledgeSources')) {
+                updateSection(sectionOrField as keyof AppConfig, sectionOrField, valueOrField);
+                return;
+            }
+
             // Questo è un punto delicato. La firma di `updateSection` è `(section: keyof AppConfig, field: string, value: any)`
             // I panel, tuttavia, chiamano `onChange(field, value)` relativo alla loro sotto-configurazione.
             // Il mapping in PANEL_COMPONENTS risolve questo.

@@ -25,7 +25,7 @@ class AgentOrchestrator {
     }
 
     if (this.config.demoMode || !this.openaiClient.isConfigured()) {
-      return this.runDemoMode(message);
+      return this.runDemoMode(message, payload);
     }
 
     return this.runResponsesWithTools(message, payload);
@@ -83,11 +83,26 @@ class AgentOrchestrator {
     };
   }
 
-  async runDemoMode(message) {
+  async runDemoMode(message, payload = {}) {
     const lower = message.toLowerCase();
     const toolCalls = [];
 
     if (this.isKnowledgeQuestion(lower)) {
+      const runtimeResult = await this.searchRuntimeKnowledge(message, payload);
+      if (runtimeResult.results.length > 0) {
+        toolCalls.push({
+          name: 'runtime_knowledge_search',
+          arguments: { query: message },
+          result: runtimeResult
+        });
+
+        return {
+          message: this.summarizeKnowledgeResult(runtimeResult.results),
+          toolCalls,
+          mode: 'demo'
+        };
+      }
+
       const args = { query: message, limit: 3 };
       const result = await this.toolRegistry.execute('knowledge_search', args);
       toolCalls.push({ name: 'knowledge_search', arguments: args, result });
@@ -164,11 +179,160 @@ class AgentOrchestrator {
     return this.cleanModelText(modelText);
   }
 
+  async searchRuntimeKnowledge(query, payload) {
+    const entries = await this.runtimeKnowledgeEntries(payload);
+    const terms = String(query || '')
+      .toLowerCase()
+      .split(/\s+/)
+      .filter(term => term.length > 2);
+
+    const results = entries
+      .map(entry => {
+        const haystack = [entry.title, entry.content, ...(entry.tags || [])].join(' ').toLowerCase();
+        const score = terms.reduce((sum, term) => sum + (haystack.includes(term) ? 1 : 0), 0);
+        return { ...entry, score };
+      })
+      .filter(entry => entry.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 3);
+
+    return {
+      results,
+      count: results.length,
+      sources: ['runtime-settings']
+    };
+  }
+
+  async runtimeKnowledgeEntries(payload) {
+    const knowledgeBase = Array.isArray(payload.knowledgeBase) ? payload.knowledgeBase : [];
+    const knowledgeSources = payload.knowledgeSources || {};
+
+    const entries = knowledgeBase.flatMap((entry, entryIndex) => {
+      const facts = Array.isArray(entry.facts) ? entry.facts : [];
+
+      return facts
+        .filter(fact => String(fact || '').trim())
+        .map((fact, factIndex) => ({
+          id: `runtime-${entryIndex}-${factIndex}`,
+          title: entry.key || 'Knowledge setting',
+          content: String(fact),
+          tags: [entry.key, entry.scope, entry.itemId].filter(Boolean),
+          source: 'runtime-settings'
+        }));
+    });
+
+    if (knowledgeSources.inlineText) {
+      entries.push({
+        id: 'runtime-inline-text',
+        title: 'Testo libero esercente',
+        content: String(knowledgeSources.inlineText),
+        tags: ['inline', 'settings'],
+        source: 'runtime-settings'
+      });
+    }
+
+    const urls = Array.isArray(knowledgeSources.urls) ? knowledgeSources.urls : [];
+    for (const url of urls.slice(0, 5)) {
+      try {
+        const response = await fetch(url);
+        if (!response.ok) continue;
+
+        const contentType = response.headers.get('content-type') || '';
+        if (contentType.includes('application/json')) {
+          const data = await response.json();
+          const remoteEntries = this.normalizeRuntimeKnowledgePayload(data, url);
+          entries.push(...remoteEntries);
+        } else {
+          const text = await response.text();
+          entries.push({
+            id: `runtime-url-${url}`,
+            title: url,
+            content: text.slice(0, 20000),
+            tags: ['url', 'remote'],
+            source: url
+          });
+        }
+      } catch (error) {
+        console.warn('[ai-gateway] Runtime knowledge URL failed:', url, error.message);
+      }
+    }
+
+    return entries;
+  }
+
+  formatRuntimeKnowledge(payload) {
+    const knowledgeBase = Array.isArray(payload.knowledgeBase) ? payload.knowledgeBase : [];
+    const knowledgeSources = payload.knowledgeSources || {};
+    const entries = knowledgeBase.flatMap((entry, entryIndex) => {
+      const facts = Array.isArray(entry.facts) ? entry.facts : [];
+      return facts.map((fact, factIndex) => ({
+        id: `runtime-${entryIndex}-${factIndex}`,
+        title: entry.key || 'Knowledge setting',
+        content: String(fact)
+      }));
+    });
+
+    if (knowledgeSources.inlineText) {
+      entries.push({
+        id: 'runtime-inline-text',
+        title: 'Testo libero esercente',
+        content: String(knowledgeSources.inlineText)
+      });
+    }
+
+    if (Array.isArray(knowledgeSources.urls) && knowledgeSources.urls.length > 0) {
+      entries.push({
+        id: 'runtime-urls',
+        title: 'URL knowledge collegati',
+        content: knowledgeSources.urls.join(', ')
+      });
+    }
+
+    const limitedEntries = entries.slice(0, 8);
+    if (limitedEntries.length === 0) return '';
+
+    return [
+      'Base conoscenza configurata dall esercente:',
+      ...limitedEntries.map(entry => `- ${entry.title}: ${entry.content}`)
+    ].join('\n');
+  }
+
+  normalizeRuntimeKnowledgePayload(payload, source) {
+    const rawEntries = Array.isArray(payload)
+      ? payload
+      : Array.isArray(payload?.knowledgeBase)
+        ? payload.knowledgeBase
+        : Array.isArray(payload?.entries)
+          ? payload.entries
+          : [];
+
+    return rawEntries.flatMap((entry, index) => {
+      if (entry.facts && Array.isArray(entry.facts)) {
+        return entry.facts.map((fact, factIndex) => ({
+          id: entry.id || `runtime-url-${index}-${factIndex}`,
+          title: entry.title || entry.key || source,
+          content: String(fact),
+          tags: entry.tags || [entry.key, entry.scope].filter(Boolean),
+          source
+        }));
+      }
+
+      return [{
+        id: entry.id || `runtime-url-${index}`,
+        title: entry.title || entry.key || source,
+        content: String(entry.content || entry.text || entry.description || ''),
+        tags: entry.tags || [entry.key, entry.scope].filter(Boolean),
+        source
+      }];
+    }).filter(entry => entry.content.trim().length > 0);
+  }
+
   isKnowledgeQuestion(lower) {
     return [
       'orari', 'aperto', 'chiuso', 'storia', 'qualita', 'qualità', 'fornitori',
       'allergeni', 'intolleranze', 'vegano', 'glutine', 'lattosio',
-      'policy', 'privacy', 'ritiro', 'whatsapp', 'ordine', 'ordini'
+      'policy', 'privacy', 'ritiro', 'whatsapp', 'ordine', 'ordini',
+      'offerta', 'offerte', 'promozione', 'promozioni', 'sconto', 'sconti'
     ].some(term => lower.includes(term));
   }
 
@@ -195,6 +359,7 @@ class AgentOrchestrator {
 
   buildInstructions(payload) {
     const business = payload.business || {};
+    const runtimeKnowledge = this.formatRuntimeKnowledge(payload);
 
     return [
       'Sei CafeConnect AI, un assistente commerciale per bar, cafe e piccoli locali.',
@@ -207,7 +372,8 @@ class AgentOrchestrator {
       'Non inventare prezzi, disponibilita, allergeni o ingredienti: usa i tool o chiedi conferma.',
       'Se il cliente vuole ordinare, prepara una bozza e chiedi conferma prima dell invio.',
       business.name ? 'Locale attivo: ' + business.name + '.' : '',
-      business.type ? 'Tipo locale: ' + business.type + '.' : ''
+      business.type ? 'Tipo locale: ' + business.type + '.' : '',
+      runtimeKnowledge
     ].filter(Boolean).join('\n');
   }
 }
