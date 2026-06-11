@@ -34,10 +34,10 @@ class ToolRegistry {
     }));
   }
 
-  async execute(name, args) {
+  async execute(name, args, context = {}) {
     const tool = this.tools.get(name);
     if (!tool) throw new Error('Unknown tool: ' + name);
-    return tool.execute(args || {});
+    return tool.execute(args || {}, context);
   }
 }
 

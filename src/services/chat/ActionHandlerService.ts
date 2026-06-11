@@ -3,6 +3,7 @@ import { ICatalogService } from '../catalog/interfaces/ICatalogService';
 import { IUserContextService } from '../user/interfaces/IUserContextService';
 import { IMessageService } from './MessageService';
 import { IUIComponentService } from './UIComponentService';
+import { businessEventService } from '../analytics/BusinessEventService';
 
 
 // Definisci il tipo per l'item del carrello
@@ -112,6 +113,13 @@ export class ActionHandlerService implements IActionHandlerService {
         : await this.catalogService.getProductById(payload.id);
         
       if (itemDetails) {
+        businessEventService.track('item_viewed', {
+          id: itemDetails.id,
+          name: itemDetails.name,
+          type: itemType,
+          category: itemDetails.category
+        });
+
         // Crea componente dettaglio prodotto
         const productDetailComponent = this.uiComponentService.createFunctionResultComponent(
           'view_item_details',

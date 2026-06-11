@@ -16,6 +16,10 @@
     urls: string[];
     inlineText: string;
   };
+  catalog?: {
+    menuItems?: any[];
+    products?: any[];
+  };
 }
 
 export interface AIGatewayChatResponse {

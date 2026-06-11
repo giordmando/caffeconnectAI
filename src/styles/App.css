@@ -143,7 +143,7 @@ input:focus, select:focus, textarea:focus {
   text-transform: capitalize;
 }
 
-.config-button, .business-config-button { /* Stile unificato per i bottoni config */
+.config-button, .business-config-button, .dashboard-button { /* Stile unificato per i bottoni config */
   background-color: var(--primary-color);
   color: white;
   padding: 8px 16px;
@@ -151,7 +151,7 @@ input:focus, select:focus, textarea:focus {
   font-size: 14px;
 }
 
-.config-button:hover, .business-config-button:hover {
+.config-button:hover, .business-config-button:hover, .dashboard-button:hover {
   background-color: var(--primary-light);
 }
 
@@ -382,9 +382,22 @@ input:focus, select:focus, textarea:focus {
   max-height: calc(100vh - 40px); /* Altezza massima, considerando il padding dell'overlay */
 }
 
+.business-dashboard {
+  background-color: white;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  width: 100%;
+  max-width: 980px;
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 40px);
+  overflow: hidden;
+}
+
 /* Header comune per entrambi i pannelli di configurazione */
 .ai-config-panel .config-header,
-.config-panel-orchestrator .config-header {
+.config-panel-orchestrator .config-header,
+.business-dashboard .config-header {
   padding: 16px 24px;
   background-color: var(--primary-color);
   color: white;
@@ -397,13 +410,44 @@ input:focus, select:focus, textarea:focus {
 }
 
 .ai-config-panel .config-header h2,
-.config-panel-orchestrator .config-header h2 {
+.config-panel-orchestrator .config-header h2,
+.business-dashboard .config-header h2 {
   margin: 0;
   font-size: 1.4rem;
 }
 
+.business-dashboard .config-header p {
+  margin: 3px 0 0;
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 13px;
+}
+
+.dashboard-header-actions {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+}
+
+.dashboard-refresh-btn {
+  background-color: rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.34);
+  color: white;
+  font-size: 13px;
+  padding: 7px 12px;
+}
+
+.dashboard-refresh-btn:hover:not(:disabled) {
+  background-color: rgba(255, 255, 255, 0.24);
+}
+
+.dashboard-refresh-btn:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
 .ai-config-panel .close-btn,
-.config-panel-orchestrator .close-btn {
+.config-panel-orchestrator .close-btn,
+.business-dashboard .close-btn {
   background: none;
   border: none;
   color: white;
@@ -416,8 +460,229 @@ input:focus, select:focus, textarea:focus {
 }
 
 .ai-config-panel .close-btn:hover,
-.config-panel-orchestrator .close-btn:hover {
+.config-panel-orchestrator .close-btn:hover,
+.business-dashboard .close-btn:hover {
   opacity: 1;
+}
+
+.dashboard-content {
+  padding: 20px;
+  overflow-y: auto;
+  background-color: #f8fafc;
+}
+
+.dashboard-summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  align-items: flex-start;
+  margin-bottom: 20px;
+}
+
+.dashboard-summary h3,
+.dashboard-panel h3 {
+  color: var(--primary-color);
+  font-size: 18px;
+  margin-bottom: 6px;
+}
+
+.dashboard-summary p,
+.dashboard-muted {
+  color: var(--dark-gray);
+  font-size: 14px;
+}
+
+.dashboard-health {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+  min-width: 260px;
+}
+
+.dashboard-health span,
+.query-list span {
+  background-color: white;
+  border: 1px solid var(--light-gray);
+  border-radius: 999px;
+  color: var(--primary-color);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 7px 10px;
+}
+
+.dashboard-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.dashboard-kpi,
+.dashboard-panel {
+  background-color: white;
+  border: 1px solid var(--light-gray);
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.dashboard-kpi {
+  min-height: 112px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.kpi-label,
+.kpi-note {
+  color: var(--dark-gray);
+  font-size: 12px;
+}
+
+.dashboard-kpi strong {
+  color: var(--primary-color);
+  font-size: 28px;
+  line-height: 1.1;
+}
+
+.dashboard-columns {
+  display: grid;
+  grid-template-columns: 1.15fr 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.dashboard-detail-grid {
+  display: grid;
+  grid-template-columns: minmax(240px, 0.85fr) minmax(320px, 1.15fr);
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.query-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.dashboard-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.dashboard-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid #edf2f7;
+  padding-bottom: 10px;
+}
+
+.dashboard-list li:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.dashboard-list span {
+  color: var(--text-color);
+  font-size: 14px;
+}
+
+.dashboard-list strong {
+  color: var(--primary-color);
+  white-space: nowrap;
+}
+
+.dashboard-ranked-list b {
+  background-color: var(--primary-color);
+  border-radius: 999px;
+  color: white;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  height: 22px;
+  margin-right: 8px;
+  width: 22px;
+}
+
+.dashboard-event-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dashboard-event-list li {
+  align-items: center;
+  border-bottom: 1px solid #edf2f7;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 112px minmax(0, 1fr) 48px;
+  padding-bottom: 8px;
+}
+
+.dashboard-event-list li:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.event-type {
+  background-color: #edf2f7;
+  border-radius: 999px;
+  color: var(--primary-color);
+  font-size: 12px;
+  font-weight: 700;
+  padding: 5px 8px;
+  text-align: center;
+}
+
+.event-add_to_cart,
+.event-order_submitted {
+  background-color: #e6fffa;
+  color: #047857;
+}
+
+.event-order_failed {
+  background-color: #fff5f5;
+  color: var(--error-color);
+}
+
+.event-payload {
+  color: var(--text-color);
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dashboard-event-list time {
+  color: var(--medium-gray);
+  font-size: 12px;
+  text-align: right;
+}
+
+.dashboard-actions-panel {
+  margin-bottom: 12px;
+}
+
+.dashboard-action-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.dashboard-action-item {
+  background-color: #f7fafc;
+  border-left: 4px solid var(--secondary-color);
+  border-radius: 6px;
+  color: var(--dark-gray);
+  font-size: 14px;
+  padding: 12px;
 }
 
 /* Stile per i tab nel ConfigPanelOrchestrator */
@@ -599,15 +864,46 @@ input:focus, select:focus, textarea:focus {
   .chat-sidebar { width: 100%; border-left: none; border-top: 1px solid var(--light-gray); max-height: 250px; }
   .chat-container { min-height: calc(100vh - 100px); /* Adatta in base al tuo header/footer effettivo */ }
   .app-header { flex-direction: column; gap: 12px; text-align: center; }
+  .header-actions { flex-wrap: wrap; justify-content: center; gap: 8px; }
   .app-footer { flex-direction: column; gap: 12px; text-align: center; }
 
   .modal-overlay {
     padding: 10px; /* Riduci padding su mobile */
     align-items: flex-start; /* Allinea in alto per permettere lo scroll se il pannello è alto */
   }
-  .ai-config-panel, .config-panel-orchestrator {
+  .ai-config-panel, .config-panel-orchestrator, .business-dashboard {
       max-height: calc(100vh - 20px); /* Adatta per mobile */
       margin-top: 10px; /* Spazio dall'alto */
+  }
+
+  .dashboard-summary,
+  .dashboard-columns,
+  .dashboard-detail-grid {
+    grid-template-columns: 1fr;
+    flex-direction: column;
+  }
+
+  .dashboard-event-list li {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-event-list time {
+    text-align: left;
+  }
+
+  .dashboard-health {
+    justify-content: flex-start;
+    min-width: 0;
+  }
+
+  .dashboard-header-actions {
+    align-items: flex-end;
+    flex-direction: column-reverse;
+  }
+
+  .dashboard-kpi-grid,
+  .dashboard-action-grid {
+    grid-template-columns: 1fr;
   }
   .config-panel-orchestrator .config-tabs button {
       font-size: 0.8rem; /* Riduci font per i tab su mobile */

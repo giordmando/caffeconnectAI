@@ -4,3 +4,4 @@ node_modules/*
 *.log
 *.tsbuildinfo
 package-lock.json
+server/ai-gateway/data/businessEvents.json

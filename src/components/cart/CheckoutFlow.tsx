@@ -4,6 +4,7 @@ import { useCart } from '../../hooks/useCart';
 import { orderOrchestrator } from '../../services/order/OrderOrchestrator';
 import { formatPrice } from '../../utils/formatters';
 import { configManager } from '../../config/ConfigManager';
+import { businessEventService } from '../../services/analytics/BusinessEventService';
 
 interface CheckoutFlowProps {
   onBack: () => void;
@@ -48,6 +49,13 @@ export const CheckoutFlow: React.FC<CheckoutFlowProps> = ({ onBack, onComplete }
       );
       
       if (result.success) {
+        businessEventService.track('order_submitted', {
+          orderId: result.orderId,
+          method: selectedMethod,
+          itemCount: items.reduce((sum, item) => sum + item.quantity, 0),
+          subtotal
+        });
+
         // Pulisci carrello
         clear();
         
@@ -57,9 +65,19 @@ export const CheckoutFlow: React.FC<CheckoutFlowProps> = ({ onBack, onComplete }
         // Chiudi checkout
         onComplete();
       } else {
+        businessEventService.track('order_failed', {
+          method: selectedMethod,
+          subtotal,
+          error: result.error || 'Errore invio ordine'
+        });
         setError(result.error || 'Errore nell\'invio dell\'ordine');
       }
     } catch (error) {
+      businessEventService.track('order_failed', {
+        method: selectedMethod,
+        subtotal,
+        error: error instanceof Error ? error.message : 'Errore imprevisto'
+      });
       setError('Errore imprevisto. Riprova.');
       console.error('Checkout error:', error);
     } finally {

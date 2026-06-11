@@ -2,19 +2,179 @@ const fs = require('fs');
 const path = require('path');
 
 function readJson(relativePath, fallback) {
-  try { return JSON.parse(fs.readFileSync(path.resolve(process.cwd(), relativePath), 'utf8')); }
-  catch (error) { console.warn('[ai-gateway] Unable to read local catalog data:', relativePath, error.message); return fallback; }
+  try {
+    return JSON.parse(fs.readFileSync(path.resolve(process.cwd(), relativePath), 'utf8'));
+  } catch (error) {
+    console.warn('[ai-gateway] Unable to read local catalog data:', relativePath, error.message);
+    return fallback;
+  }
 }
-function loadMenuItems() { const data = readJson('src/api/mockData/menuItems.json', { menuItems: [] }); return Array.isArray(data.menuItems) ? data.menuItems : []; }
-function loadProducts() { const data = readJson('src/api/mockData/products.json', []); return Array.isArray(data) ? data : []; }
-function normalize(value) { return String(value || '').toLowerCase(); }
+
+function loadLocalMenuItems() {
+  const data = readJson('src/api/mockData/menuItems.json', { menuItems: [] });
+  return Array.isArray(data.menuItems) ? data.menuItems : [];
+}
+
+function loadLocalProducts() {
+  const data = readJson('src/api/mockData/products.json', []);
+  return Array.isArray(data) ? data : [];
+}
+
+function loadMenuItems(context = {}) {
+  const runtimeItems = context.catalog?.menuItems;
+  return Array.isArray(runtimeItems) && runtimeItems.length > 0 ? runtimeItems : loadLocalMenuItems();
+}
+
+function loadProducts(context = {}) {
+  const runtimeProducts = context.catalog?.products;
+  return Array.isArray(runtimeProducts) && runtimeProducts.length > 0 ? runtimeProducts : loadLocalProducts();
+}
+
+function normalize(value) {
+  return String(value || '').toLowerCase();
+}
+
+function matchesQuery(entry, query) {
+  if (!query) return true;
+  const searchableFields = [
+    entry.name,
+    entry.description,
+    entry.category,
+    entry.subcategory,
+    ...(entry.preferences || []),
+    ...(entry.ingredients || []),
+    ...(entry.allergens || []),
+    ...(entry.dietaryInfo || []),
+    ...(entry.timeOfDay || [])
+  ];
+
+  return searchableFields.some(field => normalize(field).includes(query));
+}
 
 function createCatalogTools() {
   return [
-    { name: 'search_menu', description: 'Search CafeConnect menu items by query, category, time of day, or dietary preference.', parameters: { type: 'object', properties: { query: { type: 'string' }, category: { type: 'string' }, timeOfDay: { type: 'string', enum: ['morning', 'afternoon', 'evening', 'all'] }, limit: { type: 'number' } }, additionalProperties: false }, execute: async ({ query = '', category = 'all', timeOfDay = 'all', limit = 6 } = {}) => { const q = normalize(query); const items = loadMenuItems().filter(item => category === 'all' || !category || item.category === category).filter(item => timeOfDay === 'all' || !timeOfDay || (item.timeOfDay || []).includes(timeOfDay)).filter(item => !q || [item.name, item.description, item.category].some(field => normalize(field).includes(q))).slice(0, limit); return { items, count: items.length }; } },
-    { name: 'search_products', description: 'Search packaged products that can be purchased or added to cart.', parameters: { type: 'object', properties: { query: { type: 'string' }, category: { type: 'string' }, limit: { type: 'number' } }, additionalProperties: false }, execute: async ({ query = '', category = 'all', limit = 6 } = {}) => { const q = normalize(query); const products = loadProducts().filter(product => category === 'all' || !category || product.category === category).filter(product => !q || [product.name, product.description, product.category].some(field => normalize(field).includes(q))).slice(0, limit); return { products, count: products.length }; } },
-    { name: 'get_item_detail', description: 'Get a single menu item or product by id.', parameters: { type: 'object', properties: { id: { type: 'string' }, type: { type: 'string', enum: ['menuItem', 'product'] } }, required: ['id', 'type'], additionalProperties: false }, execute: async ({ id, type }) => { const collection = type === 'product' ? loadProducts() : loadMenuItems(); const item = collection.find(entry => entry.id === id) || null; return { item, found: Boolean(item) }; } },
-    { name: 'create_order_draft', description: 'Create a draft order summary. This does not charge the customer or submit to WhatsApp/POS.', parameters: { type: 'object', properties: { items: { type: 'array', items: { type: 'object', properties: { id: { type: 'string' }, type: { type: 'string', enum: ['menuItem', 'product'] }, quantity: { type: 'number' } }, required: ['id', 'type', 'quantity'], additionalProperties: false } }, customerName: { type: 'string' }, notes: { type: 'string' } }, required: ['items'], additionalProperties: false }, execute: async ({ items = [], customerName = '', notes = '' }) => { const menu = loadMenuItems(); const products = loadProducts(); const lines = items.map(requested => { const source = requested.type === 'product' ? products : menu; const item = source.find(entry => entry.id === requested.id); const quantity = Math.max(1, Number(requested.quantity || 1)); return item ? { id: item.id, type: requested.type, name: item.name, quantity, price: Number(item.price || 0), lineTotal: Number(item.price || 0) * quantity } : null; }).filter(Boolean); const subtotal = lines.reduce((sum, line) => sum + line.lineTotal, 0); return { orderId: 'DRAFT-' + Date.now(), customerName, notes, items: lines, subtotal, nextStep: 'confirm_in_cart_or_send_to_whatsapp' }; } }
+    {
+      name: 'search_menu',
+      description: 'Search CafeConnect menu items by query, category, time of day, or dietary preference.',
+      parameters: {
+        type: 'object',
+        properties: {
+          query: { type: 'string' },
+          category: { type: 'string' },
+          timeOfDay: { type: 'string', enum: ['morning', 'afternoon', 'evening', 'all'] },
+          limit: { type: 'number' }
+        },
+        additionalProperties: false
+      },
+      execute: async ({ query = '', category = 'all', timeOfDay = 'all', limit = 6 } = {}, context = {}) => {
+        const q = normalize(query);
+        const items = loadMenuItems(context)
+          .filter(item => category === 'all' || !category || item.category === category)
+          .filter(item => timeOfDay === 'all' || !timeOfDay || (item.timeOfDay || []).includes(timeOfDay))
+          .filter(item => matchesQuery(item, q))
+          .slice(0, limit);
+
+        return { items, count: items.length, source: context.catalog?.menuItems?.length ? 'runtime-catalog' : 'local-catalog' };
+      }
+    },
+    {
+      name: 'search_products',
+      description: 'Search packaged products that can be purchased or added to cart.',
+      parameters: {
+        type: 'object',
+        properties: {
+          query: { type: 'string' },
+          category: { type: 'string' },
+          limit: { type: 'number' }
+        },
+        additionalProperties: false
+      },
+      execute: async ({ query = '', category = 'all', limit = 6 } = {}, context = {}) => {
+        const q = normalize(query);
+        const products = loadProducts(context)
+          .filter(product => category === 'all' || !category || product.category === category)
+          .filter(product => matchesQuery(product, q))
+          .slice(0, limit);
+
+        return { products, count: products.length, source: context.catalog?.products?.length ? 'runtime-catalog' : 'local-catalog' };
+      }
+    },
+    {
+      name: 'get_item_detail',
+      description: 'Get a single menu item or product by id.',
+      parameters: {
+        type: 'object',
+        properties: {
+          id: { type: 'string' },
+          type: { type: 'string', enum: ['menuItem', 'product'] }
+        },
+        required: ['id', 'type'],
+        additionalProperties: false
+      },
+      execute: async ({ id, type }, context = {}) => {
+        const collection = type === 'product' ? loadProducts(context) : loadMenuItems(context);
+        const item = collection.find(entry => entry.id === id) || null;
+        return { item, found: Boolean(item), source: item ? 'catalog' : 'not-found' };
+      }
+    },
+    {
+      name: 'create_order_draft',
+      description: 'Create a draft order summary. This does not charge the customer or submit to WhatsApp/POS.',
+      parameters: {
+        type: 'object',
+        properties: {
+          items: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                id: { type: 'string' },
+                type: { type: 'string', enum: ['menuItem', 'product'] },
+                quantity: { type: 'number' }
+              },
+              required: ['id', 'type', 'quantity'],
+              additionalProperties: false
+            }
+          },
+          customerName: { type: 'string' },
+          notes: { type: 'string' }
+        },
+        required: ['items'],
+        additionalProperties: false
+      },
+      execute: async ({ items = [], customerName = '', notes = '' }, context = {}) => {
+        const menu = loadMenuItems(context);
+        const products = loadProducts(context);
+        const lines = items
+          .map(requested => {
+            const source = requested.type === 'product' ? products : menu;
+            const item = source.find(entry => entry.id === requested.id);
+            const quantity = Math.max(1, Number(requested.quantity || 1));
+            return item
+              ? {
+                  id: item.id,
+                  type: requested.type,
+                  name: item.name,
+                  quantity,
+                  price: Number(item.price || 0),
+                  lineTotal: Number(item.price || 0) * quantity
+                }
+              : null;
+          })
+          .filter(Boolean);
+
+        const subtotal = lines.reduce((sum, line) => sum + line.lineTotal, 0);
+        return {
+          orderId: 'DRAFT-' + Date.now(),
+          customerName,
+          notes,
+          items: lines,
+          subtotal,
+          nextStep: 'confirm_in_cart_or_send_to_whatsapp'
+        };
+      }
+    }
   ];
 }
+
 module.exports = { createCatalogTools };

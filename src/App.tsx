@@ -7,6 +7,8 @@ import './styles/App.css';
 import { CartDrawer } from './components/cart/CartDrawer';
 import { CartButton } from './components/cart/CartButton';
 import { ConfigPanelOrchestrator } from './components/config/ConfigPanelOrchestrator';
+import { BusinessDashboard } from './components/BusinessDashboard';
+import { businessEventService } from './services/analytics/BusinessEventService';
 
 /**
  * Componente principale dell'applicazione
@@ -16,6 +18,7 @@ function App() {
   // Stati dell'applicazione
   const [isConfigPanelOpen, setIsConfigPanelOpen] = useState(false);
   const [isBusinessPanelOpen, setIsBusinessPanelOpen] = useState(false);
+  const [isDashboardOpen, setIsDashboardOpen] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
 
   const { currentAiProvider, reloadServices, appConfig, isInitialized, initializationError } = useServices();
@@ -64,6 +67,13 @@ function App() {
           </div>
 
           <button
+            className="dashboard-button"
+            onClick={() => setIsDashboardOpen(true)}
+          >
+            Dashboard
+          </button>
+
+          <button
             className="config-button"
             onClick={() => setIsConfigPanelOpen(true)}
           >
@@ -91,7 +101,10 @@ function App() {
         />
       </main>
       {/* Cart Components */}
-      <CartButton onClick={() => setIsCartOpen(true)} />
+      <CartButton onClick={() => {
+        businessEventService.track('cart_opened');
+        setIsCartOpen(true);
+      }} />
           <CartDrawer 
             isOpen={isCartOpen} 
             onClose={() => setIsCartOpen(false)} 
@@ -124,6 +137,12 @@ function App() {
             onClose={() => setIsBusinessPanelOpen(false)}
             onSave={handleBusinessConfigSave}
           />
+        </div>
+      )}
+
+      {isDashboardOpen && (
+        <div className="modal-overlay">
+          <BusinessDashboard onClose={() => setIsDashboardOpen(false)} />
         </div>
       )}
     </div>

@@ -19,6 +19,7 @@ function createGatewayConfig(env = process.env) {
     demoMode: readBoolean(env.AI_GATEWAY_DEMO_MODE, !env.OPENAI_API_KEY),
     allowOrigins: readList(env.AI_GATEWAY_ALLOWED_ORIGINS || 'http://localhost:3000'),
     maxToolRounds: Number(env.AI_GATEWAY_MAX_TOOL_ROUNDS || 3),
+    maxBusinessEvents: Number(env.AI_GATEWAY_MAX_BUSINESS_EVENTS || 5000),
     knowledgeUrls: readList(env.AI_GATEWAY_KNOWLEDGE_URLS),
     knowledgeInline: env.AI_GATEWAY_KNOWLEDGE_INLINE || '',
     knowledgeCacheTtlMs: Number(env.AI_GATEWAY_KNOWLEDGE_CACHE_TTL_MS || 300000)

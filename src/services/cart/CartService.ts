@@ -1,4 +1,5 @@
 import { CartItem } from '../../types/Order';
+import { businessEventService } from '../analytics/BusinessEventService';
 
 export class CartService {
   private static instance: CartService;
@@ -44,6 +45,14 @@ export class CartService {
     
     this.saveToStorage();
     this.notifyListeners();
+    businessEventService.track('add_to_cart', {
+      id: item.id,
+      name: item.name,
+      type,
+      quantity: quantityToAdd,
+      price: Number(item.price || 0),
+      category: item.category
+    });
   }
   
   removeItem(id: string, type: string): void {
@@ -98,9 +107,15 @@ export class CartService {
   }
   
   clear(): void {
+    const previousCount = this.getItemCount();
+    const previousSubtotal = this.getSubtotal();
     this.items = [];
     this.saveToStorage();
     this.notifyListeners();
+    businessEventService.track('cart_cleared', {
+      itemCount: previousCount,
+      subtotal: previousSubtotal
+    });
   }
   
   private loadFromStorage(): void {

@@ -1,200 +1,133 @@
 [
-       {
-        "id": "coffee-bag-1",
-        "name": "Caffè Arabica - Miscela Premium",
-        "category": "coffee",
-        "price": 8.90,
-        "description": "Miscela premium di caffè arabica proveniente da Etiopia e Colombia. Note fruttate e corpo ricco. Sacchetto da 250g di caffè in grani.",
-        "details": {
-          "origin": ["Etiopia", "Colombia"],
-          "roastLevel": "medio",
-          "flavor": ["fruttato", "cioccolatoso"],
-          "weight": "250g",
-          "form": "grani"
-        },
-        "imageUrl": "https://via.placeholder.com/150?text=CaffèArabica",
-        "inStock": true,
-        "popularity": 90
-      },
-      {
-        "id": "coffee-bag-2",
-        "name": "Caffè Specialty Etiopia Yirgacheffe",
-        "category": "coffee",
-        "price": 12.50,
-        "description": "Caffè specialty monorigine dall'Etiopia con note di agrumi, fiori e miele. Tostatura leggera per mantenere gli aromi. Sacchetto da 250g.",
-        "details": {
-          "origin": ["Etiopia"],
-          "roastLevel": "leggero",
-          "flavor": ["agrumi", "floreale", "miele"],
-          "weight": "250g",
-          "form": "grani"
-        },
-        "imageUrl": "https://via.placeholder.com/150?text=YirgacheffeCoffee",
-        "inStock": true,
-        "popularity": 85
-      },
-      {
-        "id": "coffee-bag-3",
-        "name": "Espresso Italiano - Miscela Tradizionale",
-        "category": "coffee",
-        "price": 7.50,
-        "description": "La nostra miscela classica per un vero espresso italiano. Note di cioccolato, caramello e frutta secca. Sacchetto da 250g macinato per espresso.",
-        "details": {
-          "origin": ["Brasile", "Guatemala", "India"],
-          "roastLevel": "medio-scuro",
-          "flavor": ["cioccolato", "caramello", "frutta secca"],
-          "weight": "250g",
-          "form": "macinato"
-        },
-        "imageUrl": "https://via.placeholder.com/150?text=EspressoItaliano",
-        "inStock": true,
-        "popularity": 95
-      },
-      {
-        "id": "coffee-bag-4",
-        "name": "Caffè Decaffeinato Premium",
-        "category": "coffee",
-        "price": 9.90,
-        "description": "Il nostro miglior caffè decaffeinato con processo ad acqua. Tutto l'aroma senza caffeina. Sacchetto da 250g disponibile in grani o macinato.",
-        "details": {
-          "origin": ["Colombia", "Brasile"],
-          "roastLevel": "medio",
-          "flavor": ["caramello", "nocciola"],
-          "weight": "250g",
-          "form": "grani/macinato",
-          "decaf": true
-        },
-        "imageUrl": "https://via.placeholder.com/150?text=DecafCoffee",
-        "inStock": true,
-        "popularity": 75
-      },
-      {
-        "id": "tea-1",
-        "name": "Tè Verde Giapponese Sencha",
-        "category": "tea",
-        "price": 6.90,
-        "description": "Tè verde giapponese di alta qualità con sapore rinfrescante e note erbacee. Ricco di antiossidanti. Confezione da 100g.",
-        "details": {
-          "origin": ["Giappone"],
-          "type": "verde",
-          "flavor": ["erbaceo", "fresco", "umami"],
-          "weight": "100g",
-          "form": "foglie"
-        },
-        "imageUrl": "https://via.placeholder.com/150?text=SenchaTea",
-        "inStock": true,
-        "popularity": 80
-      },
-      {
-        "id": "tea-2",
-        "name": "Earl Grey Classico",
-        "category": "tea",
-        "price": 5.50,
-        "description": "Tè nero aromatizzato al bergamotto, un classico intramontabile. Confezione da 20 bustine biodegradabili.",
-        "details": {
-          "origin": ["India", "Sri Lanka"],
-          "type": "nero",
-          "flavor": ["bergamotto", "agrumi"],
-          "weight": "40g",
-          "form": "bustine"
-        },
-        "imageUrl": "https://via.placeholder.com/150?text=EarlGreyTea",
-        "inStock": true,
-        "popularity": 85
-      },
-      {
-        "id": "accessory-1",
-        "name": "Tazza in Ceramica CaféConnect",
-        "category": "accessory",
-        "price": 12.00,
-        "description": "Tazza in ceramica artigianale con logo CaféConnect. Perfetta per il tuo caffè o tè preferito. Capacità 250ml.",
-        "details": {
-          "material": "ceramica",
-          "capacity": "250ml",
-          "color": ["bianco", "nero"],
-          "dishwasherSafe": true
-        },
-        "imageUrl": "https://via.placeholder.com/150?text=CeramicMug",
-        "inStock": true,
-        "popularity": 90
-      },
-      {
-        "id": "accessory-2",
-        "name": "French Press Premium",
-        "category": "accessory",
-        "price": 24.90,
-        "description": "French Press in vetro e acciaio inox per preparare un ottimo caffè in modo semplice. Capacità 350ml, ideale per 2-3 tazze.",
-        "details": {
-          "material": ["vetro", "acciaio inox"],
-          "capacity": "350ml",
-          "parts": ["beaker", "plunger", "filter"],
-          "dishwasherSafe": true
-        },
-        "imageUrl": "https://via.placeholder.com/150?text=FrenchPress",
-        "inStock": true,
-        "popularity": 85
-      },
-      {
-        "id": "accessory-3",
-        "name": "Moka Express 3 tazze",
-        "category": "accessory",
-        "price": 22.50,
-        "description": "La classica caffettiera moka italiana per espresso casalingo. Versione da 3 tazze in alluminio.",
-        "details": {
-          "material": "alluminio",
-          "capacity": "3 tazze",
-          "stoveType": ["gas", "elettrico", "induzione con adattatore"]
-        },
-        "imageUrl": "https://via.placeholder.com/150?text=MokaExpress",
-        "inStock": true,
-        "popularity": 95
-      },
-      {
-        "id": "food-1",
-        "name": "Biscotti alle Mandorle",
-        "category": "food",
-        "price": 4.90,
-        "description": "Biscotti artigianali alle mandorle, perfetti per accompagnare il caffè. Confezione da 200g.",
-        "details": {
-          "ingredients": ["farina", "burro", "zucchero", "mandorle", "uova"],
-          "weight": "200g",
-          "allergens": ["glutine", "frutta a guscio", "uova", "lattosio"],
-          "dietaryInfo": ["vegetariano"]
-        },
-        "imageUrl": "https://via.placeholder.com/150?text=AlmondCookies",
-        "inStock": true,
-        "popularity": 85
-      },
-      {
-        "id": "food-2",
-        "name": "Cioccolato Fondente 70%",
-        "category": "food",
-        "price": 3.90,
-        "description": "Tavoletta di cioccolato fondente 70% da cacao selezionato. Perfetto abbinamento con caffè intensi. 100g.",
-        "details": {
-          "ingredients": ["massa di cacao", "zucchero di canna", "burro di cacao", "vaniglia"],
-          "weight": "100g",
-          "allergens": ["può contenere tracce di latte", "soia", "frutta a guscio"],
-          "dietaryInfo": ["vegan", "gluten-free"]
-        },
-        "imageUrl": "https://via.placeholder.com/150?text=DarkChocolate",
-        "inStock": true,
-        "popularity": 80
-      },
-      {
-        "id": "gift-1",
-        "name": "Gift Box Caffè del Mondo",
-        "category": "gift",
-        "price": 29.90,
-        "description": "Set regalo con 4 diverse origini di caffè specialty in confezione elegante. Perfetto come regalo per gli amanti del caffè.",
-        "details": {
-          "contents": ["Caffè Etiopia 100g", "Caffè Colombia 100g", "Caffè Guatemala 100g", "Caffè Honduras 100g"],
-          "packaging": "scatola regalo in legno",
-          "form": "grani"
-        },
-        "imageUrl": "https://via.placeholder.com/150?text=CoffeeGiftBox",
-        "inStock": true,
-        "popularity": 90
-      }
-  ]
-
+  {
+    "id": "coffee-bag-1",
+    "name": "Caffe Arabica Premium",
+    "category": "coffee",
+    "price": 8.9,
+    "description": "Miscela premium in grani da 250g, ideale per moka e macchina espresso. Note di cacao, nocciola e frutta secca.",
+    "details": {
+      "origin": ["Brasile", "Colombia"],
+      "roastLevel": "medio",
+      "flavor": ["cacao", "nocciola", "frutta secca"],
+      "weight": "250g",
+      "form": "grani"
+    },
+    "imageUrl": "https://images.unsplash.com/photo-1611854779393-1b2da9d400fe?auto=format&fit=crop&w=600&q=80",
+    "inStock": true,
+    "popularity": 92
+  },
+  {
+    "id": "coffee-bag-2",
+    "name": "Etiopia Yirgacheffe specialty",
+    "category": "coffee",
+    "price": 12.5,
+    "description": "Monorigine Etiopia a tostatura leggera, perfetta per filtro e V60. Note di agrumi, fiori bianchi e miele.",
+    "details": {
+      "origin": ["Etiopia"],
+      "roastLevel": "leggero",
+      "flavor": ["agrumi", "floreale", "miele"],
+      "weight": "250g",
+      "form": "grani"
+    },
+    "imageUrl": "https://images.unsplash.com/photo-1447933601403-0c6688de566e?auto=format&fit=crop&w=600&q=80",
+    "inStock": true,
+    "popularity": 88
+  },
+  {
+    "id": "coffee-bag-3",
+    "name": "Decaffeinato ad acqua",
+    "category": "coffee",
+    "price": 9.9,
+    "description": "Caffe decaffeinato con processo ad acqua, dolce e bilanciato, disponibile in grani o macinato.",
+    "details": {
+      "origin": ["Colombia", "Brasile"],
+      "roastLevel": "medio",
+      "flavor": ["caramello", "nocciola"],
+      "weight": "250g",
+      "form": "grani/macinato",
+      "decaf": true
+    },
+    "imageUrl": "https://images.unsplash.com/photo-1509042239860-f550ce710b93?auto=format&fit=crop&w=600&q=80",
+    "inStock": true,
+    "popularity": 76
+  },
+  {
+    "id": "tea-1",
+    "name": "Sencha giapponese",
+    "category": "tea",
+    "price": 6.9,
+    "description": "Te verde giapponese in foglie da 100g, fresco, erbaceo e ricco di umami.",
+    "details": {
+      "origin": ["Giappone"],
+      "type": "verde",
+      "flavor": ["erbaceo", "fresco", "umami"],
+      "weight": "100g",
+      "form": "foglie"
+    },
+    "imageUrl": "https://images.unsplash.com/photo-1564890369478-c89ca6d9cde9?auto=format&fit=crop&w=600&q=80",
+    "inStock": true,
+    "popularity": 80
+  },
+  {
+    "id": "accessory-1",
+    "name": "Tazza CafeConnect",
+    "category": "accessory",
+    "price": 12,
+    "description": "Tazza in ceramica artigianale da 250ml, pensata per cappuccino, flat white e caffe filtro.",
+    "details": {
+      "material": "ceramica",
+      "capacity": "250ml",
+      "color": ["bianco", "nero"],
+      "dishwasherSafe": true
+    },
+    "imageUrl": "https://images.unsplash.com/photo-1514228742587-6b1558fcca3d?auto=format&fit=crop&w=600&q=80",
+    "inStock": true,
+    "popularity": 84
+  },
+  {
+    "id": "accessory-2",
+    "name": "French press premium",
+    "category": "accessory",
+    "price": 24.9,
+    "description": "French press in vetro e acciaio inox da 350ml, ideale per due tazze di caffe filtro.",
+    "details": {
+      "material": ["vetro", "acciaio inox"],
+      "capacity": "350ml",
+      "dishwasherSafe": true
+    },
+    "imageUrl": "https://images.unsplash.com/photo-1544787219-7f47ccb76574?auto=format&fit=crop&w=600&q=80",
+    "inStock": true,
+    "popularity": 82
+  },
+  {
+    "id": "food-1",
+    "name": "Biscotti alle mandorle",
+    "category": "food",
+    "price": 4.9,
+    "description": "Biscotti artigianali alle mandorle, confezione da 200g. Ottimi con espresso o filtro.",
+    "details": {
+      "ingredients": ["farina", "burro", "zucchero", "mandorle", "uova"],
+      "weight": "200g",
+      "allergens": ["glutine", "frutta a guscio", "uova", "lattosio"],
+      "dietaryInfo": ["vegetarian"]
+    },
+    "imageUrl": "https://images.unsplash.com/photo-1499636136210-6f4ee915583e?auto=format&fit=crop&w=600&q=80",
+    "inStock": true,
+    "popularity": 86
+  },
+  {
+    "id": "gift-1",
+    "name": "Box degustazione specialty",
+    "category": "gift",
+    "price": 29.9,
+    "description": "Set regalo con quattro origini specialty da 100g e guida alla degustazione. Perfetto per appassionati di caffe.",
+    "details": {
+      "contents": ["Etiopia 100g", "Colombia 100g", "Guatemala 100g", "Brasile 100g"],
+      "packaging": "scatola regalo",
+      "form": "grani"
+    },
+    "imageUrl": "https://images.unsplash.com/photo-1543002588-bfa74002ed7e?auto=format&fit=crop&w=600&q=80",
+    "inStock": true,
+    "popularity": 93
+  }
+]

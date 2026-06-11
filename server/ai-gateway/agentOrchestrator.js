@@ -54,7 +54,7 @@ class AgentOrchestrator {
 
       for (const call of calls) {
         const args = safeJsonParse(call.arguments, {});
-        const result = await this.toolRegistry.execute(call.name, args);
+        const result = await this.toolRegistry.execute(call.name, args, payload);
 
         executedToolCalls.push({ name: call.name, arguments: args, result });
         toolOutputs.push({
@@ -104,7 +104,7 @@ class AgentOrchestrator {
       }
 
       const args = { query: message, limit: 3 };
-      const result = await this.toolRegistry.execute('knowledge_search', args);
+      const result = await this.toolRegistry.execute('knowledge_search', args, payload);
       toolCalls.push({ name: 'knowledge_search', arguments: args, result });
 
       return {
@@ -118,7 +118,7 @@ class AgentOrchestrator {
 
     if (lower.includes('prodot') || lower.includes('comprare') || lower.includes('acquist')) {
       const args = { query: '', limit: 4 };
-      const result = await this.toolRegistry.execute('search_products', args);
+      const result = await this.toolRegistry.execute('search_products', args, payload);
       toolCalls.push({ name: 'search_products', arguments: args, result });
 
       return {
@@ -143,7 +143,7 @@ class AgentOrchestrator {
       timeOfDay,
       limit: 4
     };
-    const result = await this.toolRegistry.execute('search_menu', args);
+    const result = await this.toolRegistry.execute('search_menu', args, payload);
     toolCalls.push({ name: 'search_menu', arguments: args, result });
 
     return {

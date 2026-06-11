@@ -39,8 +39,13 @@ export const CatalogSettingsPanel: React.FC<IConfigSection<CatalogConfig>> = ({
           disabled={config.enableLocalData}
         />
         <small className="form-text">
+          Accetta JSON o CSV pubblico, incluso un Google Sheet pubblicato come CSV.{' '}
           <a href="/template-json/menu-template.json" download>
             Scarica il template JSON
+          </a>{' '}
+          oppure{' '}
+          <a href="/template-json/menu-template.csv" download>
+            CSV
           </a> per l'endpoint menu.
         </small>
       </div>
@@ -56,8 +61,13 @@ export const CatalogSettingsPanel: React.FC<IConfigSection<CatalogConfig>> = ({
           disabled={config.enableLocalData}
         />
         <small className="form-text">
+          Accetta JSON o CSV pubblico, incluso un Google Sheet pubblicato come CSV.{' '}
           <a href="/template-json/product-template.json" download>
             Scarica il template JSON
+          </a>{' '}
+          oppure{' '}
+          <a href="/template-json/product-template.csv" download>
+            CSV
           </a> per l'endpoint prodotti.
         </small>
       </div>

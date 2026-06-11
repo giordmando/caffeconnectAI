@@ -199,12 +199,12 @@ export class ConfigManager implements IConfigManager {
         openai: {
             displayName: 'OpenAI',
             models: [
-              { id: 'gpt-4o', name: 'GPT-4o (Latest)' },
-              { id: 'gpt-4-turbo', name: 'GPT-4 Turbo' },
-              { id: 'gpt-4', name: 'GPT-4' },
-              { id: 'gpt-3.5-turbo', name: 'GPT-3.5 Turbo' }
+              { id: 'gpt-4.1-mini', name: 'GPT-4.1 mini (consigliato)' },
+              { id: 'gpt-4.1', name: 'GPT-4.1' },
+              { id: 'gpt-4o-mini', name: 'GPT-4o mini' },
+              { id: 'gpt-4o', name: 'GPT-4o' }
             ],
-            defaultModel: 'gpt-3.5-turbo',
+            defaultModel: 'gpt-4.1-mini',
             requiresApiKey: true,
         },
     };
@@ -213,7 +213,7 @@ export class ConfigManager implements IConfigManager {
 
     return {
       business: {
-        name: 'CaféConnect',
+        name: 'CafeConnect Roastery',
         type: 'cafe',
         logo: '/logo.svg',
         indirizzo: 'Via Roma 123, Milano',
@@ -235,7 +235,9 @@ export class ConfigManager implements IConfigManager {
           secondaryColor: '#ed8936',
           backgroundColor: '#f7fafc',
           textColor: '#2d3748'
-        }
+        },
+        whatsappBusiness: '+39021234567',
+        orderEmail: 'ordini@cafeconnect.example.com'
       },
       ai: {
         defaultProvider: defaultProviderId,
@@ -253,9 +255,9 @@ export class ConfigManager implements IConfigManager {
         enableLocalData: true,
         dataRefreshInterval: 60,
         categories: [
-          { id: 'beverage', name: 'Bevande', icon: '☕' },
-          { id: 'food', name: 'Cibo', icon: '🍽️' },
-          { id: 'product', name: 'Prodotti', icon: '🛒' }
+          { id: 'beverage', name: 'Bevande', icon: 'coffee' },
+          { id: 'food', name: 'Cibo', icon: 'utensils' },
+          { id: 'product', name: 'Prodotti', icon: 'shopping-bag' }
         ],
         timeBasedMenus: {
           morning: ['coffee', 'pastry', 'breakfast'],
@@ -281,7 +283,7 @@ export class ConfigManager implements IConfigManager {
         enableNLP: true,
         showSidebar: true,
         maxRecommendations: 3,
-        welcomeMessage: 'Benvenuto a {business.name}! Come posso aiutarti oggi?'
+        welcomeMessage: 'Benvenuto da {business.name}! Posso consigliarti colazione, prodotti specialty, allergeni o preparare un ordine.'
       },
       privacy: {
         enabled: true,
@@ -302,11 +304,11 @@ export class ConfigManager implements IConfigManager {
       },
       knowledgeBase: [
         {
-          key: "caffè qualità",
+          key: "caffe qualita",
           facts: [
-            "Il nostro caffè viene da piantagioni sostenibili in Etiopia e Colombia.",
-            "Abbiamo diverse varietà di caffè, tra cui Arabica, Robusta e miscele speciali.",
-            "Il caffè più venduto è l'Arabica Specialty Etiopia Yirgacheffe."
+            "Il nostro caffe viene da piantagioni sostenibili in Etiopia e Colombia.",
+            "Abbiamo diverse varieta di caffe, tra cui Arabica, Robusta e miscele speciali.",
+            "Il caffe piu venduto e l'Arabica Specialty Etiopia Yirgacheffe."
           ],
           scope: "global"
         },
@@ -316,6 +318,15 @@ export class ConfigManager implements IConfigManager {
             "Il nostro menu varia durante la giornata: colazione (generalmente dalle 7 alle 12), pranzo (dalle 12 alle 18), aperitivo (dalle 18 alle 22).",
             "Offriamo prodotti da forno freschi ogni giorno.",
             "Tutti gli ingredienti sono selezionati da fornitori locali quando possibile."
+          ],
+          scope: "global"
+        },
+        {
+          key: "offerte demo",
+          facts: [
+            "Per la demo commerciale proponi il bundle colazione: cappuccino, cornetto classico e assaggio caffe filtro.",
+            "Quando un cliente chiede un regalo, suggerisci una box degustazione con caffe specialty e tazza artigianale.",
+            "Per l'aperitivo consiglia un pairing tra bevanda e snack, chiedendo sempre allergie o preferenze."
           ],
           scope: "global"
         }

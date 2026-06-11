@@ -1,13 +1,18 @@
 [
   {
-    "id": "string",
-    "name": "string",
-    "category": "string",
-    "price": number,
-    "description": "string",
-    "details": { /* proprietà aggiuntive */ },
-    "imageUrl": "string",
-    "inStock": boolean,
-    "popularity": number
+    "id": "coffee-bag-1",
+    "name": "Caffe Arabica Premium",
+    "category": "coffee",
+    "price": 8.9,
+    "description": "Miscela premium in grani da 250g.",
+    "details": {
+      "weight": "250g",
+      "form": "grani",
+      "origin": ["Etiopia", "Colombia"],
+      "roastLevel": "medio"
+    },
+    "imageUrl": "https://images.unsplash.com/photo-1611854779393-1b2da9d400fe?auto=format&fit=crop&w=600&q=80",
+    "inStock": true,
+    "popularity": 90
   }
 ]

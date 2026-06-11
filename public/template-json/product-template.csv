@@ -1,0 +1,4 @@
+id,name,category,price,description,details,imageUrl,inStock,popularity
+coffee-bag-1,Caffe Arabica Premium,coffee,8.90,Miscela premium in grani da 250g,"{""weight"":""250g"",""form"":""grani"",""origin"":[""Etiopia"",""Colombia""],""roastLevel"":""medio""}",https://images.unsplash.com/photo-1611854779393-1b2da9d400fe?auto=format&fit=crop&w=600&q=80,true,90
+gift-box-1,Box degustazione specialty,gift,24.90,Selezione regalo con tre caffe specialty e guida alla degustazione,"{""items"":3,""format"":""gift box"",""idealFor"":""regalo""}",https://images.unsplash.com/photo-1543002588-bfa74002ed7e?auto=format&fit=crop&w=600&q=80,true,86
+mug-1,Tazza CafeConnect,accessory,12.00,Tazza in ceramica artigianale per cappuccino e filtro,"{""material"":""ceramica"",""capacity"":""250ml""}",https://images.unsplash.com/photo-1514228742587-6b1558fcca3d?auto=format&fit=crop&w=600&q=80,true,70

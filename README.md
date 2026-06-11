@@ -1,45 +1,120 @@
-# Getting Started with Create React App
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+# CafeConnect AI
 
-## Available Scripts
+CafeConnect AI e un commerce copilot per bar, caffetterie e piccoli locali: aiuta i clienti a scegliere, fare domande su menu e allergeni, aggiungere prodotti al carrello e preparare ordini via WhatsApp o integrazioni future.
 
-In the project directory, you can run:
+Il progetto combina una web app React/PWA con un AI Gateway server-side. Il gateway custodisce le credenziali AI, orchestra tool di catalogo e knowledge base, e prepara la base per agenti specializzati, integrazioni POS/CRM e analytics per l'esercente.
 
-### `npm start`
+## Perche e diverso da un chatbot generico
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+- **Verticale per locali**: menu, prodotti acquistabili, allergeni, orari, promozioni, carrello e ordini.
+- **AI con dati reali del merchant**: catalogo JSON/CSV, knowledge base configurabile e sorgenti remote pubbliche.
+- **Componenti dinamici**: la chat mostra card, carousel e dettagli prodotto invece di solo testo.
+- **Gateway server-side**: le chiamate al modello e i tool vivono fuori dal browser.
+- **Demo mode**: funziona anche senza `OPENAI_API_KEY`, usando dati locali deterministici.
+- **Pronto per evolvere in SaaS**: multi-agente, dashboard, tracciamento conversioni e integrazioni operative sono gia nella direzione architetturale.
 
-The page will reload if you make edits.\
-You will also see any lint errors in the console.
+## Esperienza demo
 
-### `npm test`
+Flussi consigliati per mostrare valore in pochi minuti:
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+1. Chiedi: `Cosa mi consigli per colazione?`
+2. Chiedi: `Avete alternative senza lattosio?`
+3. Chiedi: `Mostrami prodotti da comprare`
+4. Apri una card prodotto e aggiungila al carrello.
+5. Prepara un ordine WhatsApp.
+6. Apri **Impostazioni Business** e personalizza nome locale, catalogo, knowledge base e privacy.
 
-### `npm run build`
+## Architettura
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+```text
+React PWA
+  -> Chat UI, componenti dinamici, carrello, configuratore
+  -> AI Gateway Client
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+AI Gateway
+  -> Responses API / demo mode
+  -> Tool registry
+  -> Catalog tools
+  -> Knowledge tools
+  -> futuro router multi-agente
+```
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+## Tool AI Gateway
 
-### `npm run eject`
+- `search_menu`: cerca voci menu per query, categoria o momento della giornata.
+- `search_products`: cerca prodotti acquistabili.
+- `get_item_detail`: recupera dettaglio prodotto o voce menu.
+- `create_order_draft`: prepara una bozza ordine senza inviarla.
+- `knowledge_search`: risponde da knowledge base dell'esercente.
 
-**Note: this is a one-way operation. Once you `eject`, you can’t go back!**
+## Avvio locale
 
-If you aren’t satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+Installa le dipendenze:
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
+```bash
+npm install
+```
 
-You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
+Avvia il gateway:
 
-## Learn More
+```bash
+npm run gateway:start
+```
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+Avvia la web app:
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+```bash
+npm start
+```
+
+URL principali:
+
+- App: `http://localhost:3000`
+- Gateway: `http://localhost:8787`
+- Gateway health: `http://localhost:8787/health`
+- Gateway harness: `http://localhost:8787/`
+- Analytics summary: `http://localhost:8787/v1/events/summary`
+
+Senza `OPENAI_API_KEY`, il gateway usa la modalita demo.
+
+## Variabili ambiente utili
+
+```bash
+OPENAI_API_KEY=...
+AI_GATEWAY_MODEL=gpt-4.1-mini
+AI_GATEWAY_PORT=8787
+AI_GATEWAY_ALLOWED_ORIGINS=http://localhost:3000
+REACT_APP_AI_GATEWAY_URL=http://localhost:8787
+REACT_APP_ENABLE_AI_GATEWAY=true
+```
+
+## Catalogo e knowledge base
+
+La demo usa dati locali in `src/api/mockData`.
+
+Per collegare dati reali:
+
+- pubblica un Google Sheet come CSV;
+- usa i template in `public/template-json`;
+- incolla l'URL negli endpoint catalogo dentro **Impostazioni Business > Catalogo**;
+- aggiungi FAQ, orari, policy allergeni e offerte in **Knowledge Base**.
+
+## Roadmap prodotto
+
+Priorita consigliate:
+
+1. Demo commerciale verticale con dati e immagini realistiche.
+2. Router multi-agente: triage, menu advisor, sales, order, campaign, analytics.
+3. Dashboard esercente con conversioni, domande frequenti, prodotti richiesti e richieste senza risposta.
+4. Integrazioni: Google Sheets, webhook ordine, WhatsApp Business, pagamenti, POS.
+5. Multi-tenant SaaS con configurazioni server-side, sicurezza, rate limit e cost tracking AI.
+
+## Script
+
+```bash
+npm start          # web app React
+npm run build      # build produzione
+npm test           # test runner CRA
+npm run gateway:start
+npm run gateway:dev
+```

@@ -3,6 +3,7 @@ import { useCart } from '../../hooks/useCart';
 import { formatPrice } from '../../utils/formatters';
 import { CartItem } from './CartItem';
 import { CheckoutFlow } from './CheckoutFlow';
+import { businessEventService } from '../../services/analytics/BusinessEventService';
 
 interface CartDrawerProps {
   isOpen: boolean;
@@ -80,7 +81,13 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
                 </button>
                 <button 
                   className="btn-primary"
-                  onClick={() => setShowCheckout(true)}
+                  onClick={() => {
+                    businessEventService.track('checkout_started', {
+                      itemCount,
+                      subtotal
+                    });
+                    setShowCheckout(true);
+                  }}
                 >
                   Procedi all'ordine
                 </button>

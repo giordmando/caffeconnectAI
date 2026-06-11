@@ -1,19 +1,19 @@
 {
-    "menuItems": [
-      {
-        "id": "string",
-        "name": "string",
-        "category": "string",
-        "subcategory": "string",
-        "timeOfDay": ["morning", "afternoon", "evening"],
-        "price": number,
-        "description": "string",
-        "ingredients": ["string"],
-        "preferences": ["string"],
-        "imageUrl": "string",
-        "allergens": ["string"],
-        "dietaryInfo": ["string"],
-        "popularity": number
-      }
-    ]
-  }
+  "menuItems": [
+    {
+      "id": "coffee-1",
+      "name": "Espresso specialty",
+      "category": "beverage",
+      "subcategory": "coffee",
+      "timeOfDay": ["morning", "afternoon", "evening"],
+      "price": 1.4,
+      "description": "Espresso con miscela arabica e robusta selezionata.",
+      "ingredients": ["caffe"],
+      "preferences": ["quick", "strong"],
+      "imageUrl": "https://images.unsplash.com/photo-1510707577719-ae7c14805e3a?auto=format&fit=crop&w=600&q=80",
+      "allergens": [],
+      "dietaryInfo": ["vegan", "gluten-free"],
+      "popularity": 95
+    }
+  ]
+}

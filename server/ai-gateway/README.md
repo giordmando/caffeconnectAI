@@ -19,6 +19,8 @@ Without `OPENAI_API_KEY`, the gateway runs in deterministic demo mode and uses t
 - `GET /health`: gateway mode, model, registered tools.
 - `GET /v1/tools`: tool schemas exposed to the model.
 - `POST /v1/chat`: chat orchestration endpoint.
+- `POST /v1/events`: store one or more business analytics events.
+- `GET /v1/events/summary`: aggregate business analytics for the merchant dashboard.
 
 ## Current tools
 
@@ -32,6 +34,31 @@ Without `OPENAI_API_KEY`, the gateway runs in deterministic demo mode and uses t
 Replace the single orchestrator with an agent router: Triage, Menu Advisor, Product Sales, Order, Business Config, Analytics, Support, Privacy/Consent, and Campaign Agent.
 
 MCP integrations should attach below the tool registry, not directly in the React UI.
+
+## Merchant Analytics Events
+
+The React app records local business events and mirrors them to the gateway when available.
+
+Supported events include:
+
+- `message_sent`
+- `gateway_result`
+- `ui_action`
+- `item_viewed`
+- `add_to_cart`
+- `cart_opened`
+- `cart_cleared`
+- `checkout_started`
+- `order_submitted`
+- `order_failed`
+
+Runtime analytics are stored in:
+
+```text
+server/ai-gateway/data/businessEvents.json
+```
+
+This file is intentionally ignored by git.
 
 ## Merchant Knowledge Sources
 

@@ -14,6 +14,7 @@ import { NLPAnalysisService, INLPAnalysisService } from '../services/chat/NLPAna
 import { ConversationManagerService, IConversationManagerService } from '../services/chat/ConversationManagerService';
 import { ComponentManager } from '../services/ui/compstore/ComponentManager';
 import { AIGatewayClient, AIGatewayChatResponse } from '../services/ai/gateway/AIGatewayClient';
+import { businessEventService } from '../services/analytics/BusinessEventService';
 
 // Interfaccia del contesto semplificata
 export interface ChatContextType {
@@ -304,6 +305,11 @@ export const ChatProvider: React.FC<{
     if (!shouldUseAIGateway()) return false;
 
     try {
+      const [menuItems, products] = await Promise.all([
+        catalogService.getAllMenuItems(),
+        catalogService.getProducts()
+      ]);
+
       const gatewayResponse = await aiGatewayClient.sendMessage({
         message,
         conversationId,
@@ -315,7 +321,11 @@ export const ChatProvider: React.FC<{
             }
           : undefined,
         knowledgeBase: appConfig?.knowledgeBase || [],
-        knowledgeSources: appConfig?.knowledgeSources || { urls: [], inlineText: '' }
+        knowledgeSources: appConfig?.knowledgeSources || { urls: [], inlineText: '' },
+        catalog: {
+          menuItems: menuItems.slice(0, 100),
+          products: products.slice(0, 100)
+        }
       });
 
       const assistantMessage = messageService.createAssistantMessage(gatewayResponse.message);
@@ -332,6 +342,11 @@ export const ChatProvider: React.FC<{
       }
 
       setAvailableActions(createGatewayActions(gatewayResponse));
+      businessEventService.track('gateway_result', {
+        mode: gatewayResponse.mode,
+        toolCalls: (gatewayResponse.toolCalls || []).map(toolCall => toolCall.name),
+        toolCallCount: gatewayResponse.toolCalls?.length || 0
+      });
       return true;
     } catch (error) {
       console.warn('[ChatContext] AI Gateway unavailable, falling back to current provider:', error);
@@ -346,6 +361,7 @@ export const ChatProvider: React.FC<{
     messageService,
     shouldUseAIGateway,
     uiComponentService,
+    catalogService,
     userService
   ]);
   const handleSendMessage = useCallback(async () => {
@@ -353,6 +369,10 @@ export const ChatProvider: React.FC<{
     if (inputValue.trim() === '' || isTyping || !conversationId) return;
     
     const userMessageContent = inputValue;
+    businessEventService.track('message_sent', {
+      content: userMessageContent,
+      length: userMessageContent.length
+    });
     setInputValue('');
     setIsTyping(true);
     suggestionManagement.clearSuggestions();
@@ -457,6 +477,12 @@ export const ChatProvider: React.FC<{
   }, []);
   
   const handleUIAction = useCallback(async (action: string, payload: any) => {
+    businessEventService.track('ui_action', {
+      action,
+      id: payload?.id,
+      type: payload?.type,
+      name: payload?.name
+    });
     await actionHandler.handleAction(action, payload);
     setMessages(messageService.getMessages());
   }, [actionHandler, messageService]);

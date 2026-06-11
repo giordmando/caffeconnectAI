@@ -5,6 +5,7 @@ const { createGatewayConfig } = require('./config');
 const { OpenAIResponsesClient } = require('./openaiClient');
 const { AgentOrchestrator } = require('./agentOrchestrator');
 const { createDefaultToolRegistry } = require('./toolRegistry');
+const { EventStore } = require('./eventStore');
 
 const config = createGatewayConfig();
 const toolRegistry = createDefaultToolRegistry(config);
@@ -14,6 +15,7 @@ const openaiClient = new OpenAIResponsesClient({
   model: config.model
 });
 const orchestrator = new AgentOrchestrator({ openaiClient, toolRegistry, config });
+const eventStore = new EventStore({ maxEvents: config.maxBusinessEvents });
 
 function getCorsOrigin(req) {
   const requestOrigin = req.headers.origin;
@@ -131,6 +133,20 @@ async function handleRequest(req, res) {
 
     if (req.method === 'GET' && url.pathname === '/v1/tools') {
       return sendJson(req, res, 200, { tools: toolRegistry.list() });
+    }
+
+    if (req.method === 'GET' && url.pathname === '/v1/events/summary') {
+      return sendJson(req, res, 200, eventStore.summary());
+    }
+
+    if (req.method === 'POST' && url.pathname === '/v1/events') {
+      const body = await readBody(req);
+      const savedEvents = eventStore.append(body.events || body.event || body);
+      return sendJson(req, res, 201, {
+        ok: true,
+        saved: savedEvents.length,
+        summary: eventStore.summary()
+      });
     }
 
     if (req.method === 'POST' && url.pathname === '/v1/chat') {
