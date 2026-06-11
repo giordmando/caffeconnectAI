@@ -10,6 +10,8 @@ CafeConnect AI puo leggere menu e prodotti da un Google Sheet pubblicato come CS
 4. Da Google Sheets scegli **File > Condividi > Pubblica sul web**.
 5. Pubblica il foglio in formato CSV.
 6. Incolla il link nel pannello catalogo.
+7. Clicca **Verifica sorgente** per controllare righe, colonne e primi record.
+8. Clicca **Usa per menu** o **Usa per prodotti**.
 
 Puoi incollare anche un link Google Sheet normale, ad esempio:
 
@@ -69,3 +71,4 @@ La colonna `details` puo contenere JSON, ad esempio:
 - Lascia attivo **Usa dati locali** per la demo.
 - Disattiva **Usa dati locali** quando vuoi usare endpoint o Google Sheets.
 - Dopo il salvataggio, l'app ricarica i servizi e aggiorna catalogo, chat e dashboard.
+- Se la verifica segnala colonne mancanti, il catalogo puo comunque funzionare ma le raccomandazioni saranno meno precise.

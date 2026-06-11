@@ -855,6 +855,70 @@ input:focus, select:focus, textarea:focus {
   cursor: not-allowed;
 }
 
+.catalog-verify-btn {
+  background-color: white;
+  border: 1px solid var(--primary-light);
+  color: var(--primary-color);
+  margin-top: 8px;
+  width: 100%;
+}
+
+.catalog-verify-btn:hover:not(:disabled) {
+  background-color: var(--user-message-bg);
+}
+
+.catalog-verify-btn:disabled {
+  border-color: var(--light-gray);
+  color: var(--medium-gray);
+  cursor: not-allowed;
+}
+
+.catalog-preview {
+  border-radius: 8px;
+  font-size: 12px;
+  margin-top: 10px;
+  padding: 10px;
+}
+
+.catalog-preview-success {
+  background-color: #f0fff4;
+  border: 1px solid #9ae6b4;
+  color: #22543d;
+}
+
+.catalog-preview-error {
+  background-color: #fff5f5;
+  border: 1px solid #feb2b2;
+  color: #742a2a;
+}
+
+.catalog-preview-loading {
+  background-color: #ebf8ff;
+  border: 1px solid #90cdf4;
+  color: #2a4365;
+}
+
+.catalog-preview p {
+  margin-top: 6px;
+}
+
+.catalog-preview-sample {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.catalog-preview-sample pre {
+  background-color: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 6px;
+  color: var(--text-color);
+  font-size: 11px;
+  overflow-x: auto;
+  padding: 8px;
+  white-space: pre-wrap;
+}
+
 /* Stili specifici per i pannelli di configurazione dentro ConfigPanelOrchestrator */
 .config-panel-section {
   margin-bottom: 25px;

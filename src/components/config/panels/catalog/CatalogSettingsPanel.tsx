@@ -1,23 +1,35 @@
 import React, { useState } from 'react';
 import type { IConfigSection } from '../../interfaces/IConfigSection';
 import type { AppConfig } from '../../../../config/interfaces/IAppConfig';
+import {
+  CatalogPreviewKind,
+  extractCatalogRecords,
+  getMissingCatalogColumns,
+  normalizeCatalogEndpoint,
+  normalizeMenuRecord,
+  normalizeProductRecord,
+  parseCatalogPayload
+} from '../../../../services/catalog/catalogDataUtils';
 
 type CatalogConfig = AppConfig['catalog'];
 
-function toGoogleSheetCsvUrl(value: string): string {
-  const trimmed = value.trim();
-  const match = trimmed.match(/docs\.google\.com\/spreadsheets\/d\/([^/]+)/i);
-
-  if (!match) {
-    return trimmed;
-  }
-
-  const gidMatch = trimmed.match(/[?&#]gid=([0-9]+)/i);
-  const spreadsheetId = match[1];
-  const gid = gidMatch?.[1] || '0';
-
-  return `https://docs.google.com/spreadsheets/d/${spreadsheetId}/export?format=csv&gid=${gid}`;
+interface CatalogPreviewResult {
+  status: 'idle' | 'loading' | 'success' | 'error';
+  message: string;
+  count: number;
+  columns: string[];
+  missingColumns: string[];
+  sample: Array<Record<string, any>>;
 }
+
+const EMPTY_PREVIEW: CatalogPreviewResult = {
+  status: 'idle',
+  message: '',
+  count: 0,
+  columns: [],
+  missingColumns: [],
+  sample: []
+};
 
 export const CatalogSettingsPanel: React.FC<IConfigSection<CatalogConfig>> = ({
   config,
@@ -26,9 +38,11 @@ export const CatalogSettingsPanel: React.FC<IConfigSection<CatalogConfig>> = ({
 }) => {
   const [menuSheetUrl, setMenuSheetUrl] = useState(config.menuEndpoint || '');
   const [productsSheetUrl, setProductsSheetUrl] = useState(config.productsEndpoint || '');
+  const [menuPreview, setMenuPreview] = useState<CatalogPreviewResult>(EMPTY_PREVIEW);
+  const [productsPreview, setProductsPreview] = useState<CatalogPreviewResult>(EMPTY_PREVIEW);
 
   const applyRemoteEndpoint = (field: 'menuEndpoint' | 'productsEndpoint', value: string) => {
-    const endpoint = toGoogleSheetCsvUrl(value);
+    const endpoint = normalizeCatalogEndpoint(value);
     onChange(field, endpoint);
     onChange('enableLocalData', false);
 
@@ -37,6 +51,92 @@ export const CatalogSettingsPanel: React.FC<IConfigSection<CatalogConfig>> = ({
     } else {
       setProductsSheetUrl(endpoint);
     }
+  };
+
+  const validateSource = async (kind: CatalogPreviewKind, value: string) => {
+    const endpoint = normalizeCatalogEndpoint(value);
+    const setPreview = kind === 'menu' ? setMenuPreview : setProductsPreview;
+
+    setPreview({
+      ...EMPTY_PREVIEW,
+      status: 'loading',
+      message: 'Verifica sorgente in corso...'
+    });
+
+    try {
+      const response = await fetch(endpoint);
+      if (!response.ok) {
+        throw new Error(`Risposta ${response.status}`);
+      }
+
+      const rawData = parseCatalogPayload(await response.text());
+      const records = extractCatalogRecords(rawData, kind);
+      const columns = records.length > 0 ? Object.keys(records[0]) : [];
+      const missingColumns = getMissingCatalogColumns(records, kind);
+
+      setPreview({
+        status: records.length > 0 ? 'success' : 'error',
+        message: records.length > 0
+          ? `${records.length} righe leggibili.`
+          : 'Nessuna riga leggibile trovata.',
+        count: records.length,
+        columns,
+        missingColumns,
+        sample: records.slice(0, 3).map((record, index) => {
+          if (kind === 'menu') {
+            const normalized = normalizeMenuRecord(record, index);
+            return {
+              id: normalized.id,
+              name: normalized.name,
+              category: normalized.category,
+              price: normalized.price,
+              timeOfDay: normalized.timeOfDay,
+              allergens: normalized.allergens
+            };
+          }
+
+          const normalized = normalizeProductRecord(record, index);
+          return {
+            id: normalized.id,
+            name: normalized.name,
+            category: normalized.category,
+            price: normalized.price,
+            inStock: normalized.inStock
+          };
+        })
+      });
+    } catch (error) {
+      setPreview({
+        ...EMPTY_PREVIEW,
+        status: 'error',
+        message: error instanceof Error
+          ? `Verifica non riuscita: ${error.message}`
+          : 'Verifica non riuscita.'
+      });
+    }
+  };
+
+  const renderPreview = (preview: CatalogPreviewResult) => {
+    if (preview.status === 'idle') return null;
+
+    return (
+      <div className={`catalog-preview catalog-preview-${preview.status}`}>
+        <strong>{preview.message}</strong>
+        {preview.columns.length > 0 && (
+          <p>Colonne rilevate: {preview.columns.join(', ')}</p>
+        )}
+        {preview.missingColumns.length > 0 && (
+          <p>Colonne consigliate mancanti: {preview.missingColumns.join(', ')}</p>
+        )}
+        {preview.sample.length > 0 && (
+          <div className="catalog-preview-sample">
+            {preview.sample.map((record, index) => (
+              <pre key={index}>{JSON.stringify(record, null, 2)}</pre>
+            ))}
+          </div>
+        )}
+      </div>
+    );
   };
 
   return (
@@ -91,6 +191,15 @@ export const CatalogSettingsPanel: React.FC<IConfigSection<CatalogConfig>> = ({
             >
               Usa per menu
             </button>
+            <button
+              type="button"
+              className="catalog-verify-btn"
+              onClick={() => validateSource('menu', menuSheetUrl)}
+              disabled={!menuSheetUrl.trim() || menuPreview.status === 'loading'}
+            >
+              Verifica sorgente
+            </button>
+            {renderPreview(menuPreview)}
           </div>
 
           <div className="form-group">
@@ -110,6 +219,15 @@ export const CatalogSettingsPanel: React.FC<IConfigSection<CatalogConfig>> = ({
             >
               Usa per prodotti
             </button>
+            <button
+              type="button"
+              className="catalog-verify-btn"
+              onClick={() => validateSource('products', productsSheetUrl)}
+              disabled={!productsSheetUrl.trim() || productsPreview.status === 'loading'}
+            >
+              Verifica sorgente
+            </button>
+            {renderPreview(productsPreview)}
           </div>
         </div>
       </div>
