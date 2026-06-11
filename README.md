@@ -99,6 +99,8 @@ Per collegare dati reali:
 - incolla l'URL negli endpoint catalogo dentro **Impostazioni Business > Catalogo**;
 - aggiungi FAQ, orari, policy allergeni e offerte in **Knowledge Base**.
 
+Guida rapida: `docs/google-sheets-catalogo.md`.
+
 ## Roadmap prodotto
 
 Priorita consigliate:

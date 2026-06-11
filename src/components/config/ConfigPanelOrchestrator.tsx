@@ -47,8 +47,8 @@ const PANEL_COMPONENTS: Record<string, React.FC<PanelProps<any>>[]> = {
     (props) => <SystemPromptPanel {...props} config={props.config.ai} onChange={(f,v) => props.onChange('ai', { ...props.config.ai, [f]: v })} className="config-panel-section" />,
   ],
   catalog: [
-    (props) => <CatalogSettingsPanel {...props} config={props.config.catalog} onChange={(f,v) => props.onChange('catalog', { ...props.config.catalog, [f]: v })} className="config-panel-section" />,
-    (props) => <CategoryManagerPanel {...props} config={props.config.catalog} onChange={(f,v) => props.onChange('catalog', { ...props.config.catalog, [f]: v })} className="config-panel-section" />,
+    (props) => <CatalogSettingsPanel {...props} config={props.config.catalog} onChange={(f,v) => props.onChange(f, v)} className="config-panel-section" />,
+    (props) => <CategoryManagerPanel {...props} config={props.config.catalog} onChange={(f,v) => props.onChange(f, v)} className="config-panel-section" />,
   ],
   functions: [
     (props) => <FunctionSettingsPanel {...props} config={props.config.functions} onChange={(f,v) => props.onChange('functions', { ...props.config.functions, [f]: v })} className="config-panel-section" />,

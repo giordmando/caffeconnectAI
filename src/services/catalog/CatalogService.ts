@@ -204,7 +204,7 @@ export class CatalogService implements ICatalogService{
   }
 
   private async fetchRemoteCatalogData(endpoint: string): Promise<any> {
-    const response = await fetch(endpoint);
+    const response = await fetch(this.normalizeCatalogEndpoint(endpoint));
     if (!response.ok) {
       throw new Error(`Failed to load catalog source: ${response.status}`);
     }
@@ -220,6 +220,25 @@ export class CatalogService implements ICatalogService{
     } catch {
       return this.parseCsv(trimmed);
     }
+  }
+
+  private normalizeCatalogEndpoint(endpoint: string): string {
+    const trimmed = String(endpoint || '').trim();
+    const match = trimmed.match(/docs\.google\.com\/spreadsheets\/d\/([^/]+)/i);
+
+    if (!match) {
+      return trimmed;
+    }
+
+    if (trimmed.includes('/export?') || trimmed.includes('output=csv')) {
+      return trimmed;
+    }
+
+    const gidMatch = trimmed.match(/[?&#]gid=([0-9]+)/i);
+    const spreadsheetId = match[1];
+    const gid = gidMatch?.[1] || '0';
+
+    return `https://docs.google.com/spreadsheets/d/${spreadsheetId}/export?format=csv&gid=${gid}`;
   }
 
   private extractRecords(data: any, keys: string[]): any[] {
