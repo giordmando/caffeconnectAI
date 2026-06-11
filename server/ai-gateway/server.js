@@ -6,6 +6,8 @@ const { OpenAIResponsesClient } = require('./openaiClient');
 const { AgentOrchestrator } = require('./agentOrchestrator');
 const { createDefaultToolRegistry } = require('./toolRegistry');
 const { EventStore } = require('./eventStore');
+const { OrderProcessor } = require('./orderProcessor');
+const { OrderStore } = require('./orderStore');
 
 const config = createGatewayConfig();
 const toolRegistry = createDefaultToolRegistry(config);
@@ -16,6 +18,8 @@ const openaiClient = new OpenAIResponsesClient({
 });
 const orchestrator = new AgentOrchestrator({ openaiClient, toolRegistry, config });
 const eventStore = new EventStore({ maxEvents: config.maxBusinessEvents });
+const orderStore = new OrderStore({ maxOrders: config.maxOrders });
+const orderProcessor = new OrderProcessor({ defaultWebhookUrl: config.orderWebhookUrl });
 
 function getCorsOrigin(req) {
   const requestOrigin = req.headers.origin;
@@ -147,6 +151,61 @@ async function handleRequest(req, res) {
         saved: savedEvents.length,
         summary: eventStore.summary()
       });
+    }
+
+    if (req.method === 'GET' && url.pathname === '/v1/orders') {
+      const limit = Number(url.searchParams.get('limit') || 25);
+      return sendJson(req, res, 200, { orders: orderStore.list(limit) });
+    }
+
+    if (req.method === 'POST' && url.pathname === '/v1/orders') {
+      const body = await readBody(req);
+
+      try {
+        const result = await orderProcessor.process(body);
+        const orderRecord = orderStore.append({
+          status: 'submitted',
+          orderId: result.orderId,
+          order: body.order,
+          timestamp: Date.now()
+        });
+        eventStore.append({
+          type: 'order_submitted',
+          timestamp: Date.now(),
+          payload: {
+            orderId: result.orderId,
+            method: 'webhook',
+            subtotal: body.order && body.order.subtotal,
+            itemCount: body.order && Array.isArray(body.order.items)
+              ? body.order.items.reduce((sum, item) => sum + Number(item.quantity || 0), 0)
+              : 0
+          }
+        });
+        return sendJson(req, res, 201, {
+          ...result,
+          orderRecord
+        });
+      } catch (orderError) {
+        const orderRecord = orderStore.append({
+          status: 'failed',
+          order: body.order,
+          timestamp: Date.now(),
+          error: orderError.message || 'Order gateway error'
+        });
+        eventStore.append({
+          type: 'order_failed',
+          timestamp: Date.now(),
+          payload: {
+            method: 'webhook',
+            subtotal: body.order && body.order.subtotal,
+            error: orderError.message || 'Order gateway error'
+          }
+        });
+        return sendJson(req, res, 502, {
+          error: orderError.message || 'Order gateway error',
+          orderRecord
+        });
+      }
     }
 
     if (req.method === 'POST' && url.pathname === '/v1/chat') {

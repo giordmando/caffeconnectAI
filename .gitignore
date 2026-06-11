@@ -5,3 +5,4 @@ node_modules/*
 *.tsbuildinfo
 package-lock.json
 server/ai-gateway/data/businessEvents.json
+server/ai-gateway/data/orders.json

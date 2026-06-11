@@ -71,7 +71,10 @@ export class OrderOrchestrator {
     }
     
     try {
-      return await strategy.processOrder(order);
+      return await strategy.processOrder({
+        ...order,
+        method: method as OrderRequest['method']
+      });
     } catch (error) {
       console.error(`Error processing order with ${method}:`, error);
       return {

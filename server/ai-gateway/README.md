@@ -21,6 +21,8 @@ Without `OPENAI_API_KEY`, the gateway runs in deterministic demo mode and uses t
 - `POST /v1/chat`: chat orchestration endpoint.
 - `POST /v1/events`: store one or more business analytics events.
 - `GET /v1/events/summary`: aggregate business analytics for the merchant dashboard.
+- `POST /v1/orders`: validate and forward checkout orders to the merchant webhook.
+- `GET /v1/orders?limit=25`: recent gateway order submissions and failures.
 
 ## Current tools
 
@@ -56,6 +58,33 @@ Runtime analytics are stored in:
 
 ```text
 server/ai-gateway/data/businessEvents.json
+```
+
+This file is intentionally ignored by git.
+
+## Order Webhook Gateway
+
+The React checkout sends webhook orders to:
+
+```text
+POST /v1/orders
+```
+
+The gateway validates the order, forwards it to the merchant webhook, and records success/failure in merchant analytics.
+
+You can configure a server-side default webhook:
+
+```bash
+AI_GATEWAY_ORDER_WEBHOOK_URL=https://example.com/orders
+AI_GATEWAY_MAX_ORDERS=500
+```
+
+If this variable is omitted, the endpoint can still receive `webhookUrl` in the request body from the merchant UI configuration.
+
+Recent order records are stored in:
+
+```text
+server/ai-gateway/data/orders.json
 ```
 
 This file is intentionally ignored by git.

@@ -20,6 +20,8 @@ function createGatewayConfig(env = process.env) {
     allowOrigins: readList(env.AI_GATEWAY_ALLOWED_ORIGINS || 'http://localhost:3000'),
     maxToolRounds: Number(env.AI_GATEWAY_MAX_TOOL_ROUNDS || 3),
     maxBusinessEvents: Number(env.AI_GATEWAY_MAX_BUSINESS_EVENTS || 5000),
+    maxOrders: Number(env.AI_GATEWAY_MAX_ORDERS || 500),
+    orderWebhookUrl: env.AI_GATEWAY_ORDER_WEBHOOK_URL || '',
     knowledgeUrls: readList(env.AI_GATEWAY_KNOWLEDGE_URLS),
     knowledgeInline: env.AI_GATEWAY_KNOWLEDGE_INLINE || '',
     knowledgeCacheTtlMs: Number(env.AI_GATEWAY_KNOWLEDGE_CACHE_TTL_MS || 300000)

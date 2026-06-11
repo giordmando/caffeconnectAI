@@ -84,6 +84,8 @@ OPENAI_API_KEY=...
 AI_GATEWAY_MODEL=gpt-4.1-mini
 AI_GATEWAY_PORT=8787
 AI_GATEWAY_ALLOWED_ORIGINS=http://localhost:3000
+AI_GATEWAY_ORDER_WEBHOOK_URL=https://example.com/orders
+AI_GATEWAY_MAX_ORDERS=500
 REACT_APP_AI_GATEWAY_URL=http://localhost:8787
 REACT_APP_ENABLE_AI_GATEWAY=true
 ```
@@ -99,7 +101,10 @@ Per collegare dati reali:
 - incolla l'URL negli endpoint catalogo dentro **Impostazioni Business > Catalogo**;
 - aggiungi FAQ, orari, policy allergeni e offerte in **Knowledge Base**.
 
-Guida rapida: `docs/google-sheets-catalogo.md`.
+Guide rapide:
+
+- `docs/google-sheets-catalogo.md`
+- `docs/order-webhook.md`
 
 ## Roadmap prodotto
 

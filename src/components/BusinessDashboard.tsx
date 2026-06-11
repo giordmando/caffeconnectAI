@@ -6,6 +6,7 @@ import { Product } from '../types/Product';
 import {
   BusinessEvent,
   BusinessEventSummary,
+  GatewayOrderRecord,
   businessEventService
 } from '../services/analytics/BusinessEventService';
 
@@ -111,6 +112,7 @@ export const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ onClose })
   const [conversations, setConversations] = useState<StoredConversation[]>([]);
   const [events, setEvents] = useState<BusinessEvent[]>([]);
   const [remoteSummary, setRemoteSummary] = useState<BusinessEventSummary | null>(null);
+  const [remoteOrders, setRemoteOrders] = useState<GatewayOrderRecord[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastRefreshAt, setLastRefreshAt] = useState<number | null>(null);
 
@@ -118,10 +120,11 @@ export const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ onClose })
     setIsRefreshing(true);
 
     try {
-      const [loadedMenuItems, loadedProducts, loadedRemoteSummary] = await Promise.all([
+      const [loadedMenuItems, loadedProducts, loadedRemoteSummary, loadedRemoteOrders] = await Promise.all([
         catalogService.getAllMenuItems(),
         catalogService.getProducts(),
-        businessEventService.getRemoteSummary()
+        businessEventService.getRemoteSummary(),
+        businessEventService.getRemoteOrders(8)
       ]);
 
       setMenuItems(loadedMenuItems);
@@ -129,6 +132,7 @@ export const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ onClose })
       setConversations(readStoredConversations());
       setEvents(businessEventService.getEvents());
       setRemoteSummary(loadedRemoteSummary);
+      setRemoteOrders(loadedRemoteOrders);
       setLastRefreshAt(Date.now());
     } finally {
       setIsRefreshing(false);
@@ -415,6 +419,32 @@ export const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ onClose })
               </p>
             )}
           </div>
+        </section>
+
+        <section className="dashboard-panel dashboard-orders-panel">
+          <h3>Storico ordini gateway</h3>
+          {remoteOrders.length > 0 ? (
+            <ul className="dashboard-order-list">
+              {remoteOrders.map(order => (
+                <li key={order.id}>
+                  <span className={`order-status order-status-${order.status}`}>
+                    {order.status === 'submitted' ? 'Inviato' : 'Fallito'}
+                  </span>
+                  <span className="order-main">
+                    <strong>{order.orderId}</strong>
+                    <small>{order.customerName || 'Cliente non indicato'} · {order.itemCount} articoli</small>
+                    {order.error && <small>{order.error}</small>}
+                  </span>
+                  <span className="order-value">{formatCurrency(order.subtotal)}</span>
+                  <time>{formatEventTime(order.timestamp)}</time>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="dashboard-muted">
+              Invia un ordine o usa il test webhook per popolare lo storico gateway.
+            </p>
+          )}
         </section>
 
         <section className="dashboard-panel dashboard-actions-panel">

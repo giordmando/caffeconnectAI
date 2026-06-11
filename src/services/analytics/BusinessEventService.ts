@@ -38,12 +38,29 @@ export interface BusinessEventSummary {
   lastEventAt?: number | null;
 }
 
+export interface GatewayOrderRecord {
+  id: string;
+  orderId: string;
+  status: 'submitted' | 'failed';
+  method: string;
+  timestamp: number;
+  createdAt: string;
+  subtotal: number;
+  itemCount: number;
+  customerName?: string;
+  error?: string;
+}
+
 const STORAGE_KEY = 'cafeconnect_business_events';
 const MAX_EVENTS = 500;
 const GATEWAY_URL = process.env.REACT_APP_AI_GATEWAY_URL || 'http://localhost:8787';
 
 class BusinessEventService {
-  track(type: BusinessEventType, payload: Record<string, any> = {}): void {
+  track(
+    type: BusinessEventType,
+    payload: Record<string, any> = {},
+    options: { mirrorGateway?: boolean } = {}
+  ): void {
     try {
       const events = this.getEvents();
       const event: BusinessEvent = {
@@ -55,7 +72,9 @@ class BusinessEventService {
 
       const nextEvents = [...events, event].slice(-MAX_EVENTS);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(nextEvents));
-      this.sendToGateway(event);
+      if (options.mirrorGateway !== false) {
+        this.sendToGateway(event);
+      }
     } catch (error) {
       console.warn('[BusinessEventService] Unable to track event:', type, error);
     }
@@ -86,6 +105,17 @@ class BusinessEventService {
       return response.json();
     } catch (_error) {
       return null;
+    }
+  }
+
+  async getRemoteOrders(limit: number = 10): Promise<GatewayOrderRecord[]> {
+    try {
+      const response = await fetch(`${GATEWAY_URL}/v1/orders?limit=${limit}`);
+      if (!response.ok) return [];
+      const result = await response.json();
+      return Array.isArray(result.orders) ? result.orders : [];
+    } catch (_error) {
+      return [];
     }
   }
 

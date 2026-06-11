@@ -4,6 +4,7 @@ import { AppConfig } from '../config/interfaces/IAppConfig';
 import { configManager } from '../config/ConfigManager'; // Importa configManager
 import { orderOrchestrator } from '../services/order/OrderOrchestrator';
 import { WhatsAppOrderStrategy } from '../services/order/strategies/WhatsAppOrderStrategy';
+import { WebhookOrderStrategy } from '../services/order/strategies/WebhookOrderStrategy';
 import { IAIService } from '../services/ai/interfaces/IAIService';
 import { ComponentManager } from '../services/ui/compstore/ComponentManager';
 
@@ -57,6 +58,7 @@ export const ServiceProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   useEffect(() => {
     orderOrchestrator.registerStrategy('whatsapp', new WhatsAppOrderStrategy());
+    orderOrchestrator.registerStrategy('webhook', new WebhookOrderStrategy());
   }, []);
 
   const changeAIProvider = useCallback(

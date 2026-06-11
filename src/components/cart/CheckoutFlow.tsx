@@ -54,6 +54,8 @@ export const CheckoutFlow: React.FC<CheckoutFlowProps> = ({ onBack, onComplete }
           method: selectedMethod,
           itemCount: items.reduce((sum, item) => sum + item.quantity, 0),
           subtotal
+        }, {
+          mirrorGateway: selectedMethod !== 'webhook'
         });
 
         // Pulisci carrello
@@ -69,6 +71,8 @@ export const CheckoutFlow: React.FC<CheckoutFlowProps> = ({ onBack, onComplete }
           method: selectedMethod,
           subtotal,
           error: result.error || 'Errore invio ordine'
+        }, {
+          mirrorGateway: selectedMethod !== 'webhook'
         });
         setError(result.error || 'Errore nell\'invio dell\'ordine');
       }
@@ -77,6 +81,8 @@ export const CheckoutFlow: React.FC<CheckoutFlowProps> = ({ onBack, onComplete }
         method: selectedMethod,
         subtotal,
         error: error instanceof Error ? error.message : 'Errore imprevisto'
+      }, {
+        mirrorGateway: selectedMethod !== 'webhook'
       });
       setError('Errore imprevisto. Riprova.');
       console.error('Checkout error:', error);
@@ -187,6 +193,25 @@ export const CheckoutFlow: React.FC<CheckoutFlowProps> = ({ onBack, onComplete }
                 <div className="method-info">
                   <strong>Email</strong>
                   <small>Invia ordine via email</small>
+                </div>
+              </div>
+            </label>
+          )}
+
+          {availableMethods.includes('webhook') && (
+            <label className="method-option">
+              <input
+                type="radio"
+                name="method"
+                value="webhook"
+                checked={selectedMethod === 'webhook'}
+                onChange={(e) => setSelectedMethod(e.target.value)}
+              />
+              <div className="method-content">
+                <div className="method-icon">API</div>
+                <div className="method-info">
+                  <strong>Gestionale</strong>
+                  <small>Invia ordine tramite webhook/API</small>
                 </div>
               </div>
             </label>
