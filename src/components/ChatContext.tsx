@@ -299,6 +299,124 @@ export const ChatProvider: React.FC<{
     return components;
   }, [config.maxRecommendations]);
 
+  const normalizeSearchText = useCallback((value: string): string => (
+    value
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+  ), []);
+
+  const handleLocalCatalogFallback = useCallback(async (
+    message: string,
+    conversationId: string
+  ): Promise<boolean> => {
+    const lower = normalizeSearchText(message);
+    const wantsProducts = /\b(prodotti|prodotto|shop|acquistare|comprare|confezioni|biscotti|tazza|caffe in grani|decaffeinato|sencha)\b/.test(lower);
+    const wantsMenu = /\b(menu|pranzo|colazione|aperitivo|cena|mangiare|bere|consigli|consiglia|avete)\b/.test(lower);
+    const wantsDetail = /\b(dettaglio|dettagli|vedere|mostra|aprire|scheda)\b/.test(lower);
+
+    if (!wantsProducts && !wantsMenu && !wantsDetail) {
+      return false;
+    }
+
+    const [menuItems, products] = await Promise.all([
+      catalogService.getAllMenuItems(),
+      catalogService.getProducts()
+    ]);
+    const allItems = [...products, ...menuItems];
+
+    if (wantsDetail) {
+      const selected = allItems.find((item: any) => {
+        const name = normalizeSearchText(item?.name || '');
+        return name && (lower.includes(name) || name.split(/\s+/).filter(Boolean).every(part => lower.includes(part)));
+      });
+
+      if (selected) {
+        const gatewayLikeResponse: AIGatewayChatResponse = {
+          mode: 'validation',
+          message: `Ecco il dettaglio di ${selected.name}. Puoi aggiungerlo al carrello dalla card.`,
+          toolCalls: [{
+            name: 'get_item_detail',
+            arguments: { id: selected.id },
+            result: { item: selected }
+          }]
+        };
+        const assistantMessage = messageService.createAssistantMessage(gatewayLikeResponse.message);
+        messageService.addMessage(assistantMessage);
+        setMessages(messageService.getMessages());
+        await messageService.trackMessage(assistantMessage, conversationId, userService.getUserContext());
+        uiComponentService.addComponents(createGatewayUIComponents(gatewayLikeResponse));
+        setAvailableActions([]);
+        return true;
+      }
+    }
+
+    if (wantsProducts) {
+      const gatewayLikeResponse: AIGatewayChatResponse = {
+        mode: 'validation',
+        message: 'Ho trovato alcuni prodotti interessanti: li trovi nelle card qui sotto.',
+        toolCalls: [{
+          name: 'search_products',
+          arguments: { query: message },
+          result: { products: products.slice(0, config.maxRecommendations || 4) }
+        }]
+      };
+      const assistantMessage = messageService.createAssistantMessage(gatewayLikeResponse.message);
+      messageService.addMessage(assistantMessage);
+      setMessages(messageService.getMessages());
+      await messageService.trackMessage(assistantMessage, conversationId, userService.getUserContext());
+      uiComponentService.addComponents(createGatewayUIComponents(gatewayLikeResponse));
+      setAvailableActions(createGatewayActions(gatewayLikeResponse));
+      return true;
+    }
+
+    const lunchTerms = /\b(pranzo|mangiare|lunch)\b/.test(lower);
+    const menuResults = menuItems
+      .filter((item: any) => {
+        if (!lunchTerms) return true;
+        const text = normalizeSearchText([
+          item?.name,
+          item?.category,
+          item?.subcategory,
+          ...(item?.preferences || [])
+        ].filter(Boolean).join(' '));
+        return /\b(lunch|food|bowl|toast|sandwich|salad|pranzo)\b/.test(text);
+      })
+      .slice(0, config.maxRecommendations || 4);
+
+    if (menuResults.length > 0) {
+      const gatewayLikeResponse: AIGatewayChatResponse = {
+        mode: 'validation',
+        message: lunchTerms
+          ? 'Per pranzo ti propongo queste opzioni. Puoi aprire una card per personalizzarla.'
+          : 'Ecco alcune proposte disponibili. Puoi aprire una card per vedere i dettagli.',
+        toolCalls: [{
+          name: 'search_menu',
+          arguments: { query: lunchTerms ? 'lunch' : message },
+          result: { items: menuResults }
+        }]
+      };
+      const assistantMessage = messageService.createAssistantMessage(gatewayLikeResponse.message);
+      messageService.addMessage(assistantMessage);
+      setMessages(messageService.getMessages());
+      await messageService.trackMessage(assistantMessage, conversationId, userService.getUserContext());
+      uiComponentService.addComponents(createGatewayUIComponents(gatewayLikeResponse));
+      setAvailableActions(createGatewayActions(gatewayLikeResponse));
+      return true;
+    }
+
+    return false;
+  }, [
+    catalogService,
+    config.maxRecommendations,
+    createGatewayActions,
+    createGatewayUIComponents,
+    messageService,
+    normalizeSearchText,
+    uiComponentService,
+    userService
+  ]);
+
   const sendMessageThroughGateway = useCallback(async (
     message: string,
     conversationId: string,
@@ -356,6 +474,10 @@ export const ChatProvider: React.FC<{
       return true;
     } catch (error) {
       console.warn('[ChatContext] AI Gateway unavailable, falling back to current provider:', error);
+      const handledLocally = await handleLocalCatalogFallback(message, conversationId);
+      if (handledLocally) {
+        return true;
+      }
       return false;
     }
   }, [
@@ -368,7 +490,8 @@ export const ChatProvider: React.FC<{
     shouldUseAIGateway,
     uiComponentService,
     catalogService,
-    userService
+    userService,
+    handleLocalCatalogFallback
   ]);
   const handleSendMessage = useCallback(async () => {
     const conversationId = conversationManager.getCurrentConversationId();

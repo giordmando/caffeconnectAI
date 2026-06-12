@@ -36,9 +36,20 @@ function getCorsOrigin(req) {
     return config.allowOrigins.includes('null') ? 'null' : '*';
   }
 
-  return config.allowOrigins.includes(requestOrigin)
-    ? requestOrigin
-    : config.allowOrigins[0] || '*';
+  if (config.allowOrigins.includes(requestOrigin) || isTrustedRenderOrigin(requestOrigin)) {
+    return requestOrigin;
+  }
+
+  return config.allowOrigins[0] || '*';
+}
+
+function isTrustedRenderOrigin(origin) {
+  try {
+    const url = new URL(origin);
+    return url.protocol === 'https:' && url.hostname.endsWith('.onrender.com');
+  } catch (_error) {
+    return false;
+  }
 }
 
 function corsHeaders(req) {
@@ -46,7 +57,8 @@ function corsHeaders(req) {
     'Access-Control-Allow-Origin': getCorsOrigin(req),
     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-    'Access-Control-Max-Age': '86400'
+    'Access-Control-Max-Age': '86400',
+    'Vary': 'Origin'
   };
 }
 

@@ -5,6 +5,7 @@ import { TrackerFactory } from './factory/TrackerFactory';
 import { nlpConfiguration } from './nlp/NLPConfiguration';
 import { EnhancedStorageService } from './EnhancedStorageService';
 import { INLPService } from './nlp/interfaces/INLPService';
+import { configManager } from '../../config/ConfigManager';
 
 /**
  * Configurazione aggiornata dei servizi di analytics che utilizza
@@ -32,15 +33,17 @@ export async function setupAnalytics(): Promise<IConversationTracker> {
       }
     }
     
-    // Inizializza il servizio NLP
+    // Inizializza il servizio NLP solo quando la UI lo richiede.
     let nlpService: INLPService | undefined = undefined;
-    try {
-      await nlpConfiguration.initialize();
-      nlpService = nlpConfiguration.getOrchestrator() as INLPService;
-      console.log('NLP service initialized successfully');
-    } catch (error) {
-      console.error('Error initializing NLP service:', error);
-      // Continua senza NLP in caso di errore
+    const appConfig = configManager.getConfig();
+    if (appConfig.ui.enableNLP) {
+      try {
+        await nlpConfiguration.initialize();
+        nlpService = nlpConfiguration.getOrchestrator() as INLPService;
+        console.log('NLP service initialized successfully');
+      } catch (error) {
+        console.warn('NLP service unavailable, continuing without browser-side NLP:', error);
+      }
     }
     
     // Crea e restituisce il tracker

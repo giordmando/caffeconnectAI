@@ -17,7 +17,12 @@ function createGatewayConfig(env = process.env) {
     openaiBaseUrl: env.OPENAI_BASE_URL || 'https://api.openai.com/v1',
     model: env.OPENAI_MODEL || 'gpt-4o-mini',
     demoMode: readBoolean(env.AI_GATEWAY_DEMO_MODE, !env.OPENAI_API_KEY),
-    allowOrigins: readList(env.AI_GATEWAY_ALLOWED_ORIGINS || 'http://localhost:3000'),
+    allowOrigins: readList(env.AI_GATEWAY_ALLOWED_ORIGINS || [
+      'http://localhost:3000',
+      'http://localhost:8787',
+      'https://caffeconnectai-1.onrender.com',
+      'https://caffeconnect-ai-gateway.onrender.com'
+    ].join(',')),
     maxToolRounds: Number(env.AI_GATEWAY_MAX_TOOL_ROUNDS || 3),
     maxBusinessEvents: Number(env.AI_GATEWAY_MAX_BUSINESS_EVENTS || 5000),
     maxOrders: Number(env.AI_GATEWAY_MAX_ORDERS || 500),

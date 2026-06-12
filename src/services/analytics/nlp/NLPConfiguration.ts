@@ -40,11 +40,9 @@ export class NLPConfiguration {
       const aiConfig = configManager.getSection('ai');
       
       // Utilizza il factory per creare i provider
-      if (aiConfig.providers.openai) {
+      if (aiConfig.providers.openai && aiConfig.apiKey) {
         const openAIConfig = {
-          apiKey: localStorage.getItem('cafeconnect-ai-config') ? 
-            JSON.parse(localStorage.getItem('cafeconnect-ai-config') || '{}').config?.apiKey : 
-            ''
+          apiKey: aiConfig.apiKey
         };
         
         const openaiAdapter = await this.providerFactory.createProvider('OpenAI', openAIConfig);
@@ -63,7 +61,7 @@ export class NLPConfiguration {
       });
       
       // Imposta provider predefinito
-      if (aiConfig.providers.openai) {
+      if (aiConfig.providers.openai && aiConfig.apiKey) {
         this.orchestrator.setDefaultProvider('OpenAI');
       } else {
         this.orchestrator.setDefaultProvider('VADER');
