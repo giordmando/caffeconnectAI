@@ -51,6 +51,16 @@ function matchesQuery(entry, query) {
   return searchableFields.some(field => normalize(field).includes(query));
 }
 
+function findByIdOrName(collection, value) {
+  const target = normalize(value);
+  if (!target) return null;
+
+  return collection.find(entry => normalize(entry.id) === target)
+    || collection.find(entry => normalize(entry.name) === target)
+    || collection.find(entry => normalize(entry.name).includes(target))
+    || collection.find(entry => target.includes(normalize(entry.name)));
+}
+
 function scoreMenuItem(item, { query, timeOfDay }) {
   let score = Number(item.popularity || 0);
   const preferences = (item.preferences || []).map(normalize);
@@ -141,7 +151,7 @@ function createCatalogTools() {
       },
       execute: async ({ id, type }, context = {}) => {
         const collection = type === 'product' ? loadProducts(context) : loadMenuItems(context);
-        const item = collection.find(entry => entry.id === id) || null;
+        const item = findByIdOrName(collection, id) || null;
         return { item, found: Boolean(item), source: item ? 'catalog' : 'not-found' };
       }
     },

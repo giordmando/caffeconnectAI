@@ -108,9 +108,11 @@ export class ActionHandlerService implements IActionHandlerService {
     const itemType = payload.type as 'menuItem' | 'product';
     
     try {
-      const itemDetails = itemType === 'menuItem'
-        ? await this.catalogService.getMenuItemById(payload.id)
-        : await this.catalogService.getProductById(payload.id);
+      const itemDetails = payload.item || (
+        itemType === 'menuItem'
+          ? await this.catalogService.getMenuItemById(payload.id)
+          : await this.catalogService.getProductById(payload.id)
+      );
         
       if (itemDetails) {
         businessEventService.track('item_viewed', {
@@ -146,7 +148,7 @@ export class ActionHandlerService implements IActionHandlerService {
         this.messageService.addMessage(message);
       } else {
         const errorMessage = this.messageService.createAssistantMessage(
-          'Non ho trovato i dettagli per l\'item selezionato.'
+          'Non ho trovato quel prodotto. Puoi selezionarlo da una card o scrivermi il nome esatto.'
         );
         this.messageService.addMessage(errorMessage);
       }

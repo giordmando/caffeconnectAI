@@ -42,9 +42,10 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
   
   // Formatta il contenuto del messaggio con supporto per il markdown di base
   const formatContent = (content: string) => {
+    const withoutMarkdownImages = content.replace(/!\[[^\]]*\]\([^)]+\)/g, '');
     // Sostituisce gli URL con link cliccabili
     const urlRegex = /(https?:\/\/[^\s]+)/g;
-    const contentWithLinks = content.replace(urlRegex, (url) => `<a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>`);
+    const contentWithLinks = withoutMarkdownImages.replace(urlRegex, (url) => `<a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>`);
     
     // Supporto per bold e italic
     const boldItalicRegex = /\*\*\*(.*?)\*\*\*/g;

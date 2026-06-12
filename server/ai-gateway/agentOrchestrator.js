@@ -124,6 +124,24 @@ class AgentOrchestrator {
       };
     }
 
+    if (this.isDetailRequest(lower)) {
+      const detailResult = await this.resolveDetailRequest(message, payload);
+      if (detailResult.item) {
+        toolCalls.push({
+          name: 'get_item_detail',
+          arguments: { id: detailResult.item.id, type: detailResult.type },
+          result: { item: detailResult.item, found: true, source: 'catalog' }
+        });
+
+        return {
+          message: `Ecco il dettaglio di ${detailResult.item.name}. Puoi aggiungerlo al carrello dalla card.`,
+          agent,
+          toolCalls,
+          mode: 'demo'
+        };
+      }
+    }
+
     if (lower.includes('prodot') || lower.includes('comprare') || lower.includes('acquist')) {
       const args = { query: '', limit: 4 };
       const result = await this.toolRegistry.execute('search_products', args, payload);
@@ -168,6 +186,29 @@ class AgentOrchestrator {
       toolCalls,
       mode: 'demo'
     };
+  }
+
+  isDetailRequest(lower) {
+    return ['dettaglio', 'dettagli', 'vedere', 'vedi', 'visualizzare', 'acquistare', 'comprare'].some(term => lower.includes(term));
+  }
+
+  async resolveDetailRequest(message, payload) {
+    const query = String(message || '')
+      .replace(/\b(voglio|vorrei|vedere|vedi|visualizzare|il|la|lo|i|gli|le|dettaglio|dettagli|di|del|della|acquistare|comprare)\b/gi, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    const productSearch = await this.toolRegistry.execute('search_products', { query, limit: 1 }, payload);
+    if (productSearch.products && productSearch.products[0]) {
+      return { item: productSearch.products[0], type: 'product' };
+    }
+
+    const menuSearch = await this.toolRegistry.execute('search_menu', { query, timeOfDay: 'all', limit: 1 }, payload);
+    if (menuSearch.items && menuSearch.items[0]) {
+      return { item: menuSearch.items[0], type: 'menuItem' };
+    }
+
+    return { item: null, type: 'product' };
   }
 
   summarizeMenuSuggestion(timeOfDay, lower) {
@@ -405,7 +446,9 @@ class AgentOrchestrator {
       'Usa knowledge_search per rispondere su storia del locale, orari, policy, allergeni, fornitori, offerte, FAQ o informazioni personalizzate dell esercente.',
       'Rispondi in italiano con massimo 2 frasi brevi.',
       'Non elencare tutti i dati dei tool: la UI mostra gia card e dettagli visivi.',
-      'Non inserire URL, markdown link, tabelle o liste numerate lunghe.',
+      'Non inserire URL, markdown link, markdown immagini, tabelle o liste numerate lunghe.',
+      'Quando mostri prodotti o menu usa i tool: rispondi con una frase breve e lascia le card alla UI.',
+      'Se il cliente chiede dettagli o acquisto di un articolo per nome, usa get_item_detail o cerca prima il prodotto corrispondente.',
       'Non inventare prezzi, disponibilita, allergeni o ingredienti: usa i tool o chiedi conferma.',
       'Se il cliente vuole ordinare, prepara una bozza e chiedi conferma prima dell invio.',
       business.name ? 'Locale attivo: ' + business.name + '.' : '',
