@@ -255,7 +255,8 @@ export const ChatProvider: React.FC<{
             recommendations: items.slice(0, config.maxRecommendations || 4).map((item: any, index: number) => ({
               id: item.id,
               name: item.name,
-              confidence: Math.max(0.75, 0.95 - index * 0.05)
+              confidence: Math.max(0.75, 0.95 - index * 0.05),
+              item
             })),
             timeOfDay: toolCall.arguments && typeof toolCall.arguments === 'object'
               ? (toolCall.arguments as any).timeOfDay || 'all'
@@ -275,7 +276,8 @@ export const ChatProvider: React.FC<{
             recommendations: products.slice(0, config.maxRecommendations || 4).map((product: any, index: number) => ({
               id: product.id,
               name: product.name,
-              confidence: Math.max(0.75, 0.95 - index * 0.05)
+              confidence: Math.max(0.75, 0.95 - index * 0.05),
+              item: product
             })),
             category: 'all'
           },

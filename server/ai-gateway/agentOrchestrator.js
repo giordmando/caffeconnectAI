@@ -147,8 +147,13 @@ class AgentOrchestrator {
           ? 'evening'
           : 'all';
 
+    const queryByTime = {
+      morning: 'breakfast',
+      afternoon: 'lunch',
+      evening: 'aperitivo'
+    };
     const args = {
-      query: timeOfDay === 'all' ? message : '',
+      query: timeOfDay === 'all' ? message : queryByTime[timeOfDay] || '',
       timeOfDay,
       limit: 4
     };
@@ -157,12 +162,30 @@ class AgentOrchestrator {
 
     return {
       message: result.items.length
-        ? 'Ti propongo alcune opzioni dal menu: le trovi nelle card qui sotto.'
+        ? this.summarizeMenuSuggestion(timeOfDay, lower)
         : 'Posso aiutarti con menu, prodotti acquistabili, carrello o ordine WhatsApp.',
       agent,
       toolCalls,
       mode: 'demo'
     };
+  }
+
+  summarizeMenuSuggestion(timeOfDay, lower) {
+    if (timeOfDay === 'afternoon') {
+      return lower.includes('ho chiesto') || lower.startsWith('ma ')
+        ? 'Hai ragione: per pranzo ti propongo opzioni salate e complete. Puoi scegliere una bowl o un toast e aggiungerli al carrello.'
+        : 'Per pranzo ti propongo opzioni salate e complete: una bowl bilanciata o un toast leggero. Le trovi nelle card qui sotto.';
+    }
+
+    if (timeOfDay === 'morning') {
+      return 'Per colazione ti propongo alcune opzioni adatte al mattino. Le trovi nelle card qui sotto.';
+    }
+
+    if (timeOfDay === 'evening') {
+      return 'Per aperitivo ti propongo alcune opzioni pensate per la sera. Le trovi nelle card qui sotto.';
+    }
+
+    return 'Ti propongo alcune opzioni dal menu: le trovi nelle card qui sotto.';
   }
 
   summarizeToolBackedResponse(modelText, toolCalls) {

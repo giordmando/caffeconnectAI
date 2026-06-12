@@ -51,6 +51,33 @@ function matchesQuery(entry, query) {
   return searchableFields.some(field => normalize(field).includes(query));
 }
 
+function scoreMenuItem(item, { query, timeOfDay }) {
+  let score = Number(item.popularity || 0);
+  const preferences = (item.preferences || []).map(normalize);
+  const category = normalize(item.category);
+  const subcategory = normalize(item.subcategory);
+
+  if (query === 'lunch' || timeOfDay === 'afternoon') {
+    if (preferences.includes('lunch')) score += 120;
+    if (category === 'food') score += 80;
+    if (['salad', 'sandwich', 'bowl', 'lunch'].includes(subcategory)) score += 60;
+    if (category === 'beverage') score -= 70;
+    if (subcategory === 'coffee') score -= 90;
+  }
+
+  if (query === 'breakfast' || timeOfDay === 'morning') {
+    if (preferences.includes('breakfast')) score += 100;
+    if (['coffee', 'pastry', 'breakfast'].includes(subcategory)) score += 50;
+  }
+
+  if (query === 'aperitivo' || timeOfDay === 'evening') {
+    if (preferences.includes('aperitivo')) score += 100;
+    if (['aperitivo', 'wine', 'cocktail'].includes(subcategory)) score += 50;
+  }
+
+  return score;
+}
+
 function createCatalogTools() {
   return [
     {
@@ -72,6 +99,7 @@ function createCatalogTools() {
           .filter(item => category === 'all' || !category || item.category === category)
           .filter(item => timeOfDay === 'all' || !timeOfDay || (item.timeOfDay || []).includes(timeOfDay))
           .filter(item => matchesQuery(item, q))
+          .sort((a, b) => scoreMenuItem(b, { query: q, timeOfDay }) - scoreMenuItem(a, { query: q, timeOfDay }))
           .slice(0, limit);
 
         return { items, count: items.length, source: context.catalog?.menuItems?.length ? 'runtime-catalog' : 'local-catalog' };

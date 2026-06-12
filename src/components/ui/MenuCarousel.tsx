@@ -1,11 +1,13 @@
 import React from 'react';
 import { mockApiGetMenuItems } from '../../api/mockApi';
 import { useCart } from '../../hooks/useCart';
+import { formatPrice } from '../../utils/formatters';
 
 interface MenuRecommendation {
   id: string;
   name: string;
   confidence: number;
+  item?: any;
 }
 
 interface MenuCarouselProps {
@@ -15,11 +17,11 @@ interface MenuCarouselProps {
   onAction?: (action: string, payload: any) => void;
 }
 
-export const MenuCarousel: React.FC<MenuCarouselProps> = ({ 
-  recommendations, 
+export const MenuCarousel: React.FC<MenuCarouselProps> = ({
+  recommendations,
   timeOfDay,
   id,
-  onAction 
+  onAction
 }) => {
   const [menuItems, setMenuItems] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(true);
@@ -29,21 +31,14 @@ export const MenuCarousel: React.FC<MenuCarouselProps> = ({
     const fetchMenuItems = async () => {
       try {
         setLoading(true);
-        // Ottieni tutti gli item di menu
         const allMenuItems = await mockApiGetMenuItems();
-        
-        // Filtra solo quelli raccomandati
-        const recommendedItems = recommendations.map(rec => {
-          const item = allMenuItems.find(item => item.id === rec.id);
-          if (item) {
-            return {
-              ...item,
-              confidence: rec.confidence
-            };
-          }
-          return null;
-        }).filter(Boolean);
-        
+        const recommendedItems = recommendations
+          .map(rec => {
+            const item = rec.item || allMenuItems.find(candidate => candidate.id === rec.id);
+            return item ? { ...item, confidence: rec.confidence } : null;
+          })
+          .filter(Boolean);
+
         setMenuItems(recommendedItems);
       } catch (error) {
         console.error('Errore nel caricamento degli item di menu:', error);
@@ -51,11 +46,10 @@ export const MenuCarousel: React.FC<MenuCarouselProps> = ({
         setLoading(false);
       }
     };
-    
+
     fetchMenuItems();
   }, [recommendations]);
-  
-  // Converti timeOfDay in testo leggibile
+
   const getTimeOfDayText = () => {
     switch (timeOfDay) {
       case 'morning':
@@ -65,103 +59,86 @@ export const MenuCarousel: React.FC<MenuCarouselProps> = ({
       case 'evening':
         return 'aperitivo';
       default:
-        return timeOfDay;
+        return 'oggi';
     }
   };
-  
-  const handleItemClick = (item: any) => {
-    if (onAction) {
-      onAction('view_item', {
-        id: item.id,
-        type: 'menuItem',
-        item: {
-          ...item,
-          type: 'menuItem'
-        }
-      });
-    }
-  };
-  
-  const handleOrderClick = (e: React.MouseEvent, item: any) => {
-    e.stopPropagation(); // Previeni il click sull'item
 
-    // Aggiungi al carrello invece di action generica
+  const handleItemClick = (item: any) => {
+    onAction?.('view_item', {
+      id: item.id,
+      type: 'menuItem',
+      item: {
+        ...item,
+        type: 'menuItem'
+      }
+    });
+  };
+
+  const handleOrderClick = (event: React.MouseEvent<HTMLElement>, item: any) => {
+    event.stopPropagation();
     addItem(item, 'menuItem');
-  
-    // Feedback visivo
-    const button = e.currentTarget as HTMLButtonElement;
-    button.textContent = '✓ Aggiunto';
+
+    const button = event.currentTarget;
+    button.textContent = 'Aggiunto';
     button.classList.add('added');
-  
+
     setTimeout(() => {
-      button.textContent = 'Ordina';
+      button.textContent = 'Aggiungi';
       button.classList.remove('added');
     }, 1500);
   };
-  
+
   if (loading) {
     return (
       <div className="menu-carousel loading">
         <div className="loading-spinner"></div>
-        <p>Caricamento raccomandazioni...</p>
+        <p>Sto preparando i consigli...</p>
       </div>
     );
   }
-  
+
   if (menuItems.length === 0) {
     return (
       <div className="menu-carousel empty">
-        <p>Nessuna raccomandazione disponibile per {getTimeOfDayText()}.</p>
+        <p>Non ho trovato proposte disponibili per {getTimeOfDayText()}.</p>
       </div>
     );
   }
-  
+
   return (
     <div className="menu-carousel" id={id}>
       <div className="carousel-header">
         <h3>Consigliati per {getTimeOfDayText()}</h3>
       </div>
-      
+
       <div className="carousel-items">
         {menuItems.map(item => (
-          <div 
-            key={item.id} 
+          <div
+            key={item.id}
             className="menu-item-card"
             onClick={() => handleItemClick(item)}
           >
             <div className="item-image">
-              {/* Placeholder per immagine generata da AI */}
-              <div className="image-placeholder">
-                {item.category === 'beverage' 
-                  ? '☕' 
-                  : item.category === 'food' 
-                    ? '🍽️' 
-                    : '🍸'}
-              </div>
+              {item.imageUrl ? (
+                <img src={item.imageUrl} alt={item.name} />
+              ) : (
+                <div className="image-placeholder">{item.category === 'beverage' ? 'Caffe' : item.category === 'food' ? 'Menu' : 'Drink'}</div>
+              )}
             </div>
-            
+
             <div className="item-info">
               <h4>{item.name}</h4>
-              <p className="item-description">{item.description.slice(0, 60)}...</p>
+              <p className="item-description">{String(item.description || '').slice(0, 88)}</p>
               <div className="item-footer">
-                <span className="item-price">{item.price.toFixed(2)}€</span>
-                <button 
+                <span className="item-price">{formatPrice(Number(item.price || 0))}</span>
+                <button
+                  type="button"
                   className="order-button"
-                  onClick={(e) => handleOrderClick(e, item)}
+                  onClick={(event) => handleOrderClick(event, item)}
                 >
                   Aggiungi
                 </button>
               </div>
-            </div>
-            
-            {/* Badge di confidenza per ogni item */}
-            <div 
-              className="confidence-badge"
-              style={{
-                opacity: item.confidence / 100
-              }}
-            >
-              {Math.round(item.confidence * 100)}%
             </div>
           </div>
         ))}

@@ -109,10 +109,10 @@ function App() {
         </section>
         <CompleteChatInterface
           initialConfig={{
-            showSidebar: appConfig.ui.showSidebar,
+            showSidebar: false,
             enableSuggestions: appConfig.ui.enableSuggestions,
             enableDynamicComponents: appConfig.ui.enableDynamicComponents,
-            enableNLP: appConfig.ui.enableNLP,
+            enableNLP: false,
             maxRecommendations: appConfig.ui.maxRecommendations
           }}
         />

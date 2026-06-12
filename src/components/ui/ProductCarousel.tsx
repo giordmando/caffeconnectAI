@@ -1,11 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { mockApiGetProducts } from '../../api/mockApi';
 import { useCart } from '../../hooks/useCart';
+import { formatPrice } from '../../utils/formatters';
 
 interface ProductRecommendation {
   id: string;
   name: string;
   confidence: number;
+  item?: any;
 }
 
 interface ProductCarouselProps {
@@ -14,33 +16,27 @@ interface ProductCarouselProps {
   onAction?: (action: string, payload: any) => void;
 }
 
-export const ProductCarousel: React.FC<ProductCarouselProps> = ({ 
-  recommendations, 
+export const ProductCarousel: React.FC<ProductCarouselProps> = ({
+  recommendations,
   id,
-  onAction 
+  onAction
 }) => {
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const { addItem } = useCart();
+
   useEffect(() => {
     const fetchProducts = async () => {
       try {
         setLoading(true);
-        // Ottieni tutti i prodotti
         const allProducts = await mockApiGetProducts();
-        
-        // Filtra solo quelli raccomandati
-        const recommendedProducts = recommendations.map(rec => {
-          const product = allProducts.find(product => product.id === rec.id);
-          if (product) {
-            return {
-              ...product,
-              confidence: rec.confidence
-            };
-          }
-          return null;
-        }).filter(Boolean);
-        
+        const recommendedProducts = recommendations
+          .map(rec => {
+            const product = rec.item || allProducts.find(candidate => candidate.id === rec.id);
+            return product ? { ...product, confidence: rec.confidence } : null;
+          })
+          .filter(Boolean);
+
         setProducts(recommendedProducts);
       } catch (error) {
         console.error('Errore nel caricamento dei prodotti:', error);
@@ -48,48 +44,44 @@ export const ProductCarousel: React.FC<ProductCarouselProps> = ({
         setLoading(false);
       }
     };
-    
+
     fetchProducts();
   }, [recommendations]);
-  
+
   const handleProductClick = (product: any) => {
-    if (onAction) {
-      onAction('view_item', {
-        id: product.id,
-        type: 'product',
-        item: {
-          ...product,
-          type: 'product'
-        }
-      });
-    }
+    onAction?.('view_item', {
+      id: product.id,
+      type: 'product',
+      item: {
+        ...product,
+        type: 'product'
+      }
+    });
   };
-  
-  const handleBuyClick = (e: React.MouseEvent, product: any) => {
-    e.stopPropagation();
-  
+
+  const handleBuyClick = (event: React.MouseEvent<HTMLElement>, product: any) => {
+    event.stopPropagation();
     addItem(product, 'product');
-    
-    // Feedback
-    const button = e.currentTarget as HTMLButtonElement;
-    button.textContent = '✓ Aggiunto';
+
+    const button = event.currentTarget;
+    button.textContent = 'Aggiunto';
     button.classList.add('added');
-    
+
     setTimeout(() => {
-      button.textContent = 'Acquista';
+      button.textContent = 'Aggiungi';
       button.classList.remove('added');
     }, 1500);
   };
-  
+
   if (loading) {
     return (
       <div className="product-carousel loading">
         <div className="loading-spinner"></div>
-        <p>Caricamento prodotti consigliati...</p>
+        <p>Sto preparando i prodotti...</p>
       </div>
     );
   }
-  
+
   if (products.length === 0) {
     return (
       <div className="product-carousel empty">
@@ -97,55 +89,41 @@ export const ProductCarousel: React.FC<ProductCarouselProps> = ({
       </div>
     );
   }
-  
+
   return (
-    <div className="product-carousel" id={id}>
+    <div className="product-carousel menu-carousel" id={id}>
       <div className="carousel-header">
         <h3>Prodotti consigliati</h3>
       </div>
-      
+
       <div className="carousel-items">
         {products.map(product => (
-          <div 
-            key={product.id} 
-            className="product-item-card"
+          <div
+            key={product.id}
+            className="menu-item-card product-item-card"
             onClick={() => handleProductClick(product)}
           >
             <div className="item-image">
-              {/* Placeholder per immagine generata da AI */}
-              <div className="image-placeholder">
-                {product.category === 'coffee' 
-                  ? '☕' 
-                  : product.category === 'tea'
-                    ? '🍵'
-                    : product.category === 'accessory'
-                      ? '🧰'
-                      : '🛒'}
-              </div>
+              {product.imageUrl ? (
+                <img src={product.imageUrl} alt={product.name} />
+              ) : (
+                <div className="image-placeholder">{product.category === 'coffee' ? 'Caffe' : product.category === 'tea' ? 'Tea' : 'Shop'}</div>
+              )}
             </div>
-            
+
             <div className="item-info">
               <h4>{product.name}</h4>
-              <p className="item-description">{product.description.slice(0, 60)}...</p>
+              <p className="item-description">{String(product.description || '').slice(0, 88)}</p>
               <div className="item-footer">
-                <span className="item-price">{product.price.toFixed(2)}€</span>
-                <button 
-                  className="buy-button"
-                  onClick={(e) => handleBuyClick(e, product)}
+                <span className="item-price">{formatPrice(Number(product.price || 0))}</span>
+                <button
+                  type="button"
+                  className="order-button buy-button"
+                  onClick={(event) => handleBuyClick(event, product)}
                 >
-                  Acquista
+                  Aggiungi
                 </button>
               </div>
-            </div>
-            
-            {/* Badge di confidenza per ogni prodotto */}
-            <div 
-              className="confidence-badge"
-              style={{
-                opacity: product.confidence / 100
-              }}
-            >
-              {Math.round(product.confidence * 100)}%
             </div>
           </div>
         ))}

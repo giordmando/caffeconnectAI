@@ -23,7 +23,6 @@ export const DynamicUIRenderer: React.FC<DynamicUIRendererProps> = ({
     const deduplicatedComponents = componentManager.getComponentsForPlacement(placement);
     setComponents(deduplicatedComponents);
     
-    console.log(`DynamicUIRenderer (${placement}): Rendering ${deduplicatedComponents.length} components`);
   }, [placement, componentManager, updateTrigger]);
   
   // Metodo per forzare un re-render quando i componenti cambiano

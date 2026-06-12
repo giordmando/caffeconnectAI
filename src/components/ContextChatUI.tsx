@@ -4,11 +4,9 @@ import { ChatConfig } from '../config/interfaces/IAppConfig';
 import { DynamicUIRenderer } from './ui/DynamicUIRenderer';
 import { SimpleConsentBanner } from './SimpleConsentBanner';
 import { SimpleConsentService } from '../services/analytics/SimpleConsentService';
-import { ConsentLevel } from '../services/analytics/types';
 import MessageBubble from './MessageBubble';
 import { useServices } from '../contexts/ServiceProvider';
 
-// Inizializza consentService
 const consentService = new SimpleConsentService();
 
 const ChatInterface: React.FC = () => {
@@ -30,18 +28,16 @@ const ChatInterface: React.FC = () => {
   } = useChatContext();
 
   const { appConfig } = useServices();
-
-  const handleConsentChange = (level: ConsentLevel) => {
-    console.log(`[ContextChatUI] Consenso aggiornato a: ${level}`);
-  };
-
-  const chatTitle = appConfig?.business?.name || 'CaféConnect AI';
+  const chatTitle = appConfig?.business?.name || 'CafeConnect AI';
 
   return (
     <div className="chat-container">
       <div className="chat-header">
-        <h2>{chatTitle}</h2>
-        <div className="provider-badge">Powered by AI</div>
+        <div>
+          <h2>{chatTitle}</h2>
+          <p>Assistente ordini e consigli</p>
+        </div>
+        <div className="provider-badge">AI concierge</div>
       </div>
 
       <div className="chat-layout">
@@ -82,7 +78,6 @@ const ChatInterface: React.FC = () => {
                 key={`sidebar-${uiComponentsUpdated}`}
               />
             )}
-            
           </div>
         )}
       </div>
@@ -133,7 +128,7 @@ const ChatInterface: React.FC = () => {
             value={inputValue}
             onChange={handleInputChange}
             onKeyDown={handleKeyDown}
-            placeholder="Scrivi un messaggio..."
+            placeholder="Scrivi cosa desideri ordinare o chiedere..."
             disabled={isTyping}
             className="chat-input"
           />
@@ -149,7 +144,7 @@ const ChatInterface: React.FC = () => {
 
       <SimpleConsentBanner
         consentService={consentService}
-        onConsentChange={handleConsentChange}
+        onConsentChange={() => undefined}
       />
     </div>
   );
