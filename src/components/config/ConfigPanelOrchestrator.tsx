@@ -87,7 +87,7 @@ const PANEL_COMPONENTS: Record<string, React.FC<PanelProps<any>>[]> = {
       <GoLivePanel
         {...props}
         config={props.config}
-        onChange={(field, value) => props.onChange(field, field, value)}
+        onChange={(field, value) => props.onChange(field, value)}
         className="config-panel-section"
       />
     ),
@@ -146,6 +146,11 @@ export const ConfigPanelOrchestrator: React.FC<ConfigPanelOrchestratorProps> = (
         // Oppure, il mapping in `PANEL_COMPONENTS` adatta la chiamata.
         onChange: (sectionOrField: string, valueOrField: any, fieldValue?: any) => {
             if (activeTab === 'knowledge' && (sectionOrField === 'knowledgeBase' || sectionOrField === 'knowledgeSources')) {
+                updateSection(sectionOrField as keyof AppConfig, sectionOrField, valueOrField);
+                return;
+            }
+
+            if (activeTab === 'golive' && ['tenant', 'agents', 'integrations'].includes(sectionOrField)) {
                 updateSection(sectionOrField as keyof AppConfig, sectionOrField, valueOrField);
                 return;
             }
