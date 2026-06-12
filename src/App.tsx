@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useServices, useService } from './contexts/ServiceProvider';
-import AIConfigPanel from './components/AIConfigPanel';
 import CompleteChatInterface from './components/ContextChatUI';
-import { interpolateConfig } from './config/ConfigManager';
 import './styles/App.css';
 import { CartDrawer } from './components/cart/CartDrawer';
 import { CartButton } from './components/cart/CartButton';
@@ -16,7 +14,6 @@ import { businessEventService } from './services/analytics/BusinessEventService'
  */
 function App() {
   // Stati dell'applicazione
-  const [isConfigPanelOpen, setIsConfigPanelOpen] = useState(false);
   const [isBusinessPanelOpen, setIsBusinessPanelOpen] = useState(false);
   const [isDashboardOpen, setIsDashboardOpen] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
@@ -73,7 +70,6 @@ function App() {
         <div className="header-actions">
           <div className="provider-info">
             <span className="provider-label">AI:</span>
-            {/* CORREZIONE: currentProvider -> currentAiProvider */}
             <span className="provider-name">{currentAiProvider}</span>
           </div>
 
@@ -85,17 +81,10 @@ function App() {
           </button>
 
           <button
-            className="config-button"
-            onClick={() => setIsConfigPanelOpen(true)}
-          >
-            Configurazione AI
-          </button>
-
-          <button
             className="business-config-button"
             onClick={() => setIsBusinessPanelOpen(true)}
           >
-            Impostazioni Business
+            Impostazioni
           </button>
         </div>
       </header>
@@ -104,7 +93,7 @@ function App() {
         <section className="demo-cockpit">
           <div>
             <span className="cockpit-eyebrow">
-              {appConfig.tenant?.environment || 'demo'} · {appConfig.tenant?.plan || 'demo'}
+              {appConfig.tenant?.environment || 'demo'} / {appConfig.tenant?.plan || 'demo'}
             </span>
             <strong>{readinessScore}% pronto demo</strong>
           </div>
@@ -150,14 +139,6 @@ function App() {
           <p>{appConfig.business.name} &copy; {new Date().getFullYear()}</p>
         </div>
       </footer>
-
-      {isConfigPanelOpen && (
-        <div className="modal-overlay">
-          <AIConfigPanel
-            onClose={() => setIsConfigPanelOpen(false)}
-          />
-        </div>
-      )}
 
       {isBusinessPanelOpen && (
         <div className="modal-overlay">

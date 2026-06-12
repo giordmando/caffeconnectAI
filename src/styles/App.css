@@ -200,7 +200,7 @@ input:focus, select:focus, textarea:focus {
   text-transform: capitalize;
 }
 
-.config-button, .business-config-button, .dashboard-button { /* Stile unificato per i bottoni config */
+.business-config-button, .dashboard-button {
   background-color: var(--primary-color);
   color: white;
   padding: 8px 16px;
@@ -208,7 +208,7 @@ input:focus, select:focus, textarea:focus {
   font-size: 14px;
 }
 
-.config-button:hover, .business-config-button:hover, .dashboard-button:hover {
+.business-config-button:hover, .dashboard-button:hover {
   background-color: var(--primary-light);
 }
 
@@ -399,7 +399,7 @@ input:focus, select:focus, textarea:focus {
 .card-header { padding: 12px 16px; background-color: var(--primary-color); color: white; font-weight: 500; }
 .card-body { padding: 16px; }
 
-/* Stili per il pannello di configurazione (AIConfigPanel e ConfigPanelOrchestrator) */
+/* Stili per i pannelli modali */
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -413,18 +413,6 @@ input:focus, select:focus, textarea:focus {
   z-index: 1000; /* Assicura che sia sopra gli altri elementi */
   padding: 20px; /* Spazio dai bordi dello schermo */
   overflow-y: auto; /* Permetti lo scroll dell'overlay se il pannello è troppo alto per il viewport */
-}
-
-/* Stile per il contenitore del pannello AI (AIConfigPanel) */
-.ai-config-panel {
-  background-color: white;
-  border-radius: 12px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
-  width: 100%;
-  max-width: 600px; /* Larghezza massima per il pannello AI */
-  display: flex;
-  flex-direction: column;
-  max-height: calc(100vh - 40px); /* Altezza massima, considerando il padding dell'overlay */
 }
 
 /* Stile per il contenitore principale del pannello di configurazione (ConfigPanelOrchestrator) */
@@ -451,8 +439,7 @@ input:focus, select:focus, textarea:focus {
   overflow: hidden;
 }
 
-/* Header comune per entrambi i pannelli di configurazione */
-.ai-config-panel .config-header,
+/* Header comune per i pannelli principali */
 .config-panel-orchestrator .config-header,
 .business-dashboard .config-header {
   padding: 16px 24px;
@@ -466,7 +453,6 @@ input:focus, select:focus, textarea:focus {
   flex-shrink: 0; /* Non far restringere l'header */
 }
 
-.ai-config-panel .config-header h2,
 .config-panel-orchestrator .config-header h2,
 .business-dashboard .config-header h2 {
   margin: 0;
@@ -502,7 +488,6 @@ input:focus, select:focus, textarea:focus {
   opacity: 0.7;
 }
 
-.ai-config-panel .close-btn,
 .config-panel-orchestrator .close-btn,
 .business-dashboard .close-btn {
   background: none;
@@ -516,7 +501,6 @@ input:focus, select:focus, textarea:focus {
   transition: opacity 0.2s;
 }
 
-.ai-config-panel .close-btn:hover,
 .config-panel-orchestrator .close-btn:hover,
 .business-dashboard .close-btn:hover {
   opacity: 1;
@@ -851,7 +835,6 @@ input:focus, select:focus, textarea:focus {
 }
 
 /* Contenuto scrollabile per entrambi i pannelli */
-.ai-config-panel form, /* Il form dentro AIConfigPanel sarà scrollabile */
 .config-panel-orchestrator .config-content {
   padding: 20px;
   overflow-y: auto;   /* Permetti solo a questa sezione di scrollare */
@@ -859,8 +842,7 @@ input:focus, select:focus, textarea:focus {
   background-color: #ffffff;
 }
 
-/* Azioni del form per entrambi i pannelli */
-.ai-config-panel .form-actions,
+/* Azioni del form configurazione */
 .config-panel-orchestrator .form-actions {
   padding: 16px 24px;
   border-top: 1px solid var(--light-gray);
@@ -1283,7 +1265,7 @@ input:focus, select:focus, textarea:focus {
     padding: 10px; /* Riduci padding su mobile */
     align-items: flex-start; /* Allinea in alto per permettere lo scroll se il pannello è alto */
   }
-  .ai-config-panel, .config-panel-orchestrator, .business-dashboard {
+  .config-panel-orchestrator, .business-dashboard {
       max-height: calc(100vh - 20px); /* Adatta per mobile */
       margin-top: 10px; /* Spazio dall'alto */
   }
@@ -1326,8 +1308,7 @@ input:focus, select:focus, textarea:focus {
       font-size: 0.8rem; /* Riduci font per i tab su mobile */
       min-width: 80px;
   }
-  .config-panel-orchestrator .form-actions,
-  .ai-config-panel .form-actions {
+  .config-panel-orchestrator .form-actions {
       flex-direction: column; /* Azioni in colonna su mobile */
       align-items: stretch; /* Estendi i bottoni */
   }
@@ -1337,8 +1318,7 @@ input:focus, select:focus, textarea:focus {
       flex-direction: column; /* Anche i gruppi interni in colonna */
   }
   .config-panel-orchestrator .import-export-actions button,
-  .config-panel-orchestrator .main-actions button,
-  .ai-config-panel .form-actions button {
+  .config-panel-orchestrator .main-actions button {
       width: 100%; /* Bottoni a larghezza piena */
   }
 

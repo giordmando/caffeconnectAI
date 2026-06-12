@@ -432,7 +432,7 @@ export const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ onClose })
                   </span>
                   <span className="order-main">
                     <strong>{order.orderId}</strong>
-                    <small>{order.customerName || 'Cliente non indicato'} · {order.itemCount} articoli</small>
+                    <small>{order.customerName || 'Cliente non indicato'} / {order.itemCount} articoli</small>
                     {order.error && <small>{order.error}</small>}
                   </span>
                   <span className="order-value">{formatCurrency(order.subtotal)}</span>
