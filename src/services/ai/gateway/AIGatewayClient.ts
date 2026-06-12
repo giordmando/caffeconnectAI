@@ -6,6 +6,9 @@
     name?: string;
     type?: string;
   };
+  tenant?: unknown;
+  agents?: unknown;
+  integrations?: unknown;
   knowledgeBase?: Array<{
     key: string;
     facts: string[];
@@ -26,6 +29,11 @@ export interface AIGatewayChatResponse {
   message: string;
   responseId?: string;
   mode: 'demo' | 'openai-responses' | 'validation';
+  agent?: {
+    id: string;
+    label: string;
+    confidence: number;
+  };
   toolCalls?: Array<{
     name: string;
     arguments: unknown;

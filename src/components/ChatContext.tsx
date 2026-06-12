@@ -320,6 +320,9 @@ export const ChatProvider: React.FC<{
               type: appConfig.business.type
             }
           : undefined,
+        tenant: appConfig?.tenant,
+        agents: appConfig?.agents,
+        integrations: appConfig?.integrations,
         knowledgeBase: appConfig?.knowledgeBase || [],
         knowledgeSources: appConfig?.knowledgeSources || { urls: [], inlineText: '' },
         catalog: {
@@ -344,6 +347,7 @@ export const ChatProvider: React.FC<{
       setAvailableActions(createGatewayActions(gatewayResponse));
       businessEventService.track('gateway_result', {
         mode: gatewayResponse.mode,
+        agent: gatewayResponse.agent?.id,
         toolCalls: (gatewayResponse.toolCalls || []).map(toolCall => toolCall.name),
         toolCallCount: gatewayResponse.toolCalls?.length || 0
       });

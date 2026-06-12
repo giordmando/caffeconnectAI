@@ -13,7 +13,8 @@ const TABS = [
   { id: 'functions', label: 'Funzioni' },
   { id: 'ui', label: 'UI' },
   { id: 'privacy', label: 'Privacy' },
-  { id: 'knowledge', label: 'Knowledge Base' }
+  { id: 'knowledge', label: 'Knowledge Base' },
+  { id: 'golive', label: 'Go Live' }
 ];
 
 export const ConfigTabs: React.FC<ConfigTabsProps> = ({ activeTab, onTabChange }) => {

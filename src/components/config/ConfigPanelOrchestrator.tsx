@@ -17,6 +17,7 @@ import {
   UISettingsPanel,
   PrivacySettingsPanel,
   KnowledgeBasePanel,
+  GoLivePanel,
 } from './panels'; // Assumendo che l'export da './panels' sia corretto
 import type { AppConfig } from '../../config/interfaces/IAppConfig';
 
@@ -77,6 +78,16 @@ const PANEL_COMPONENTS: Record<string, React.FC<PanelProps<any>>[]> = {
              props.onChange('knowledgeBase', { ...(props.config.knowledgeBase || {}), [field]:value });
           }
         }}
+        className="config-panel-section"
+      />
+    ),
+  ],
+  golive: [
+    (props) => (
+      <GoLivePanel
+        {...props}
+        config={props.config}
+        onChange={(field, value) => props.onChange(field, field, value)}
         className="config-panel-section"
       />
     ),

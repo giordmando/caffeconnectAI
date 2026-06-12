@@ -334,6 +334,25 @@ export class ConfigManager implements IConfigManager {
       knowledgeSources: {
         urls: [],
         inlineText: ''
+      },
+      tenant: {
+        merchantId: 'cafeconnect-roastery',
+        workspaceId: 'demo-workspace',
+        plan: 'demo',
+        environment: 'demo'
+      },
+      agents: {
+        enabled: true,
+        activeAgents: ['triage', 'menu_advisor', 'sales', 'order', 'analytics'],
+        handoffMode: 'auto'
+      },
+      integrations: {
+        posProvider: 'generic-webhook',
+        crmProvider: 'make',
+        bookingUrl: '',
+        paymentUrl: '',
+        makeWebhookUrl: '',
+        zapierWebhookUrl: ''
       }
     };
   }

@@ -7,8 +7,15 @@ const GATEWAY_URL = process.env.REACT_APP_AI_GATEWAY_URL || 'http://localhost:87
 
 export class WebhookOrderStrategy implements IOrderStrategy {
   async processOrder(order: OrderRequest): Promise<OrderResult> {
-    const businessConfig = configManager.getSection('business');
-    const webhookUrl = (businessConfig.orderWebhook || '').trim();
+    const appConfig = configManager.getConfig();
+    const businessConfig = appConfig.business;
+    const integrations = appConfig.integrations || {};
+    const webhookUrl = (
+      businessConfig.orderWebhook ||
+      integrations.makeWebhookUrl ||
+      integrations.zapierWebhookUrl ||
+      ''
+    ).trim();
 
     if (!webhookUrl) {
       return {
@@ -50,7 +57,13 @@ export class WebhookOrderStrategy implements IOrderStrategy {
   }
 
   isAvailable(): boolean {
-    const businessConfig = configManager.getSection('business');
-    return !!(businessConfig.orderWebhook || '').trim();
+    const appConfig = configManager.getConfig();
+    const integrations = appConfig.integrations || {};
+    return !!(
+      appConfig.business.orderWebhook ||
+      integrations.makeWebhookUrl ||
+      integrations.zapierWebhookUrl ||
+      ''
+    ).trim();
   }
 }

@@ -27,6 +27,17 @@ function App() {
   // Stato locale per le funzioni disponibili, aggiornato dopo l'inizializzazione
   const [availableFunctions, setAvailableFunctions] = useState<string[]>([]);
 
+  const readinessItems = appConfig ? [
+    Boolean(appConfig.business.name && appConfig.business.telefono),
+    Boolean(appConfig.catalog.enableLocalData || appConfig.catalog.menuEndpoint || appConfig.catalog.productsEndpoint),
+    Boolean(appConfig.knowledgeBase?.length || appConfig.knowledgeSources?.inlineText || appConfig.knowledgeSources?.urls?.length),
+    Boolean(appConfig.business.whatsappBusiness || appConfig.business.orderWebhook),
+    Boolean(appConfig.agents?.enabled && appConfig.agents.activeAgents.length > 0)
+  ] : [];
+  const readinessScore = readinessItems.length
+    ? Math.round((readinessItems.filter(Boolean).length / readinessItems.length) * 100)
+    : 0;
+
   useEffect(() => {
     if (isInitialized && !initializationError && functionRegistry) {
       setAvailableFunctions(functionRegistry.getAllFunctions().map(fn => fn.name));
@@ -90,6 +101,23 @@ function App() {
       </header>
 
       <main className="app-main">
+        <section className="demo-cockpit">
+          <div>
+            <span className="cockpit-eyebrow">
+              {appConfig.tenant?.environment || 'demo'} · {appConfig.tenant?.plan || 'demo'}
+            </span>
+            <strong>{readinessScore}% pronto demo</strong>
+          </div>
+          <div className="cockpit-pills">
+            <span>{appConfig.agents?.activeAgents?.length || 0} agenti</span>
+            <span>{appConfig.integrations?.posProvider || 'POS none'}</span>
+            <span>{appConfig.integrations?.crmProvider || 'CRM none'}</span>
+          </div>
+          <div className="cockpit-actions">
+            <button type="button" onClick={() => setIsBusinessPanelOpen(true)}>Go Live</button>
+            <button type="button" onClick={() => setIsDashboardOpen(true)}>Dashboard</button>
+          </div>
+        </section>
         <CompleteChatInterface
           initialConfig={{
             showSidebar: appConfig.ui.showSidebar,

@@ -6,6 +6,8 @@
   }
 }
 
+const { routeAgent } = require('./agentRouter');
+
 class AgentOrchestrator {
   constructor({ openaiClient, toolRegistry, config }) {
     this.openaiClient = openaiClient;
@@ -15,24 +17,26 @@ class AgentOrchestrator {
 
   async runChat(payload) {
     const message = String(payload.message || '').trim();
+    const agent = routeAgent(message, payload);
 
     if (!message) {
       return {
         message: 'Scrivi un messaggio per iniziare.',
+        agent,
         toolCalls: [],
         mode: 'validation'
       };
     }
 
     if (this.config.demoMode || !this.openaiClient.isConfigured()) {
-      return this.runDemoMode(message, payload);
+      return this.runDemoMode(message, payload, agent);
     }
 
-    return this.runResponsesWithTools(message, payload);
+    return this.runResponsesWithTools(message, payload, agent);
   }
 
-  async runResponsesWithTools(message, payload) {
-    const instructions = this.buildInstructions(payload);
+  async runResponsesWithTools(message, payload, agent) {
+    const instructions = this.buildInstructions(payload, agent);
     let response = await this.openaiClient.createResponse({
       instructions,
       input: message,
@@ -40,7 +44,8 @@ class AgentOrchestrator {
       parallel_tool_calls: true,
       metadata: {
         product: 'cafeconnect-ai',
-        conversation_id: String(payload.conversationId || 'anonymous')
+        conversation_id: String(payload.conversationId || 'anonymous'),
+        agent_id: agent.id
       }
     });
 
@@ -78,12 +83,13 @@ class AgentOrchestrator {
     return {
       message: this.summarizeToolBackedResponse(modelText, executedToolCalls),
       responseId: response.id,
+      agent,
       toolCalls: executedToolCalls,
       mode: 'openai-responses'
     };
   }
 
-  async runDemoMode(message, payload = {}) {
+  async runDemoMode(message, payload = {}, agent) {
     const lower = message.toLowerCase();
     const toolCalls = [];
 
@@ -98,6 +104,7 @@ class AgentOrchestrator {
 
         return {
           message: this.summarizeKnowledgeResult(runtimeResult.results),
+          agent,
           toolCalls,
           mode: 'demo'
         };
@@ -111,6 +118,7 @@ class AgentOrchestrator {
         message: result.results.length
           ? this.summarizeKnowledgeResult(result.results)
           : 'Non ho trovato questa informazione nella base conoscenza. Posso aiutarti con menu, prodotti o ordini.',
+        agent,
         toolCalls,
         mode: 'demo'
       };
@@ -125,6 +133,7 @@ class AgentOrchestrator {
         message: result.products.length
           ? 'Ho trovato alcuni prodotti interessanti: li trovi nelle card qui sotto.'
           : 'Non ho trovato prodotti coerenti con la richiesta, ma posso cercare per categoria.',
+        agent,
         toolCalls,
         mode: 'demo'
       };
@@ -150,6 +159,7 @@ class AgentOrchestrator {
       message: result.items.length
         ? 'Ti propongo alcune opzioni dal menu: le trovi nelle card qui sotto.'
         : 'Posso aiutarti con menu, prodotti acquistabili, carrello o ordine WhatsApp.',
+      agent,
       toolCalls,
       mode: 'demo'
     };
@@ -357,12 +367,16 @@ class AgentOrchestrator {
       .trim();
   }
 
-  buildInstructions(payload) {
+  buildInstructions(payload, agent) {
     const business = payload.business || {};
+    const tenant = payload.tenant || {};
+    const integrations = payload.integrations || {};
     const runtimeKnowledge = this.formatRuntimeKnowledge(payload);
 
     return [
       'Sei CafeConnect AI, un assistente commerciale per bar, cafe e piccoli locali.',
+      agent?.label ? 'Agente attivo: ' + agent.label + '.' : '',
+      agent?.instruction ? agent.instruction : '',
       'Obiettivo: aiutare il cliente a scegliere, comprare o ordinare con precisione e tono naturale.',
       'Usa i tool quando servono dati di menu, prodotto, dettaglio o bozza ordine.',
       'Usa knowledge_search per rispondere su storia del locale, orari, policy, allergeni, fornitori, offerte, FAQ o informazioni personalizzate dell esercente.',
@@ -373,6 +387,12 @@ class AgentOrchestrator {
       'Se il cliente vuole ordinare, prepara una bozza e chiedi conferma prima dell invio.',
       business.name ? 'Locale attivo: ' + business.name + '.' : '',
       business.type ? 'Tipo locale: ' + business.type + '.' : '',
+      tenant.merchantId ? 'Merchant ID: ' + tenant.merchantId + '.' : '',
+      tenant.plan ? 'Piano merchant: ' + tenant.plan + '.' : '',
+      integrations.bookingUrl ? 'Prenotazioni disponibili tramite URL configurato.' : '',
+      integrations.paymentUrl ? 'Pagamento online disponibile tramite URL configurato.' : '',
+      integrations.posProvider && integrations.posProvider !== 'none' ? 'POS collegato: ' + integrations.posProvider + '.' : '',
+      integrations.crmProvider && integrations.crmProvider !== 'none' ? 'CRM collegato: ' + integrations.crmProvider + '.' : '',
       runtimeKnowledge
     ].filter(Boolean).join('\n');
   }

@@ -125,4 +125,26 @@ export interface AppConfig {
       urls: string[];
       inlineText: string;
     };
+
+    tenant?: {
+      merchantId: string;
+      workspaceId: string;
+      plan: 'demo' | 'starter' | 'pro' | 'enterprise';
+      environment: 'demo' | 'staging' | 'production';
+    };
+
+    agents?: {
+      enabled: boolean;
+      activeAgents: string[];
+      handoffMode: 'auto' | 'guided';
+    };
+
+    integrations?: {
+      posProvider?: 'none' | 'generic-webhook' | 'make' | 'zapier' | 'custom';
+      crmProvider?: 'none' | 'generic-webhook' | 'make' | 'zapier' | 'custom';
+      bookingUrl?: string;
+      paymentUrl?: string;
+      makeWebhookUrl?: string;
+      zapierWebhookUrl?: string;
+    };
   }

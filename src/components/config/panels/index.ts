@@ -27,3 +27,6 @@ export { PrivacySettingsPanel } from './privacy/PrivacySettingsPanel';
 
 // Knowledge panels
 export { KnowledgeBasePanel } from './knowledge/KnowledgeBasePanel';
+
+// Go-live panels
+export { GoLivePanel } from './golive/GoLivePanel';
