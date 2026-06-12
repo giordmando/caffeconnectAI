@@ -36,7 +36,12 @@ class AgentOrchestrator {
   }
 
   async runResponsesWithTools(message, payload, agent) {
-    const instructions = this.buildInstructions(payload, agent);
+    const retrievedKnowledge = await this.retrieveKnowledgeContext(message, payload);
+    const customerProfile = this.buildCustomerProfile(payload);
+    const instructions = this.buildInstructions(payload, agent, {
+      retrievedKnowledge,
+      customerProfile
+    });
     let response = await this.openaiClient.createResponse({
       instructions,
       input: message,
@@ -50,6 +55,13 @@ class AgentOrchestrator {
     });
 
     const executedToolCalls = [];
+    if (retrievedKnowledge.results.length > 0) {
+      executedToolCalls.push({
+        name: retrievedKnowledge.source === 'runtime' ? 'runtime_knowledge_search' : 'knowledge_search',
+        arguments: { query: message, limit: 4, preflight: true },
+        result: retrievedKnowledge
+      });
+    }
 
     for (let round = 0; round < this.config.maxToolRounds; round += 1) {
       const calls = this.openaiClient.extractFunctionCalls(response);
@@ -92,18 +104,31 @@ class AgentOrchestrator {
   async runDemoMode(message, payload = {}, agent) {
     const lower = message.toLowerCase();
     const toolCalls = [];
+    const retrievedKnowledge = await this.retrieveKnowledgeContext(message, payload);
 
-    if (this.isKnowledgeQuestion(lower)) {
-      const runtimeResult = await this.searchRuntimeKnowledge(message, payload);
+    if (retrievedKnowledge.results.length > 0 && (this.isKnowledgeQuestion(lower) || agent.id === 'triage')) {
+      toolCalls.push({
+        name: retrievedKnowledge.source === 'runtime' ? 'runtime_knowledge_search' : 'knowledge_search',
+        arguments: { query: message, limit: 4, preflight: true },
+        result: retrievedKnowledge
+      });
+    }
+
+    if (this.isKnowledgeQuestion(lower) && !this.isRecommendationIntent(lower)) {
+      const runtimeResult = retrievedKnowledge.source === 'runtime'
+        ? retrievedKnowledge
+        : await this.searchRuntimeKnowledge(message, payload);
       if (runtimeResult.results.length > 0) {
-        toolCalls.push({
-          name: 'runtime_knowledge_search',
-          arguments: { query: message },
-          result: runtimeResult
-        });
+        if (!toolCalls.some(call => call.name === 'runtime_knowledge_search')) {
+          toolCalls.push({
+            name: 'runtime_knowledge_search',
+            arguments: { query: message },
+            result: runtimeResult
+          });
+        }
 
         return {
-          message: this.summarizeKnowledgeResult(runtimeResult.results),
+          message: this.summarizeKnowledgeResult(runtimeResult.results, payload),
           agent,
           toolCalls,
           mode: 'demo'
@@ -116,7 +141,7 @@ class AgentOrchestrator {
 
       return {
         message: result.results.length
-          ? this.summarizeKnowledgeResult(result.results)
+          ? this.summarizeKnowledgeResult(result.results, payload)
           : 'Non ho trovato questa informazione nella base conoscenza. Posso aiutarti con menu, prodotti o ordini.',
         agent,
         toolCalls,
@@ -149,7 +174,7 @@ class AgentOrchestrator {
 
       return {
         message: result.products.length
-          ? 'Ho trovato alcuni prodotti interessanti: li trovi nelle card qui sotto.'
+          ? this.summarizePersonalizedSelection(result.products, 'prodotti')
           : 'Non ho trovato prodotti coerenti con la richiesta, ma posso cercare per categoria.',
         agent,
         toolCalls,
@@ -172,6 +197,8 @@ class AgentOrchestrator {
     };
     const args = {
       query: timeOfDay === 'all' ? message : queryByTime[timeOfDay] || '',
+      originalQuery: message,
+      dietaryPreference: this.extractDietaryPreference(lower),
       timeOfDay,
       limit: 4
     };
@@ -180,8 +207,10 @@ class AgentOrchestrator {
 
     return {
       message: result.items.length
-        ? this.summarizeMenuSuggestion(timeOfDay, lower)
-        : 'Posso aiutarti con menu, prodotti acquistabili, carrello o ordine WhatsApp.',
+        ? this.summarizeMenuSuggestion(timeOfDay, lower, result.items)
+        : args.dietaryPreference
+          ? `Non trovo opzioni ${args.dietaryPreference} compatibili per questa fascia oraria nel catalogo attuale. Posso proporti un alternativa sicura o segnalare la richiesta al locale.`
+          : 'Posso aiutarti con menu, prodotti acquistabili, carrello o ordine WhatsApp.',
       agent,
       toolCalls,
       mode: 'demo'
@@ -211,33 +240,38 @@ class AgentOrchestrator {
     return { item: null, type: 'product' };
   }
 
-  summarizeMenuSuggestion(timeOfDay, lower) {
+  summarizeMenuSuggestion(timeOfDay, lower, items = []) {
+    const personalReason = this.bestPersonalizationReason(items);
+    const reasonSuffix = personalReason ? ` Ho dato priorita a opzioni ${personalReason}.` : '';
+
     if (timeOfDay === 'afternoon') {
       return lower.includes('ho chiesto') || lower.startsWith('ma ')
-        ? 'Hai ragione: per pranzo ti propongo opzioni salate e complete. Puoi scegliere una bowl o un toast e aggiungerli al carrello.'
-        : 'Per pranzo ti propongo opzioni salate e complete: una bowl bilanciata o un toast leggero. Le trovi nelle card qui sotto.';
+        ? 'Hai ragione: per pranzo ti propongo opzioni salate e complete. Puoi scegliere una bowl o un toast e aggiungerli al carrello.' + reasonSuffix
+        : 'Per pranzo ti propongo opzioni salate e complete. Le trovi nelle card qui sotto.' + reasonSuffix;
     }
 
     if (timeOfDay === 'morning') {
-      return 'Per colazione ti propongo alcune opzioni adatte al mattino. Le trovi nelle card qui sotto.';
+      return 'Per colazione ti propongo alcune opzioni adatte al mattino. Le trovi nelle card qui sotto.' + reasonSuffix;
     }
 
     if (timeOfDay === 'evening') {
-      return 'Per aperitivo ti propongo alcune opzioni pensate per la sera. Le trovi nelle card qui sotto.';
+      return 'Per aperitivo ti propongo alcune opzioni pensate per la sera. Le trovi nelle card qui sotto.' + reasonSuffix;
     }
 
-    return 'Ti propongo alcune opzioni dal menu: le trovi nelle card qui sotto.';
+    return 'Ti propongo alcune opzioni dal menu: le trovi nelle card qui sotto.' + reasonSuffix;
   }
 
   summarizeToolBackedResponse(modelText, toolCalls) {
     const hasProducts = toolCalls.some(call => call.name === 'search_products' && call.result?.products?.length > 0);
     if (hasProducts) {
-      return 'Ho trovato alcuni prodotti interessanti: li trovi nelle card qui sotto. Posso mostrarti i dettagli o aiutarti a preparare un ordine.';
+      const productsCall = toolCalls.find(call => call.name === 'search_products' && call.result?.products?.length > 0);
+      return this.summarizePersonalizedSelection(productsCall.result.products, 'prodotti') + ' Posso mostrarti i dettagli o aiutarti a preparare un ordine.';
     }
 
     const hasMenuItems = toolCalls.some(call => call.name === 'search_menu' && call.result?.items?.length > 0);
     if (hasMenuItems) {
-      return 'Ti propongo alcune opzioni dal menu: le trovi nelle card qui sotto. Posso spiegarti ingredienti, allergeni o alternative.';
+      const menuCall = toolCalls.find(call => call.name === 'search_menu' && call.result?.items?.length > 0);
+      return this.summarizeMenuSuggestion('all', '', menuCall.result.items) + ' Posso spiegarti ingredienti, allergeni o alternative.';
     }
 
     const hasKnowledge = toolCalls.find(call => call.name === 'knowledge_search' && call.result?.results?.length > 0);
@@ -275,6 +309,99 @@ class AgentOrchestrator {
       count: results.length,
       sources: ['runtime-settings']
     };
+  }
+
+  async retrieveKnowledgeContext(query, payload) {
+    const runtimeResult = await this.searchRuntimeKnowledge(query, payload);
+    if (runtimeResult.results.length > 0) {
+      return { ...runtimeResult, source: 'runtime' };
+    }
+
+    try {
+      const result = await this.toolRegistry.execute('knowledge_search', { query, limit: 4 }, payload);
+      return {
+        results: result.results || [],
+        count: result.count || 0,
+        sources: result.sources || [],
+        source: 'tool'
+      };
+    } catch (_error) {
+      return { results: [], count: 0, sources: [], source: 'none' };
+    }
+  }
+
+  buildCustomerProfile(payload = {}) {
+    const userContext = payload.userContext || {};
+    const preferences = Array.isArray(userContext.preferences) ? userContext.preferences : [];
+    const interactions = Array.isArray(userContext.interactions) ? userContext.interactions : [];
+    const dietaryRestrictions = Array.isArray(userContext.dietaryRestrictions) ? userContext.dietaryRestrictions : [];
+
+    return {
+      userId: userContext.userId || 'anonymous',
+      name: userContext.name || '',
+      dietaryRestrictions,
+      topPreferences: preferences
+        .slice()
+        .sort((a, b) => Number(b.rating || 0) - Number(a.rating || 0))
+        .slice(0, 6)
+        .map(preference => ({
+          itemName: preference.itemName,
+          itemCategory: preference.itemCategory,
+          itemType: preference.itemType,
+          rating: preference.rating
+        })),
+      recentInteractions: interactions.slice(0, 8)
+    };
+  }
+
+  formatCustomerProfile(profile) {
+    if (!profile) return '';
+    const lines = [];
+
+    if (profile.name) lines.push(`Nome cliente: ${profile.name}.`);
+    if (profile.dietaryRestrictions?.length) {
+      lines.push(`Restrizioni/preferenze alimentari dichiarate: ${profile.dietaryRestrictions.join(', ')}.`);
+    }
+    if (profile.topPreferences?.length) {
+      lines.push('Preferenze cliente note: ' + profile.topPreferences
+        .map(preference => `${preference.itemName || preference.itemCategory || preference.itemType} (${preference.rating}/5)`)
+        .join(', ') + '.');
+    }
+    if (profile.recentInteractions?.length) {
+      lines.push('Interazioni recenti: ' + profile.recentInteractions.join(' | ') + '.');
+    }
+
+    return lines.length
+      ? ['Profilo cliente da incrociare con catalogo e knowledge:', ...lines].join('\n')
+      : '';
+  }
+
+  formatRetrievedKnowledge(retrievedKnowledge) {
+    const results = retrievedKnowledge?.results || [];
+    if (results.length === 0) return '';
+
+    return [
+      'Fonti recuperate per questa richiesta, da usare prima della conoscenza generica:',
+      ...results.slice(0, 4).map((result, index) => {
+        const content = String(result.content || '').replace(/\s+/g, ' ').slice(0, 360);
+        const source = result.source ? ` fonte: ${result.source}` : '';
+        return `${index + 1}. ${result.title || 'Fonte'}:${source} ${content}`;
+      })
+    ].join('\n');
+  }
+
+  bestPersonalizationReason(items = []) {
+    const reasons = items
+      .flatMap(item => item?.personalization?.reasons || [])
+      .filter(Boolean);
+    return reasons[0] || '';
+  }
+
+  summarizePersonalizedSelection(items = [], label = 'opzioni') {
+    const reason = this.bestPersonalizationReason(items);
+    return reason
+      ? `Ho trovato ${label} coerenti con il tuo profilo: priorita a elementi ${reason}. Le card sono qui sotto.`
+      : `Ho trovato alcuni ${label} interessanti: li trovi nelle card qui sotto.`;
   }
 
   async runtimeKnowledgeEntries(payload) {
@@ -410,7 +537,23 @@ class AgentOrchestrator {
     ].some(term => lower.includes(term));
   }
 
-  summarizeKnowledgeResult(results) {
+  isRecommendationIntent(lower) {
+    return [
+      'consigli', 'consiglia', 'cosa mi', 'cosa avete', 'menu', 'pranzo',
+      'colazione', 'aperitivo', 'mangiare', 'bere', 'prodotto', 'prodotti',
+      'acquistare', 'comprare', 'vorrei'
+    ].some(term => lower.includes(term));
+  }
+
+  extractDietaryPreference(lower) {
+    if (lower.includes('senza glutine') || lower.includes('gluten')) return 'gluten-free';
+    if (lower.includes('senza lattosio') || lower.includes('lattosio') || lower.includes('lactose')) return 'lactose-free';
+    if (lower.includes('vegano') || lower.includes('vegan')) return 'vegan';
+    if (lower.includes('vegetariano') || lower.includes('vegetarian')) return 'vegetarian';
+    return '';
+  }
+
+  summarizeKnowledgeResult(results, payload = {}) {
     const first = results[0];
     if (!first) {
       return 'Non ho trovato questa informazione nella base conoscenza.';
@@ -418,7 +561,11 @@ class AgentOrchestrator {
 
     const text = String(first.content || '').trim();
     const shortText = text.length > 220 ? text.slice(0, 217).trim() + '...' : text;
-    return shortText || 'Ho trovato un riferimento nella base conoscenza dell esercente.';
+    const profile = this.buildCustomerProfile(payload);
+    const restrictions = profile.dietaryRestrictions?.length
+      ? ` Tengo conto anche di: ${profile.dietaryRestrictions.join(', ')}.`
+      : '';
+    return (shortText || 'Ho trovato un riferimento nella base conoscenza dell esercente.') + restrictions;
   }
 
   cleanModelText(text) {
@@ -431,11 +578,13 @@ class AgentOrchestrator {
       .trim();
   }
 
-  buildInstructions(payload, agent) {
+  buildInstructions(payload, agent, context = {}) {
     const business = payload.business || {};
     const tenant = payload.tenant || {};
     const integrations = payload.integrations || {};
     const runtimeKnowledge = this.formatRuntimeKnowledge(payload);
+    const customerProfile = this.formatCustomerProfile(context.customerProfile);
+    const retrievedKnowledge = this.formatRetrievedKnowledge(context.retrievedKnowledge);
 
     return [
       'Sei CafeConnect AI, un assistente commerciale per bar, cafe e piccoli locali.',
@@ -444,6 +593,9 @@ class AgentOrchestrator {
       'Obiettivo: aiutare il cliente a scegliere, comprare o ordinare con precisione e tono naturale.',
       'Usa i tool quando servono dati di menu, prodotto, dettaglio o bozza ordine.',
       'Usa knowledge_search per rispondere su storia del locale, orari, policy, allergeni, fornitori, offerte, FAQ o informazioni personalizzate dell esercente.',
+      'Incrocia sempre tre fonti quando disponibili: catalogo reale, fonti recuperate e profilo/preferenze cliente.',
+      'Se suggerisci qualcosa, privilegia articoli compatibili con restrizioni alimentari, preferenze esplicite e interazioni recenti.',
+      'Quando una raccomandazione e personalizzata, spiega in poche parole il motivo senza mostrare punteggi tecnici.',
       'Rispondi in italiano con massimo 2 frasi brevi.',
       'Non elencare tutti i dati dei tool: la UI mostra gia card e dettagli visivi.',
       'Non inserire URL, markdown link, markdown immagini, tabelle o liste numerate lunghe.',
@@ -459,6 +611,8 @@ class AgentOrchestrator {
       integrations.paymentUrl ? 'Pagamento online disponibile tramite URL configurato.' : '',
       integrations.posProvider && integrations.posProvider !== 'none' ? 'POS collegato: ' + integrations.posProvider + '.' : '',
       integrations.crmProvider && integrations.crmProvider !== 'none' ? 'CRM collegato: ' + integrations.crmProvider + '.' : '',
+      customerProfile,
+      retrievedKnowledge,
       runtimeKnowledge
     ].filter(Boolean).join('\n');
   }

@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" role="img" aria-labelledby="title desc">
+  <title id="title">CafeConnect</title>
+  <desc id="desc">CafeConnect AI logo</desc>
+  <rect width="160" height="160" rx="32" fill="#2d4a70"/>
+  <path d="M43 58h64a18 18 0 0 1 0 36h-4a38 38 0 0 1-72-17v-7a12 12 0 0 1 12-12Z" fill="#fff"/>
+  <path d="M105 68h4a8 8 0 0 1 0 16h-4V68Z" fill="#2d4a70"/>
+  <path d="M47 50c5-9 12-9 17-18M76 50c5-9 12-9 17-18" fill="none" stroke="#d8c7ff" stroke-width="7" stroke-linecap="round"/>
+  <circle cx="118" cy="44" r="12" fill="#f08a3c"/>
+  <path d="M55 112h48" stroke="#d8c7ff" stroke-width="8" stroke-linecap="round"/>
+</svg>

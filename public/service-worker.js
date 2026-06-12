@@ -2,10 +2,9 @@
 const CACHE_NAME = 'cafeconnect-v1';
 const urlsToCache = [
   '/',
-  '/static/css/main.css',
-  '/static/js/main.js',
   '/manifest.json',
-  '/icons/icon-192x192.png',
+  '/logo.svg',
+  '/logo192.png',
   '/offline.html'
 ];
 
@@ -14,8 +13,9 @@ self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => {
-        console.log('Opened cache');
-        return cache.addAll(urlsToCache);
+        return Promise.all(
+          urlsToCache.map(url => cache.add(url).catch(() => null))
+        );
       })
   );
   self.skipWaiting();
@@ -79,8 +79,8 @@ self.addEventListener('fetch', event => {
 self.addEventListener('push', event => {
   const options = {
     body: event.data ? event.data.text() : 'Nuovo aggiornamento!',
-    icon: '/icons/icon-192x192.png',
-    badge: '/icons/badge-72x72.png',
+    icon: '/logo192.png',
+    badge: '/logo192.png',
     vibrate: [100, 50, 100],
     data: {
       dateOfArrival: Date.now(),

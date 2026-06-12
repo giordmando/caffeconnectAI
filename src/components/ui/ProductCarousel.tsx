@@ -113,6 +113,11 @@ export const ProductCarousel: React.FC<ProductCarouselProps> = ({
 
             <div className="item-info">
               <h4>{product.name}</h4>
+              {product.personalization?.reasons?.length > 0 && (
+                <p className="personalization-reason">
+                  Scelto per te: {product.personalization.reasons[0]}
+                </p>
+              )}
               <p className="item-description">{String(product.description || '').slice(0, 88)}</p>
               <div className="item-footer">
                 <span className="item-price">{formatPrice(Number(product.price || 0))}</span>

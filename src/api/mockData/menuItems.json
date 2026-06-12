@@ -136,6 +136,21 @@
       "popularity": 83
     },
     {
+      "id": "salad-2",
+      "name": "Bowl riso, ceci e verdure",
+      "category": "food",
+      "subcategory": "salad",
+      "timeOfDay": ["afternoon"],
+      "price": 7.2,
+      "description": "Bowl senza glutine con riso basmati, ceci, verdure di stagione, semi e dressing al limone.",
+      "ingredients": ["riso", "ceci", "verdure", "semi", "limone"],
+      "preferences": ["lunch", "balanced", "plant-based"],
+      "imageUrl": "https://images.unsplash.com/photo-1540420773420-3366772f4999?auto=format&fit=crop&w=600&q=80",
+      "allergens": ["semi"],
+      "dietaryInfo": ["vegan", "gluten-free", "dairy-free"],
+      "popularity": 81
+    },
+    {
       "id": "aperitivo-1",
       "name": "Spritz agrumato",
       "category": "beverage",

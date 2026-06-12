@@ -128,6 +128,11 @@ export const MenuCarousel: React.FC<MenuCarouselProps> = ({
 
             <div className="item-info">
               <h4>{item.name}</h4>
+              {item.personalization?.reasons?.length > 0 && (
+                <p className="personalization-reason">
+                  Scelto per te: {item.personalization.reasons[0]}
+                </p>
+              )}
               <p className="item-description">{String(item.description || '').slice(0, 88)}</p>
               <div className="item-footer">
                 <span className="item-price">{formatPrice(Number(item.price || 0))}</span>

@@ -34,6 +34,56 @@ function normalize(value) {
   return String(value || '').toLowerCase();
 }
 
+function normalizeDietaryTerm(value) {
+  const term = normalize(value);
+  if (['gluten-free', 'gluten free', 'senza glutine', 'glutine', 'gluten'].includes(term)) return 'gluten-free';
+  if (['lactose-free', 'lactose free', 'senza lattosio', 'lattosio', 'lactose'].includes(term)) return 'lactose-free';
+  if (['vegan', 'vegano', 'vegana'].includes(term)) return 'vegan';
+  if (['vegetarian', 'vegetariano', 'vegetariana'].includes(term)) return 'vegetarian';
+  return term;
+}
+
+function allergenMatchesRestriction(allergen, restriction) {
+  const normalizedRestriction = normalizeDietaryTerm(restriction);
+  const normalizedAllergen = normalizeDietaryTerm(allergen);
+
+  if (normalizedRestriction === 'gluten-free' && normalizedAllergen === 'gluten-free') return true;
+  if (normalizedRestriction === 'lactose-free' && normalizedAllergen === 'lactose-free') return true;
+  return normalizedAllergen === normalizedRestriction;
+}
+
+function dietaryInfoMatchesRestriction(info, restriction) {
+  return normalizeDietaryTerm(info) === normalizeDietaryTerm(restriction);
+}
+
+function getCustomerContext(context = {}) {
+  const userContext = context.userContext || {};
+  const preferences = Array.isArray(userContext.preferences) ? userContext.preferences : [];
+  const interactions = Array.isArray(userContext.interactions) ? userContext.interactions : [];
+  const dietaryRestrictions = Array.isArray(userContext.dietaryRestrictions) ? userContext.dietaryRestrictions : [];
+
+  return {
+    userId: userContext.userId || 'anonymous',
+    name: userContext.name || '',
+    preferences,
+    interactions,
+    dietaryRestrictions
+  };
+}
+
+function itemText(item) {
+  return [
+    item.name,
+    item.description,
+    item.category,
+    item.subcategory,
+    ...(item.preferences || []),
+    ...(item.ingredients || []),
+    ...(item.allergens || []),
+    ...(item.dietaryInfo || [])
+  ].filter(Boolean).join(' ');
+}
+
 function matchesQuery(entry, query) {
   if (!query) return true;
   const searchableFields = [
@@ -88,6 +138,99 @@ function scoreMenuItem(item, { query, timeOfDay }) {
   return score;
 }
 
+function scoreCustomerFit(item, context = {}) {
+  const customer = getCustomerContext(context);
+  const haystack = normalize(itemText(item));
+  let score = 0;
+
+  customer.preferences.forEach(preference => {
+    const rating = Number(preference.rating || 0);
+    if (preference.itemId && preference.itemId === item.id) score += rating * 40;
+    if (preference.itemCategory && normalize(preference.itemCategory) === normalize(item.category)) score += rating * 12;
+    if (preference.itemName && haystack.includes(normalize(preference.itemName))) score += rating * 10;
+  });
+
+  customer.interactions.slice(0, 8).forEach(interaction => {
+    normalize(interaction)
+      .split(/\s+/)
+      .filter(term => term.length > 3)
+      .forEach(term => {
+        if (haystack.includes(term)) score += 3;
+      });
+  });
+
+  customer.dietaryRestrictions.forEach(restriction => {
+    const normalizedRestriction = normalizeDietaryTerm(restriction);
+    if (!normalizedRestriction) return;
+    if ((item.dietaryInfo || []).some(info => dietaryInfoMatchesRestriction(info, restriction))) score += 45;
+    if ((item.allergens || []).some(allergen => allergenMatchesRestriction(allergen, restriction))) score -= 120;
+    if (haystack.includes(normalizedRestriction)) score += 15;
+  });
+
+  return score;
+}
+
+function preferenceReasons(item, context = {}) {
+  const customer = getCustomerContext(context);
+  const reasons = [];
+  const haystack = normalize(itemText(item));
+
+  customer.preferences.forEach(preference => {
+    if (preference.itemId === item.id && preference.rating > 0) {
+      reasons.push(`gia apprezzati da te`);
+    } else if (preference.itemCategory && normalize(preference.itemCategory) === normalize(item.category) && preference.rating > 0) {
+      reasons.push(`vicini ai tuoi gusti`);
+    }
+  });
+
+  customer.dietaryRestrictions.forEach(restriction => {
+    const normalizedRestriction = normalizeDietaryTerm(restriction);
+    if ((item.dietaryInfo || []).some(info => dietaryInfoMatchesRestriction(info, restriction)) || haystack.includes(normalizedRestriction)) {
+      reasons.push(`compatibile con ${restriction}`);
+    }
+  });
+
+  return Array.from(new Set(reasons)).slice(0, 3);
+}
+
+function withPersonalization(items, context = {}) {
+  return items.map(item => ({
+    ...item,
+    personalization: {
+      score: scoreCustomerFit(item, context),
+      reasons: preferenceReasons(item, context)
+    }
+  }));
+}
+
+function requestDietaryRestrictions(args = {}, context = {}) {
+  const customer = getCustomerContext(context);
+  const terms = [...customer.dietaryRestrictions];
+  const dietaryPreference = args.dietaryPreference || args.dietary || '';
+  if (dietaryPreference) terms.push(dietaryPreference);
+
+  const query = normalize([args.query, args.originalQuery].filter(Boolean).join(' '));
+  if (query.includes('senza glutine') || query.includes('gluten free') || query.includes('gluten-free')) terms.push('gluten-free');
+  if (query.includes('senza lattosio') || query.includes('lactose free') || query.includes('lactose-free')) terms.push('lactose-free');
+  if (query.includes('vegano') || query.includes('vegan')) terms.push('vegan');
+  if (query.includes('vegetariano') || query.includes('vegetarian')) terms.push('vegetarian');
+
+  return Array.from(new Set(terms.map(normalizeDietaryTerm).filter(Boolean)));
+}
+
+function isCompatibleWithRestrictions(item, restrictions = []) {
+  return restrictions.every(restriction => {
+    const normalizedRestriction = normalizeDietaryTerm(restriction);
+    if (!normalizedRestriction) return true;
+
+    if (normalizedRestriction === 'vegan' || normalizedRestriction === 'vegetarian') {
+      return (item.dietaryInfo || []).some(info => dietaryInfoMatchesRestriction(info, normalizedRestriction));
+    }
+
+    return !(item.allergens || []).some(allergen => allergenMatchesRestriction(allergen, normalizedRestriction));
+  });
+}
+
 function createCatalogTools() {
   return [
     {
@@ -99,20 +242,29 @@ function createCatalogTools() {
           query: { type: 'string' },
           category: { type: 'string' },
           timeOfDay: { type: 'string', enum: ['morning', 'afternoon', 'evening', 'all'] },
+          dietaryPreference: { type: 'string' },
+          originalQuery: { type: 'string' },
           limit: { type: 'number' }
         },
         additionalProperties: false
       },
-      execute: async ({ query = '', category = 'all', timeOfDay = 'all', limit = 6 } = {}, context = {}) => {
+      execute: async (args = {}, context = {}) => {
+        const { query = '', category = 'all', timeOfDay = 'all', limit = 6 } = args;
         const q = normalize(query);
+        const restrictions = requestDietaryRestrictions(args, context);
         const items = loadMenuItems(context)
           .filter(item => category === 'all' || !category || item.category === category)
           .filter(item => timeOfDay === 'all' || !timeOfDay || (item.timeOfDay || []).includes(timeOfDay))
           .filter(item => matchesQuery(item, q))
-          .sort((a, b) => scoreMenuItem(b, { query: q, timeOfDay }) - scoreMenuItem(a, { query: q, timeOfDay }))
+          .filter(item => isCompatibleWithRestrictions(item, restrictions))
+          .sort((a, b) => (
+            scoreMenuItem(b, { query: q, timeOfDay }) + scoreCustomerFit(b, context)
+          ) - (
+            scoreMenuItem(a, { query: q, timeOfDay }) + scoreCustomerFit(a, context)
+          ))
           .slice(0, limit);
 
-        return { items, count: items.length, source: context.catalog?.menuItems?.length ? 'runtime-catalog' : 'local-catalog' };
+        return { items: withPersonalization(items, context), count: items.length, source: context.catalog?.menuItems?.length ? 'runtime-catalog' : 'local-catalog' };
       }
     },
     {
@@ -123,18 +275,24 @@ function createCatalogTools() {
         properties: {
           query: { type: 'string' },
           category: { type: 'string' },
+          dietaryPreference: { type: 'string' },
+          originalQuery: { type: 'string' },
           limit: { type: 'number' }
         },
         additionalProperties: false
       },
-      execute: async ({ query = '', category = 'all', limit = 6 } = {}, context = {}) => {
+      execute: async (args = {}, context = {}) => {
+        const { query = '', category = 'all', limit = 6 } = args;
         const q = normalize(query);
+        const restrictions = requestDietaryRestrictions(args, context);
         const products = loadProducts(context)
           .filter(product => category === 'all' || !category || product.category === category)
           .filter(product => matchesQuery(product, q))
+          .filter(product => isCompatibleWithRestrictions(product, restrictions))
+          .sort((a, b) => scoreCustomerFit(b, context) - scoreCustomerFit(a, context))
           .slice(0, limit);
 
-        return { products, count: products.length, source: context.catalog?.products?.length ? 'runtime-catalog' : 'local-catalog' };
+        return { products: withPersonalization(products, context), count: products.length, source: context.catalog?.products?.length ? 'runtime-catalog' : 'local-catalog' };
       }
     },
     {
@@ -153,6 +311,27 @@ function createCatalogTools() {
         const collection = type === 'product' ? loadProducts(context) : loadMenuItems(context);
         const item = findByIdOrName(collection, id) || null;
         return { item, found: Boolean(item), source: item ? 'catalog' : 'not-found' };
+      }
+    },
+    {
+      name: 'customer_profile',
+      description: 'Return the current customer preference profile used for personalized recommendations.',
+      parameters: {
+        type: 'object',
+        properties: {},
+        additionalProperties: false
+      },
+      execute: async (_args = {}, context = {}) => {
+        const customer = getCustomerContext(context);
+        return {
+          userId: customer.userId,
+          name: customer.name,
+          dietaryRestrictions: customer.dietaryRestrictions,
+          preferences: customer.preferences
+            .sort((a, b) => Number(b.rating || 0) - Number(a.rating || 0))
+            .slice(0, 8),
+          recentInteractions: customer.interactions.slice(0, 8)
+        };
       }
     },
     {
