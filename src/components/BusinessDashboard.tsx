@@ -9,6 +9,8 @@ import {
   GatewayOrderRecord,
   businessEventService
 } from '../services/analytics/BusinessEventService';
+import { userContextService } from '../services/user/UserContextService';
+import { UserContext } from '../types/UserContext';
 
 interface BusinessDashboardProps {
   onClose: () => void;
@@ -104,6 +106,13 @@ function formatEventTime(timestamp: number): string {
   });
 }
 
+function formatPreferenceLabel(rating: number): string {
+  if (rating >= 5) return 'forte';
+  if (rating >= 4) return 'esplicita';
+  if (rating >= 2) return 'interesse';
+  return 'da evitare';
+}
+
 export const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ onClose }) => {
   const { appConfig, catalogService } = useServices();
   const { items, itemCount, subtotal } = useCart();
@@ -113,6 +122,7 @@ export const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ onClose })
   const [events, setEvents] = useState<BusinessEvent[]>([]);
   const [remoteSummary, setRemoteSummary] = useState<BusinessEventSummary | null>(null);
   const [remoteOrders, setRemoteOrders] = useState<GatewayOrderRecord[]>([]);
+  const [customerProfile, setCustomerProfile] = useState<UserContext>(() => userContextService.getUserContext());
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastRefreshAt, setLastRefreshAt] = useState<number | null>(null);
 
@@ -131,6 +141,7 @@ export const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ onClose })
       setProducts(loadedProducts);
       setConversations(readStoredConversations());
       setEvents(businessEventService.getEvents());
+      setCustomerProfile(userContextService.getUserContext());
       setRemoteSummary(loadedRemoteSummary);
       setRemoteOrders(loadedRemoteOrders);
       setLastRefreshAt(Date.now());
@@ -138,6 +149,27 @@ export const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ onClose })
       setIsRefreshing(false);
     }
   }, [catalogService]);
+
+  const refreshCustomerProfile = useCallback(() => {
+    setCustomerProfile({ ...userContextService.getUserContext() });
+  }, []);
+
+  const handleRemovePreference = useCallback((itemId: string, itemType: string) => {
+    userContextService.removePreference(itemId, itemType);
+    refreshCustomerProfile();
+  }, [refreshCustomerProfile]);
+
+  const handleRemoveRestriction = useCallback((restriction: string) => {
+    userContextService.updateDietaryRestrictions(
+      customerProfile.dietaryRestrictions.filter(item => item !== restriction)
+    );
+    refreshCustomerProfile();
+  }, [customerProfile.dietaryRestrictions, refreshCustomerProfile]);
+
+  const handleResetCustomerProfile = useCallback(() => {
+    userContextService.resetContext();
+    refreshCustomerProfile();
+  }, [refreshCustomerProfile]);
 
   useEffect(() => {
     let isMounted = true;
@@ -264,6 +296,11 @@ export const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ onClose })
   const knowledgeEntries = appConfig?.knowledgeBase?.length || 0;
   const remoteSources = appConfig?.knowledgeSources?.urls?.length || 0;
   const businessName = appConfig?.business?.name || 'CafeConnect AI';
+  const rankedPreferences = customerProfile.preferences
+    .slice()
+    .sort((a, b) => Number(b.timestamp || 0) - Number(a.timestamp || 0))
+    .slice(0, 8);
+  const recentInteractions = customerProfile.interactions.slice(0, 6);
 
   return (
     <div className="business-dashboard">
@@ -334,6 +371,97 @@ export const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ onClose })
             <span className="kpi-label">Valore medio</span>
             <strong>{formatCurrency(dashboard.averageOrderValue)}</strong>
             <span className="kpi-note">carrello o ordini reali</span>
+          </div>
+        </section>
+
+        <section className="dashboard-panel customer-profile-panel">
+          <div className="customer-profile-header">
+            <div>
+              <h3>Profilo cliente AI</h3>
+              <p className="dashboard-muted">
+                Memoria usata dagli agenti per incrociare preferenze, restrizioni e catalogo.
+              </p>
+            </div>
+            <button type="button" className="profile-reset-btn" onClick={handleResetCustomerProfile}>
+              Reset profilo
+            </button>
+          </div>
+
+          <div className="customer-profile-grid">
+            <div className="profile-block">
+              <span className="profile-block-label">Cliente</span>
+              <strong>{customerProfile.name || customerProfile.userId}</strong>
+              <small>
+                Ultima visita: {customerProfile.lastVisit
+                  ? new Date(customerProfile.lastVisit).toLocaleDateString('it-IT')
+                  : 'non disponibile'}
+              </small>
+            </div>
+
+            <div className="profile-block">
+              <span className="profile-block-label">Restrizioni</span>
+              {customerProfile.dietaryRestrictions.length > 0 ? (
+                <div className="profile-chip-list">
+                  {customerProfile.dietaryRestrictions.map(restriction => (
+                    <button
+                      type="button"
+                      key={restriction}
+                      className="profile-chip removable"
+                      onClick={() => handleRemoveRestriction(restriction)}
+                      title="Rimuovi restrizione"
+                    >
+                      {restriction}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <small>Nessuna restrizione appresa.</small>
+              )}
+            </div>
+          </div>
+
+          <div className="profile-sections">
+            <div>
+              <h4>Preferenze apprese</h4>
+              {rankedPreferences.length > 0 ? (
+                <ul className="profile-preference-list">
+                  {rankedPreferences.map(preference => (
+                    <li key={`${preference.itemType}-${preference.itemId}`}>
+                      <div>
+                        <strong>{preference.itemName || preference.itemCategory}</strong>
+                        <span>{preference.itemCategory} / {formatPreferenceLabel(preference.rating)}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleRemovePreference(preference.itemId, preference.itemType)}
+                        aria-label={`Rimuovi ${preference.itemName}`}
+                      >
+                        Rimuovi
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="dashboard-muted">
+                  Interagisci con chat, card o carrello per alimentare la memoria.
+                </p>
+              )}
+            </div>
+
+            <div>
+              <h4>Interazioni recenti</h4>
+              {recentInteractions.length > 0 ? (
+                <ul className="profile-interaction-list">
+                  {recentInteractions.map((interaction, index) => (
+                    <li key={`${interaction}-${index}`}>{interaction}</li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="dashboard-muted">
+                  Le ultime richieste del cliente appariranno qui.
+                </p>
+              )}
+            </div>
           </div>
         </section>
 

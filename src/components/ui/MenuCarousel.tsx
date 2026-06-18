@@ -14,6 +14,7 @@ interface MenuCarouselProps {
   recommendations: MenuRecommendation[];
   timeOfDay: string;
   id: string;
+  explanation?: string;
   onAction?: (action: string, payload: any) => void;
 }
 
@@ -21,6 +22,7 @@ export const MenuCarousel: React.FC<MenuCarouselProps> = ({
   recommendations,
   timeOfDay,
   id,
+  explanation,
   onAction
 }) => {
   const [menuItems, setMenuItems] = React.useState<any[]>([]);
@@ -110,6 +112,13 @@ export const MenuCarousel: React.FC<MenuCarouselProps> = ({
       <div className="carousel-header">
         <h3>Consigliati per {getTimeOfDayText()}</h3>
       </div>
+
+      {explanation && (
+        <div className="recommendation-explanation">
+          <span>Perche te lo propongo</span>
+          <p>{explanation}</p>
+        </div>
+      )}
 
       <div className="carousel-items">
         {menuItems.map(item => (

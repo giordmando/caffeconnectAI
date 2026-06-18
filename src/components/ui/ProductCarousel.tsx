@@ -13,12 +13,14 @@ interface ProductRecommendation {
 interface ProductCarouselProps {
   recommendations: ProductRecommendation[];
   id: string;
+  explanation?: string;
   onAction?: (action: string, payload: any) => void;
 }
 
 export const ProductCarousel: React.FC<ProductCarouselProps> = ({
   recommendations,
   id,
+  explanation,
   onAction
 }) => {
   const [products, setProducts] = useState<any[]>([]);
@@ -95,6 +97,13 @@ export const ProductCarousel: React.FC<ProductCarouselProps> = ({
       <div className="carousel-header">
         <h3>Prodotti consigliati</h3>
       </div>
+
+      {explanation && (
+        <div className="recommendation-explanation">
+          <span>Perche te lo propongo</span>
+          <p>{explanation}</p>
+        </div>
+      )}
 
       <div className="carousel-items">
         {products.map(product => (

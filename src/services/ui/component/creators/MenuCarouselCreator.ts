@@ -9,11 +9,12 @@ export class MenuCarouselCreator extends BaseComponentCreator {
   functionNames = ['get_menu_recommendations'];
   
   createReactElement(component: UIComponent, onAction?: (action: string, payload: any) => void): React.ReactElement {
-    const { recommendations, timeOfDay } = component.data;
+    const { recommendations, timeOfDay, explanation } = component.data;
     
     return React.createElement(MenuCarousel, {
       recommendations: recommendations || [],
       timeOfDay: timeOfDay || 'morning',
+      explanation,
       id: component.id,
       onAction
     });
@@ -25,7 +26,8 @@ export class MenuCarouselCreator extends BaseComponentCreator {
       data: {
         recommendations: data.recommendations || [],
         timeOfDay: data.timeOfDay || 'morning',
-        category: data.category || 'all'
+        category: data.category || 'all',
+        explanation: data.explanation
       },
       placement,
       id: this.generateComponentId('menu-carousel', { 

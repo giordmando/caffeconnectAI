@@ -8,10 +8,11 @@ export class ProductCarouselCreator extends BaseComponentCreator {
   functionNames = ['get_product_recommendations'];
   
   createReactElement(component: UIComponent, onAction?: (action: string, payload: any) => void): React.ReactElement {
-    const { recommendations } = component.data;
+    const { recommendations, explanation } = component.data;
     
     return React.createElement(ProductCarousel, {
       recommendations: recommendations || [],
+      explanation,
       id: component.id,
       onAction
     });
@@ -23,7 +24,8 @@ export class ProductCarouselCreator extends BaseComponentCreator {
       data: {
         recommendations: data.recommendations || [],
         timeOfDay: data.timeOfDay || 'morning',
-        category: data.category || 'all'
+        category: data.category || 'all',
+        explanation: data.explanation
       },
       placement,
       id: this.generateComponentId('product-carousel', {

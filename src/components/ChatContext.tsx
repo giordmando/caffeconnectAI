@@ -239,6 +239,36 @@ export const ChatProvider: React.FC<{
     return actions.slice(0, 6);
   }, []);
 
+  const createRecommendationExplanation = useCallback((
+    recommendedItems: any[],
+    gatewayResponse: AIGatewayChatResponse
+  ): string | undefined => {
+    const reasons = Array.from(new Set(
+      recommendedItems
+        .flatMap(item => item?.personalization?.reasons || [])
+        .filter(Boolean)
+    ));
+    const userContext = userService.getUserContext();
+    const restrictions = userContext.dietaryRestrictions || [];
+    const usedKnowledge = (gatewayResponse.toolCalls || []).some(toolCall =>
+      ['knowledge_search', 'runtime_knowledge_search'].includes(toolCall.name)
+      && ((toolCall.result as any)?.results || []).length > 0
+    );
+
+    const parts: string[] = [];
+    if (reasons.length > 0) {
+      parts.push(`Ho dato priorita a opzioni ${reasons.slice(0, 2).join(' e ')}.`);
+    }
+    if (restrictions.length > 0) {
+      parts.push(`Ho filtrato il catalogo considerando ${restrictions.join(', ')}.`);
+    }
+    if (usedKnowledge) {
+      parts.push('Ho usato anche le fonti configurate dal locale.');
+    }
+
+    return parts.length > 0 ? parts.join(' ') : undefined;
+  }, [userService]);
+
   const createGatewayUIComponents = useCallback((gatewayResponse: AIGatewayChatResponse): UIComponent[] => {
     const components: UIComponent[] = [];
 
@@ -248,17 +278,19 @@ export const ChatProvider: React.FC<{
       const products = result.products || [];
 
       if (toolCall.name === 'search_menu' && items.length > 0) {
+        const visibleItems = items.slice(0, config.maxRecommendations || 4);
         components.push({
           type: 'menuCarousel',
           placement: 'inline',
           id: `gateway-menu-${Date.now()}-${toolIndex}`,
           data: {
-            recommendations: items.slice(0, config.maxRecommendations || 4).map((item: any, index: number) => ({
+            recommendations: visibleItems.map((item: any, index: number) => ({
               id: item.id,
               name: item.name,
               confidence: Math.max(0.75, 0.95 - index * 0.05),
               item
             })),
+            explanation: createRecommendationExplanation(visibleItems, gatewayResponse),
             timeOfDay: toolCall.arguments && typeof toolCall.arguments === 'object'
               ? (toolCall.arguments as any).timeOfDay || 'all'
               : 'all',
@@ -269,17 +301,19 @@ export const ChatProvider: React.FC<{
       }
 
       if (toolCall.name === 'search_products' && products.length > 0) {
+        const visibleProducts = products.slice(0, config.maxRecommendations || 4);
         components.push({
           type: 'productCarousel',
           placement: 'inline',
           id: `gateway-products-${Date.now()}-${toolIndex}`,
           data: {
-            recommendations: products.slice(0, config.maxRecommendations || 4).map((product: any, index: number) => ({
+            recommendations: visibleProducts.map((product: any, index: number) => ({
               id: product.id,
               name: product.name,
               confidence: Math.max(0.75, 0.95 - index * 0.05),
               item: product
             })),
+            explanation: createRecommendationExplanation(visibleProducts, gatewayResponse),
             category: 'all'
           },
           _updated: Date.now()
@@ -298,7 +332,7 @@ export const ChatProvider: React.FC<{
     });
 
     return components;
-  }, [config.maxRecommendations]);
+  }, [config.maxRecommendations, createRecommendationExplanation]);
 
   const normalizeSearchText = useCallback((value: string): string => (
     value
