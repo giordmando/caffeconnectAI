@@ -7,7 +7,7 @@ export interface IMessageService {
   addMessage(message: Message): void;
   clearMessages(): void;
   createUserMessage(content: string): Message;
-  createAssistantMessage(content: string): Message;
+  createAssistantMessage(content: string, metadata?: Message['metadata']): Message;
   trackMessage(message: Message, conversationId: string, userContext: UserContext, nlpAnalysis?: any): Promise<void>;
 }
 
@@ -39,10 +39,11 @@ export class MessageService implements IMessageService {
     };
   }
   
-  createAssistantMessage(content: string): Message {
+  createAssistantMessage(content: string, metadata?: Message['metadata']): Message {
     return {
       role: 'assistant',
       content,
+      metadata,
       timestamp: Date.now()
     };
   }

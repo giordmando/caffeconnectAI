@@ -11,6 +11,17 @@
       name: string;
       result: string;
     };
+    metadata?: {
+      agent?: {
+        id: string;
+        label: string;
+        confidence?: number;
+      };
+      trace?: Array<{
+        label: string;
+        value: string;
+      }>;
+    };
     timestamp: number;
   }
   

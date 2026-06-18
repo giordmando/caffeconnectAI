@@ -239,6 +239,35 @@ export const ChatProvider: React.FC<{
     return actions.slice(0, 6);
   }, []);
 
+  const createGatewayMessageMetadata = useCallback((gatewayResponse: AIGatewayChatResponse): Message['metadata'] => {
+    const toolNames = (gatewayResponse.toolCalls || []).map(toolCall => toolCall.name);
+    const hasKnowledge = toolNames.some(name => ['knowledge_search', 'runtime_knowledge_search'].includes(name));
+    const hasCatalog = toolNames.some(name => ['search_menu', 'search_products', 'get_item_detail'].includes(name));
+    const userContext = userService.getUserContext();
+    const trace: NonNullable<Message['metadata']>['trace'] = [];
+
+    if (gatewayResponse.agent?.label) {
+      trace.push({ label: 'Agente', value: gatewayResponse.agent.label.replace(' Agent', '') });
+    }
+    if (hasKnowledge) {
+      trace.push({ label: 'Fonti', value: 'knowledge merchant' });
+    }
+    if (hasCatalog) {
+      trace.push({ label: 'Catalogo', value: 'menu/prodotti reali' });
+    }
+    if ((userContext.preferences || []).length > 0 || (userContext.dietaryRestrictions || []).length > 0) {
+      trace.push({ label: 'Profilo', value: 'preferenze cliente' });
+    }
+    if (toolNames.length > 0) {
+      trace.push({ label: 'Azione', value: Array.from(new Set(toolNames)).join(', ') });
+    }
+
+    return {
+      agent: gatewayResponse.agent,
+      trace: trace.slice(0, 4)
+    };
+  }, [userService]);
+
   const createRecommendationExplanation = useCallback((
     recommendedItems: any[],
     gatewayResponse: AIGatewayChatResponse
@@ -487,7 +516,11 @@ export const ChatProvider: React.FC<{
         }
       });
 
-      const assistantMessage = messageService.createAssistantMessage(gatewayResponse.message);
+      const messageMetadata = createGatewayMessageMetadata(gatewayResponse);
+      const assistantMessage = messageService.createAssistantMessage(
+        gatewayResponse.message,
+        messageMetadata
+      );
       messageService.addMessage(assistantMessage);
       setMessages(messageService.getMessages());
 
@@ -504,6 +537,7 @@ export const ChatProvider: React.FC<{
       businessEventService.track('gateway_result', {
         mode: gatewayResponse.mode,
         agent: gatewayResponse.agent?.id,
+        trace: messageMetadata?.trace,
         toolCalls: (gatewayResponse.toolCalls || []).map(toolCall => toolCall.name),
         toolCallCount: gatewayResponse.toolCalls?.length || 0
       });
@@ -522,6 +556,7 @@ export const ChatProvider: React.FC<{
     config.enableDynamicComponents,
     createGatewayActions,
     createGatewayUIComponents,
+    createGatewayMessageMetadata,
     messageService,
     shouldUseAIGateway,
     uiComponentService,

@@ -65,10 +65,27 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
   
   return (
     <div className={bubbleClassName}>
+      {!isUser && message.metadata?.agent && (
+        <div className="message-agent-strip">
+          <span>{message.metadata.agent.label.replace(' Agent', '')}</span>
+          {typeof message.metadata.agent.confidence === 'number' && (
+            <small>{Math.round(message.metadata.agent.confidence * 100)}%</small>
+          )}
+        </div>
+      )}
       <div 
         className="message-content"
         dangerouslySetInnerHTML={{ __html: formatContent(message.content) }}
       ></div>
+      {!isUser && message.metadata?.trace && message.metadata.trace.length > 0 && (
+        <div className="message-trace">
+          {message.metadata.trace.map((step, index) => (
+            <span key={`${step.label}-${index}`}>
+              <b>{step.label}</b> {step.value}
+            </span>
+          ))}
+        </div>
+      )}
       <div className="message-time">
         {formattedTime}
       </div>

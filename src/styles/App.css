@@ -301,6 +301,50 @@ input:focus, select:focus, textarea:focus {
   border: 1px solid var(--light-gray);
 }
 
+.message-agent-strip {
+  align-items: center;
+  color: var(--primary-color);
+  display: flex;
+  font-size: 12px;
+  font-weight: 800;
+  gap: 8px;
+  justify-content: space-between;
+  margin-bottom: 7px;
+  text-transform: uppercase;
+}
+
+.message-agent-strip small {
+  background: #edf2f7;
+  border-radius: 999px;
+  color: var(--dark-gray);
+  font-size: 11px;
+  padding: 3px 7px;
+  text-transform: none;
+}
+
+.message-trace {
+  border-top: 1px solid #e2e8f0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+  padding-top: 8px;
+}
+
+.message-trace span {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 999px;
+  color: var(--dark-gray);
+  font-size: 11px;
+  line-height: 1.2;
+  padding: 5px 8px;
+}
+
+.message-trace b {
+  color: var(--primary-color);
+}
+
 .message-time {
   font-size: 10px;
   color: var(--medium-gray);
