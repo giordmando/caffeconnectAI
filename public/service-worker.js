@@ -39,6 +39,11 @@ self.addEventListener('activate', event => {
 
 // Fetch event - serve from cache, fallback to network
 self.addEventListener('fetch', event => {
+  const requestUrl = new URL(event.request.url);
+  if (event.request.method !== 'GET' || requestUrl.origin !== self.location.origin) {
+    return;
+  }
+
   event.respondWith(
     caches.match(event.request)
       .then(response => {
@@ -68,8 +73,16 @@ self.addEventListener('fetch', event => {
         }).catch(() => {
           // Offline fallback
           if (event.request.destination === 'document') {
-            return caches.match('/offline.html');
+            return caches.match('/offline.html').then(response => response || new Response('Offline', {
+              status: 503,
+              statusText: 'Service Unavailable',
+              headers: { 'Content-Type': 'text/plain; charset=utf-8' }
+            }));
           }
+          return new Response('', {
+            status: 503,
+            statusText: 'Service Unavailable'
+          });
         });
       })
   );

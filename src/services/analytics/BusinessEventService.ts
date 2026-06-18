@@ -54,8 +54,11 @@ export interface GatewayOrderRecord {
 const STORAGE_KEY = 'cafeconnect_business_events';
 const MAX_EVENTS = 500;
 const GATEWAY_URL = process.env.REACT_APP_AI_GATEWAY_URL || 'http://localhost:8787';
+const GATEWAY_RETRY_COOLDOWN_MS = 60_000;
 
 class BusinessEventService {
+  private gatewayUnavailableUntil = 0;
+
   track(
     type: BusinessEventType,
     payload: Record<string, any> = {},
@@ -99,38 +102,56 @@ class BusinessEventService {
   }
 
   async getRemoteSummary(): Promise<BusinessEventSummary | null> {
+    if (!this.canUseGateway()) return null;
+
     try {
       const response = await fetch(`${GATEWAY_URL}/v1/events/summary`);
       if (!response.ok) return null;
       return response.json();
     } catch (_error) {
+      this.markGatewayUnavailable();
       return null;
     }
   }
 
   async getRemoteOrders(limit: number = 10): Promise<GatewayOrderRecord[]> {
+    if (!this.canUseGateway()) return [];
+
     try {
       const response = await fetch(`${GATEWAY_URL}/v1/orders?limit=${limit}`);
       if (!response.ok) return [];
       const result = await response.json();
       return Array.isArray(result.orders) ? result.orders : [];
     } catch (_error) {
+      this.markGatewayUnavailable();
       return [];
     }
   }
 
   private sendToGateway(event: BusinessEvent): void {
+    if (!this.canUseGateway()) return;
+
     try {
       fetch(`${GATEWAY_URL}/v1/events`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ event })
       }).catch(() => {
+        this.markGatewayUnavailable();
         // Local analytics still work when the gateway is offline.
       });
     } catch (_error) {
+      this.markGatewayUnavailable();
       // Local analytics still work when fetch is unavailable.
     }
+  }
+
+  private canUseGateway(): boolean {
+    return Date.now() >= this.gatewayUnavailableUntil;
+  }
+
+  private markGatewayUnavailable(): void {
+    this.gatewayUnavailableUntil = Date.now() + GATEWAY_RETRY_COOLDOWN_MS;
   }
 }
 

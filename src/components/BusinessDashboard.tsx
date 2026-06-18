@@ -130,12 +130,12 @@ export const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ onClose })
     setIsRefreshing(true);
 
     try {
-      const [loadedMenuItems, loadedProducts, loadedRemoteSummary, loadedRemoteOrders] = await Promise.all([
+      const [loadedMenuItems, loadedProducts] = await Promise.all([
         catalogService.getAllMenuItems(),
-        catalogService.getProducts(),
-        businessEventService.getRemoteSummary(),
-        businessEventService.getRemoteOrders(8)
+        catalogService.getProducts()
       ]);
+      const loadedRemoteSummary = await businessEventService.getRemoteSummary();
+      const loadedRemoteOrders = await businessEventService.getRemoteOrders(8);
 
       setMenuItems(loadedMenuItems);
       setProducts(loadedProducts);
@@ -180,7 +180,7 @@ export const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ onClose })
     };
 
     refreshIfMounted();
-    const intervalId = window.setInterval(refreshIfMounted, 5000);
+    const intervalId = window.setInterval(refreshIfMounted, 30000);
 
     return () => {
       isMounted = false;
