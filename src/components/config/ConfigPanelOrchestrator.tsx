@@ -65,7 +65,9 @@ const PANEL_COMPONENTS: Record<string, React.FC<PanelProps<any>>[]> = {
         {...props}
         config={props.config.knowledgeBase || []}
         knowledgeSources={props.config.knowledgeSources || { urls: [], inlineText: '' }}
+        merchantKnowledge={props.config.merchantKnowledge || { sources: [] }}
         onSourcesChange={(value) => props.onChange('knowledgeSources', value)}
+        onMerchantKnowledgeChange={(value) => props.onChange('merchantKnowledge', value)}
         onChange={(field, value) => {
           if (field === '_self' || field === 'knowledgeBase') {
             props.onChange('knowledgeBase', value);
@@ -116,7 +118,7 @@ export const ConfigPanelOrchestrator: React.FC<ConfigPanelOrchestratorProps> = (
       onChange: (sectionOrField: string, value: any) => {
         if (
           activeTab === 'knowledge' &&
-          (sectionOrField === 'knowledgeBase' || sectionOrField === 'knowledgeSources')
+          (sectionOrField === 'knowledgeBase' || sectionOrField === 'knowledgeSources' || sectionOrField === 'merchantKnowledge')
         ) {
           updateTopLevelSection(sectionOrField, value);
           return;

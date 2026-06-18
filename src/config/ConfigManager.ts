@@ -335,6 +335,17 @@ export class ConfigManager implements IConfigManager {
         urls: [],
         inlineText: ''
       },
+      merchantKnowledge: {
+        sources: [
+          {
+            id: 'merchant-faq-demo',
+            label: 'FAQ merchant pubbliche',
+            type: 'faq',
+            url: 'https://caffeconnectai-1.onrender.com/merchant-knowledge/cafeconnect.json',
+            enabled: true
+          }
+        ]
+      },
       tenant: {
         merchantId: 'cafeconnect-roastery',
         workspaceId: 'demo-workspace',
@@ -343,7 +354,7 @@ export class ConfigManager implements IConfigManager {
       },
       agents: {
         enabled: true,
-        activeAgents: ['triage', 'menu_advisor', 'sales', 'order', 'analytics'],
+        activeAgents: ['triage', 'menu_advisor', 'sales', 'order', 'knowledge', 'analytics'],
         handoffMode: 'auto'
       },
       integrations: {

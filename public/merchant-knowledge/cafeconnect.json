@@ -1,0 +1,46 @@
+{
+  "entries": [
+    {
+      "id": "faq-orari",
+      "title": "Orari e contatti",
+      "content": "CafeConnect Roastery e aperto dal lunedi al venerdi dalle 7:30 alle 19:30 e il sabato dalle 8:00 alle 13:00. La domenica e aperto solo per eventi e degustazioni su prenotazione.",
+      "tags": ["orari", "contatti", "prenotazioni"],
+      "source": "FAQ merchant"
+    },
+    {
+      "id": "faq-wifi",
+      "title": "Servizi in locale",
+      "content": "Il locale offre WiFi gratuito, prese vicino ai tavoli laterali e tavoli adatti a lavoro breve. Per gruppi sopra 6 persone e consigliata la prenotazione telefonica.",
+      "tags": ["wifi", "tavoli", "servizi", "prenotazione"],
+      "source": "FAQ merchant"
+    },
+    {
+      "id": "faq-allergeni",
+      "title": "Allergeni e intolleranze",
+      "content": "Il cliente deve comunicare allergie o intolleranze prima dell'ordine. Sono disponibili bevande vegetali, opzioni senza lattosio e alcune proposte senza glutine quando indicate nel catalogo.",
+      "tags": ["allergeni", "glutine", "lattosio", "vegano"],
+      "source": "FAQ merchant"
+    },
+    {
+      "id": "faq-pranzo",
+      "title": "Pranzo e proposte salate",
+      "content": "Per pranzo consiglia prima bowl, toast e proposte salate. Se il cliente ha restrizioni alimentari, filtra il catalogo e non proporre articoli con allergeni incompatibili.",
+      "tags": ["pranzo", "bowl", "toast", "allergeni"],
+      "source": "FAQ merchant"
+    },
+    {
+      "id": "faq-regali",
+      "title": "Regali e prodotti specialty",
+      "content": "Per richieste regalo proponi una box degustazione con caffe specialty, biscotti artigianali e tazza CafeConnect. Chiedi se il regalo e per espresso, moka o filtro.",
+      "tags": ["regali", "prodotti", "box", "sales"],
+      "source": "FAQ merchant"
+    },
+    {
+      "id": "faq-ordini",
+      "title": "Ordini e ritiro",
+      "content": "Gli ordini possono essere preparati per ritiro in negozio. Prima di inviare un ordine raccogli nome, telefono, orario di ritiro e note su allergeni o preferenze.",
+      "tags": ["ordini", "ritiro", "telefono", "whatsapp"],
+      "source": "FAQ merchant"
+    }
+  ]
+}

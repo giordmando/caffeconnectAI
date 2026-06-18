@@ -294,7 +294,9 @@ export const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ onClose })
   }, [conversations, events, itemCount, menuItems, products, remoteSummary, subtotal]);
 
   const knowledgeEntries = appConfig?.knowledgeBase?.length || 0;
-  const remoteSources = appConfig?.knowledgeSources?.urls?.length || 0;
+  const remoteSources = appConfig?.merchantKnowledge?.sources?.filter(source => source.enabled && source.url).length
+    || appConfig?.knowledgeSources?.urls?.length
+    || 0;
   const businessName = appConfig?.business?.name || 'CafeConnect AI';
   const rankedPreferences = customerProfile.preferences
     .slice()

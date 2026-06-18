@@ -126,6 +126,16 @@ export interface AppConfig {
       inlineText: string;
     };
 
+    merchantKnowledge?: {
+      sources: Array<{
+        id: string;
+        label: string;
+        type: 'url' | 'json' | 'faq' | 'sheet' | 'site';
+        url: string;
+        enabled: boolean;
+      }>;
+    };
+
     tenant?: {
       merchantId: string;
       workspaceId: string;

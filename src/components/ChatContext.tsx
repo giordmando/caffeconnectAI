@@ -480,6 +480,7 @@ export const ChatProvider: React.FC<{
         integrations: appConfig?.integrations,
         knowledgeBase: appConfig?.knowledgeBase || [],
         knowledgeSources: appConfig?.knowledgeSources || { urls: [], inlineText: '' },
+        merchantKnowledge: appConfig?.merchantKnowledge || { sources: [] },
         catalog: {
           menuItems: menuItems.slice(0, 100),
           products: products.slice(0, 100)

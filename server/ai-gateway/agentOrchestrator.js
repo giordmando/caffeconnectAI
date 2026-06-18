@@ -274,7 +274,10 @@ class AgentOrchestrator {
       return this.summarizeMenuSuggestion('all', '', menuCall.result.items) + ' Posso spiegarti ingredienti, allergeni o alternative.';
     }
 
-    const hasKnowledge = toolCalls.find(call => call.name === 'knowledge_search' && call.result?.results?.length > 0);
+    const hasKnowledge = toolCalls.find(call =>
+      ['knowledge_search', 'runtime_knowledge_search'].includes(call.name)
+      && call.result?.results?.length > 0
+    );
     if (hasKnowledge) {
       return this.summarizeKnowledgeResult(hasKnowledge.result.results);
     }
@@ -407,6 +410,7 @@ class AgentOrchestrator {
   async runtimeKnowledgeEntries(payload) {
     const knowledgeBase = Array.isArray(payload.knowledgeBase) ? payload.knowledgeBase : [];
     const knowledgeSources = payload.knowledgeSources || {};
+    const merchantKnowledge = payload.merchantKnowledge || {};
 
     const entries = knowledgeBase.flatMap((entry, entryIndex) => {
       const facts = Array.isArray(entry.facts) ? entry.facts : [];
@@ -422,39 +426,49 @@ class AgentOrchestrator {
         }));
     });
 
-    if (knowledgeSources.inlineText) {
-      entries.push({
-        id: 'runtime-inline-text',
-        title: 'Testo libero esercente',
-        content: String(knowledgeSources.inlineText),
-        tags: ['inline', 'settings'],
-        source: 'runtime-settings'
-      });
-    }
+    const merchantSources = Array.isArray(merchantKnowledge.sources)
+      ? merchantKnowledge.sources.filter(source => source && source.enabled && source.url)
+      : [];
 
-    const urls = Array.isArray(knowledgeSources.urls) ? knowledgeSources.urls : [];
-    for (const url of urls.slice(0, 5)) {
+    const urls = [
+      ...merchantSources.map(source => ({
+        url: source.url,
+        label: source.label || source.url,
+        type: source.type || 'url',
+        sourceId: source.id || source.url
+      })),
+      ...(Array.isArray(knowledgeSources.urls)
+        ? knowledgeSources.urls.map(url => ({ url, label: url, type: 'legacy-url', sourceId: url }))
+        : [])
+    ];
+    for (const source of urls.slice(0, 8)) {
       try {
-        const response = await fetch(url);
+        const response = await fetch(source.url);
         if (!response.ok) continue;
 
         const contentType = response.headers.get('content-type') || '';
         if (contentType.includes('application/json')) {
           const data = await response.json();
-          const remoteEntries = this.normalizeRuntimeKnowledgePayload(data, url);
+          const remoteEntries = this.normalizeRuntimeKnowledgePayload(data, source.url)
+            .map(entry => ({
+              ...entry,
+              title: entry.title || source.label,
+              tags: [...(entry.tags || []), source.type, source.label].filter(Boolean),
+              source: source.label
+            }));
           entries.push(...remoteEntries);
         } else {
           const text = await response.text();
           entries.push({
-            id: `runtime-url-${url}`,
-            title: url,
+            id: `runtime-url-${source.sourceId}`,
+            title: source.label,
             content: text.slice(0, 20000),
-            tags: ['url', 'remote'],
-            source: url
+            tags: ['url', 'remote', source.type].filter(Boolean),
+            source: source.label
           });
         }
       } catch (error) {
-        console.warn('[ai-gateway] Runtime knowledge URL failed:', url, error.message);
+        console.warn('[ai-gateway] Runtime knowledge URL failed:', source.url, error.message);
       }
     }
 
@@ -463,7 +477,7 @@ class AgentOrchestrator {
 
   formatRuntimeKnowledge(payload) {
     const knowledgeBase = Array.isArray(payload.knowledgeBase) ? payload.knowledgeBase : [];
-    const knowledgeSources = payload.knowledgeSources || {};
+    const merchantKnowledge = payload.merchantKnowledge || {};
     const entries = knowledgeBase.flatMap((entry, entryIndex) => {
       const facts = Array.isArray(entry.facts) ? entry.facts : [];
       return facts.map((fact, factIndex) => ({
@@ -473,19 +487,14 @@ class AgentOrchestrator {
       }));
     });
 
-    if (knowledgeSources.inlineText) {
+    const activeMerchantSources = Array.isArray(merchantKnowledge.sources)
+      ? merchantKnowledge.sources.filter(source => source.enabled && source.url)
+      : [];
+    if (activeMerchantSources.length > 0) {
       entries.push({
-        id: 'runtime-inline-text',
-        title: 'Testo libero esercente',
-        content: String(knowledgeSources.inlineText)
-      });
-    }
-
-    if (Array.isArray(knowledgeSources.urls) && knowledgeSources.urls.length > 0) {
-      entries.push({
-        id: 'runtime-urls',
-        title: 'URL knowledge collegati',
-        content: knowledgeSources.urls.join(', ')
+        id: 'merchant-sources',
+        title: 'Fonti merchant collegate',
+        content: activeMerchantSources.map(source => `${source.label || source.type}: ${source.url}`).join(', ')
       });
     }
 
@@ -533,7 +542,8 @@ class AgentOrchestrator {
       'orari', 'aperto', 'chiuso', 'storia', 'qualita', 'qualità', 'fornitori',
       'allergeni', 'intolleranze', 'vegano', 'glutine', 'lattosio',
       'policy', 'privacy', 'ritiro', 'whatsapp', 'ordine', 'ordini',
-      'offerta', 'offerte', 'promozione', 'promozioni', 'sconto', 'sconti'
+      'offerta', 'offerte', 'promozione', 'promozioni', 'sconto', 'sconti',
+      'wifi', 'wi-fi', 'prenotare', 'prenotazione', 'prenotazioni'
     ].some(term => lower.includes(term));
   }
 

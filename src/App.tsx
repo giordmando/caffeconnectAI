@@ -27,7 +27,7 @@ function App() {
   const readinessItems = appConfig ? [
     Boolean(appConfig.business.name && appConfig.business.telefono),
     Boolean(appConfig.catalog.enableLocalData || appConfig.catalog.menuEndpoint || appConfig.catalog.productsEndpoint),
-    Boolean(appConfig.knowledgeBase?.length || appConfig.knowledgeSources?.inlineText || appConfig.knowledgeSources?.urls?.length),
+    Boolean(appConfig.knowledgeBase?.length || appConfig.merchantKnowledge?.sources?.some(source => source.enabled && source.url) || appConfig.knowledgeSources?.urls?.length),
     Boolean(appConfig.business.whatsappBusiness || appConfig.business.orderWebhook),
     Boolean(appConfig.agents?.enabled && appConfig.agents.activeAgents.length > 0)
   ] : [];

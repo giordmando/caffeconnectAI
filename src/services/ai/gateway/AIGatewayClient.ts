@@ -19,6 +19,15 @@
     urls: string[];
     inlineText: string;
   };
+  merchantKnowledge?: {
+    sources: Array<{
+      id: string;
+      label: string;
+      type: 'url' | 'json' | 'faq' | 'sheet' | 'site';
+      url: string;
+      enabled: boolean;
+    }>;
+  };
   catalog?: {
     menuItems?: any[];
     products?: any[];

@@ -23,6 +23,12 @@ const AGENTS = {
     terms: ['ordine', 'ordina', 'carrello', 'checkout', 'ritiro', 'consegna', 'whatsapp', 'pagamento'],
     instruction: 'Focalizzati su preparazione ordine, conferma, ritiro, consegna e passaggio al checkout.'
   },
+  knowledge: {
+    id: 'knowledge',
+    label: 'Knowledge Agent',
+    terms: ['orari', 'aperto', 'chiuso', 'storia', 'policy', 'privacy', 'faq', 'fornitori', 'wifi', 'prenotazione', 'allergeni', 'intolleranze'],
+    instruction: 'Recupera informazioni specifiche dalle fonti merchant configurate e rispondi solo con dati verificati o chiedi conferma.'
+  },
   analytics: {
     id: 'analytics',
     label: 'Analytics Agent',

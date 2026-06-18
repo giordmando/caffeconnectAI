@@ -1778,6 +1778,11 @@ input:focus, select:focus, textarea:focus {
     grid-template-columns: 1fr;
   }
 
+  .merchant-source-row {
+    align-items: stretch;
+    grid-template-columns: 1fr;
+  }
+
   .catalog-steps,
   .catalog-onboarding-grid {
     grid-template-columns: 1fr;
@@ -1806,6 +1811,29 @@ input:focus, select:focus, textarea:focus {
 
 /* Stili specifici per i pannelli di configurazione (già presenti nel tuo CSS, li includo per completezza) */
 .knowledge-entry-card { border: 1px solid #ddd; border-radius: 8px; padding: 15px; margin-bottom: 15px; background-color: #f9f9f9; }
+.merchant-source-row {
+  align-items: center;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: auto minmax(140px, 0.8fr) 120px minmax(220px, 1.2fr) auto;
+  margin-bottom: 10px;
+}
+
+.merchant-source-row input,
+.merchant-source-row select {
+  min-width: 0;
+}
+
+.merchant-source-toggle {
+  margin: 0;
+  white-space: nowrap;
+}
+
+.legacy-source-block {
+  border-top: 1px dashed #d9e2ec;
+  margin-top: 14px;
+  padding-top: 12px;
+}
 .fact-item { display: flex; align-items: center; margin-bottom: 8px; }
 .fact-item textarea { flex-grow: 1; margin-right: 8px; }
 .remove-btn-small, .add-btn-small { padding: 4px 8px; font-size: 0.8rem; min-width: auto; border:none; color:white; }
@@ -1960,4 +1988,5 @@ input:focus, select:focus, textarea:focus {
   .floating-cart-button { bottom: 16px; right: 16px; }
   .item-controls { flex-wrap: wrap; justify-content: flex-end; /* Allinea a destra su mobile */ }
   .item-controls .quantity-control { margin-bottom: 8px; /* Spazio se va a capo */ }
+  .merchant-source-row { align-items: stretch; grid-template-columns: 1fr; }
 }

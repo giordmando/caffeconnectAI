@@ -4,7 +4,9 @@ import type { AppConfig } from '../../../../config/interfaces/IAppConfig';
 
 type KnowledgeBase = AppConfig['knowledgeBase'];
 type KnowledgeSources = AppConfig['knowledgeSources'];
+type MerchantKnowledge = AppConfig['merchantKnowledge'];
 type KnowledgeEntry = NonNullable<KnowledgeBase>[number];
+type MerchantKnowledgeSource = NonNullable<MerchantKnowledge>['sources'][number];
 
 const KNOWLEDGE_TEMPLATES: KnowledgeEntry[] = [
   {
@@ -53,32 +55,30 @@ interface KnowledgeBasePanelProps extends IConfigSection<KnowledgeBase> {
   // Override per gestire l'array direttamente
   onChange: (field: string, value: KnowledgeBase) => void;
   knowledgeSources?: KnowledgeSources;
+  merchantKnowledge?: MerchantKnowledge;
   onSourcesChange?: (value: KnowledgeSources) => void;
+  onMerchantKnowledgeChange?: (value: MerchantKnowledge) => void;
 }
 
 export const KnowledgeBasePanel: React.FC<KnowledgeBasePanelProps> = ({
   config,
   onChange,
   knowledgeSources,
+  merchantKnowledge,
   onSourcesChange,
+  onMerchantKnowledgeChange,
   className = ''
 }) => {
   const sources = knowledgeSources || { urls: [], inlineText: '' };
+  const merchantSources = merchantKnowledge?.sources || [];
   const entries = config || [];
-  const validUrls = (sources.urls || []).filter(url => /^https?:\/\//i.test(url));
-  const invalidUrls = (sources.urls || []).filter(url => url && !/^https?:\/\//i.test(url));
+  const activeMerchantSources = merchantSources.filter(source => source.enabled && /^https?:\/\//i.test(source.url));
+  const invalidMerchantSources = merchantSources.filter(source => source.enabled && source.url && !/^https?:\/\//i.test(source.url));
 
   const handleUrlsChange = (value: string) => {
     onSourcesChange?.({
       ...sources,
       urls: value.split('\n').map(url => url.trim()).filter(Boolean)
-    });
-  };
-
-  const handleInlineTextChange = (value: string) => {
-    onSourcesChange?.({
-      ...sources,
-      inlineText: value
     });
   };
 
@@ -109,10 +109,33 @@ export const KnowledgeBasePanel: React.FC<KnowledgeBasePanelProps> = ({
     }
   };
 
-  const handleClearInlineText = () => {
-    onSourcesChange?.({
-      ...sources,
-      inlineText: ''
+  const handleAddMerchantSource = () => {
+    onMerchantKnowledgeChange?.({
+      sources: [
+        ...merchantSources,
+        {
+          id: `source-${Date.now()}`,
+          label: '',
+          type: 'url',
+          url: '',
+          enabled: true
+        }
+      ]
+    });
+  };
+
+  const handleMerchantSourceChange = (index: number, field: keyof MerchantKnowledgeSource, value: any) => {
+    const nextSources = [...merchantSources];
+    nextSources[index] = {
+      ...nextSources[index],
+      [field]: value
+    };
+    onMerchantKnowledgeChange?.({ sources: nextSources });
+  };
+
+  const handleRemoveMerchantSource = (index: number) => {
+    onMerchantKnowledgeChange?.({
+      sources: merchantSources.filter((_, sourceIndex) => sourceIndex !== index)
     });
   };
 
@@ -156,14 +179,14 @@ export const KnowledgeBasePanel: React.FC<KnowledgeBasePanelProps> = ({
     <div className={`config-section ${className}`}>
       <h3>Knowledge Base</h3>
       <p className="form-text">
-        Aggiungi informazioni specifiche che l'AI deve conoscere.
+        Collega fonti merchant reali e aggiungi solo i fatti strutturati che vuoi governare direttamente.
       </p>
 
       <div className="knowledge-entry-card">
         <h4>Stato knowledge</h4>
         <p className="form-text">
-          Fonti configurate: {validUrls.length} URL validi, {entries.length} voci strutturate, {(sources.inlineText || '').trim().length} caratteri di testo libero.
-          {invalidUrls.length > 0 ? ` URL non validi: ${invalidUrls.length}.` : ''}
+          Fonti merchant attive: {activeMerchantSources.length}. Voci strutturate: {entries.length}.
+          {invalidMerchantSources.length > 0 ? ` Fonti non valide: ${invalidMerchantSources.length}.` : ''}
         </p>
       </div>
 
@@ -194,40 +217,72 @@ export const KnowledgeBasePanel: React.FC<KnowledgeBasePanelProps> = ({
       </div>
 
       <div className="knowledge-entry-card">
-        <h4>Sorgenti aperte</h4>
+        <h4>Fonti merchant esterne</h4>
         <p className="form-text">
-          Collega fonti pubbliche dell'esercente: JSON, FAQ, testo, export o documenti pubblicati come URL.
+          Usa fonti pubbliche o pubblicate dal merchant: FAQ JSON, export menu, pagine sito, documenti pubblicati o endpoint Make/Zapier.
         </p>
 
-        <div className="form-group">
-          <label>URL sorgenti knowledge</label>
-          <textarea
-            rows={3}
-            value={(sources.urls || []).join('\n')}
-            onChange={(e) => handleUrlsChange(e.target.value)}
-            placeholder="https://example.com/faq.json&#10;https://example.com/menu-info.txt"
-          />
-        </div>
-
-        <div className="form-group">
-          <label>Testo libero esercente</label>
-          <textarea
-            rows={5}
-            value={sources.inlineText || ''}
-            onChange={(e) => handleInlineTextChange(e.target.value)}
-            placeholder="Es. Offerta del giorno, policy allergeni, storia del locale, regole per il ritiro..."
-          />
-          {(sources.inlineText || '').trim().length > 0 && (
+        {merchantSources.map((source, index) => (
+          <div key={source.id || index} className="merchant-source-row">
+            <label className="config-toggle merchant-source-toggle">
+              <input
+                type="checkbox"
+                checked={source.enabled}
+                onChange={(event) => handleMerchantSourceChange(index, 'enabled', event.target.checked)}
+              />
+              <span>Attiva</span>
+            </label>
+            <input
+              type="text"
+              value={source.label}
+              onChange={(event) => handleMerchantSourceChange(index, 'label', event.target.value)}
+              placeholder="FAQ allergeni"
+            />
+            <select
+              value={source.type}
+              onChange={(event) => handleMerchantSourceChange(index, 'type', event.target.value)}
+            >
+              <option value="url">URL</option>
+              <option value="json">JSON</option>
+              <option value="faq">FAQ</option>
+              <option value="sheet">Sheet</option>
+              <option value="site">Sito</option>
+            </select>
+            <input
+              type="url"
+              value={source.url}
+              onChange={(event) => handleMerchantSourceChange(index, 'url', event.target.value)}
+              placeholder="https://..."
+            />
             <button
               type="button"
               className="remove-btn-small"
-              onClick={handleClearInlineText}
+              onClick={() => handleRemoveMerchantSource(index)}
             >
-              Svuota testo
+              Rimuovi
             </button>
-          )}
+          </div>
+        ))}
+
+        <button type="button" className="add-btn-small" onClick={handleAddMerchantSource}>
+          Aggiungi fonte merchant
+        </button>
+
+        {(sources.urls || []).length > 0 && (
+          <div className="form-group legacy-source-block">
+            <label>URL legacy importati</label>
+            <textarea
+              rows={3}
+              value={(sources.urls || []).join('\n')}
+              onChange={(e) => handleUrlsChange(e.target.value)}
+              placeholder="https://example.com/faq.json"
+            />
+            <p className="form-text">
+              Questi URL restano supportati per compatibilita, ma la demo usa le fonti merchant sopra.
+            </p>
+          </div>
+        )}
         </div>
-      </div>
       
       {entries.map((entry, entryIndex) => (
         <div key={entryIndex} className="knowledge-entry-card">

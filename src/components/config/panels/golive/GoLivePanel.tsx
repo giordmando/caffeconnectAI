@@ -9,6 +9,7 @@ const AGENT_OPTIONS = [
   { id: 'menu_advisor', label: 'Menu advisor' },
   { id: 'sales', label: 'Sales' },
   { id: 'order', label: 'Order' },
+  { id: 'knowledge', label: 'Knowledge' },
   { id: 'analytics', label: 'Analytics' }
 ];
 
@@ -16,7 +17,7 @@ function setupScore(config: FullConfig): number {
   const checks = [
     Boolean(config.business.name && config.business.telefono),
     Boolean(config.catalog.enableLocalData || config.catalog.menuEndpoint || config.catalog.productsEndpoint),
-    Boolean(config.knowledgeBase?.length || config.knowledgeSources?.inlineText || config.knowledgeSources?.urls?.length),
+    Boolean(config.knowledgeBase?.length || config.merchantKnowledge?.sources?.some(source => source.enabled && source.url) || config.knowledgeSources?.urls?.length),
     Boolean(config.business.whatsappBusiness || config.business.orderWebhook),
     Boolean(config.agents?.enabled && config.agents.activeAgents.length > 0),
     Boolean(config.integrations?.posProvider && config.integrations.posProvider !== 'none')
