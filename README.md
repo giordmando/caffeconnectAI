@@ -83,7 +83,7 @@ Senza `OPENAI_API_KEY`, il gateway usa la modalita demo.
 
 ```bash
 OPENAI_API_KEY=...
-AI_GATEWAY_MODEL=gpt-4.1-mini
+OPENAI_MODEL=gpt-4o-mini
 AI_GATEWAY_PORT=8787
 AI_GATEWAY_ALLOWED_ORIGINS=http://localhost:3000
 AI_GATEWAY_ORDER_WEBHOOK_URL=https://example.com/orders
@@ -91,6 +91,24 @@ AI_GATEWAY_MAX_ORDERS=500
 REACT_APP_AI_GATEWAY_URL=http://localhost:8787
 REACT_APP_ENABLE_AI_GATEWAY=true
 ```
+
+## Deploy Render
+
+Il progetto usa due servizi separati:
+
+- **Frontend React statico**: build command `npm install && npm run build`, publish directory `build`.
+- **AI Gateway Node**: build command `npm install`, start command `npm run gateway:start`, health check `/health`.
+
+Se il gateway pubblico risponde `404` su `/health` o sul preflight `OPTIONS /v1/chat`, Render non sta avviando il servizio Node corretto. In quel caso verifica sul servizio `caffeconnect-ai-gateway`:
+
+```bash
+Start Command: npm run gateway:start
+Health Check Path: /health
+AI_GATEWAY_ALLOWED_ORIGINS=https://caffeconnectai-1.onrender.com,https://caffeconnect-ai-gateway.onrender.com,http://localhost:3000
+AI_GATEWAY_DEMO_MODE=true
+```
+
+Per usare la configurazione versionata, puoi creare i servizi da `render.yaml`. Dopo il deploy, `https://caffeconnect-ai-gateway.onrender.com/health` deve restituire JSON con `service: cafeconnect-ai-gateway`.
 
 ## Catalogo e knowledge base
 

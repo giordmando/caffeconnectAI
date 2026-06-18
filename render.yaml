@@ -1,0 +1,30 @@
+services:
+  - type: web
+    name: caffeconnect-ai-gateway
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm run gateway:start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: 24.14.1
+      - key: AI_GATEWAY_DEMO_MODE
+        value: "true"
+      - key: AI_GATEWAY_ALLOWED_ORIGINS
+        value: https://caffeconnectai-1.onrender.com,https://caffeconnect-ai-gateway.onrender.com,http://localhost:3000
+      - key: AI_GATEWAY_KNOWLEDGE_URLS
+        value: https://caffeconnectai-1.onrender.com/merchant-knowledge/cafeconnect.json
+
+  - type: web
+    name: caffeconnectai-1
+    env: static
+    buildCommand: npm install && npm run build
+    staticPublishPath: build
+    envVars:
+      - key: NODE_VERSION
+        value: 24.14.1
+      - key: REACT_APP_ENABLE_AI_GATEWAY
+        value: "true"
+      - key: REACT_APP_AI_GATEWAY_URL
+        value: https://caffeconnect-ai-gateway.onrender.com
