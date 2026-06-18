@@ -1,5 +1,6 @@
 import { CartItem } from '../../types/Order';
 import { businessEventService } from '../analytics/BusinessEventService';
+import { userContextService } from '../user/UserContextService';
 
 export class CartService {
   private static instance: CartService;
@@ -53,6 +54,7 @@ export class CartService {
       price: Number(item.price || 0),
       category: item.category
     });
+    userContextService.recordItemSignal(item, type, 'cart');
   }
   
   removeItem(id: string, type: string): void {

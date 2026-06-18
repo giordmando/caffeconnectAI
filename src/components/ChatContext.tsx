@@ -229,7 +229,8 @@ export const ChatProvider: React.FC<{
           title: `Vedi ${item.name}`,
           payload: {
             id: item.id,
-            type: result.products ? 'product' : 'menuItem'
+            type: result.products ? 'product' : 'menuItem',
+            item
           }
         });
       });
@@ -532,6 +533,7 @@ export const ChatProvider: React.FC<{
     
     // Aggiungi interazione
     userService.addInteraction(userMessageContent);
+    userService.learnFromInteraction(userMessageContent);
     
     try {
       // Prepara contesto per AI

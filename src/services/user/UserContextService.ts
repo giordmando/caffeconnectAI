@@ -89,12 +89,52 @@ export class UserContextService implements IUserContextService {
     this.context.lastVisit = new Date().toISOString();
     this.saveToStorage();
   }
+
+  learnFromInteraction(interaction: string): void {
+    const text = this.normalize(interaction);
+    const nextRestrictions = new Set(this.context.dietaryRestrictions.map(value => this.normalizeDietaryTerm(value)));
+
+    this.extractDietaryRestrictions(text).forEach(restriction => nextRestrictions.add(restriction));
+    this.context.dietaryRestrictions = Array.from(nextRestrictions).filter(Boolean);
+
+    this.extractPreferenceSignals(text).forEach(signal => {
+      this.updatePreference({
+        itemId: `declared-${signal.category}`,
+        itemName: signal.label,
+        itemType: 'declaredPreference',
+        itemCategory: signal.category,
+        rating: signal.rating,
+        timestamp: Date.now()
+      });
+    });
+
+    this.saveToStorage();
+  }
+
+  recordItemSignal(item: any, itemType: string, signal: 'view' | 'cart' | 'order'): void {
+    if (!item || !item.id || !item.name) return;
+
+    const ratingBySignal = {
+      view: 2,
+      cart: 5,
+      order: 5
+    };
+
+    this.updatePreference({
+      itemId: String(item.id),
+      itemName: String(item.name),
+      itemType,
+      itemCategory: String(item.category || item.subcategory || 'unknown'),
+      rating: ratingBySignal[signal],
+      timestamp: Date.now()
+    });
+  }
   
   /**
    * Update dietary restrictions
    */
   updateDietaryRestrictions(restrictions: string[]): void {
-    this.context.dietaryRestrictions = restrictions;
+    this.context.dietaryRestrictions = Array.from(new Set(restrictions.map(value => this.normalizeDietaryTerm(value)).filter(Boolean)));
     this.saveToStorage();
   }
   
@@ -133,6 +173,94 @@ export class UserContextService implements IUserContextService {
       lastVisit: new Date().toISOString(),
       dietaryRestrictions: []
     };
+  }
+
+  private normalize(value: string): string {
+    return String(value || '')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
+  }
+
+  private normalizeDietaryTerm(value: string): string {
+    const term = this.normalize(value);
+    if (['senza glutine', 'gluten free', 'gluten-free', 'glutine', 'gluten', 'celiaco', 'celiaca'].includes(term)) {
+      return 'gluten-free';
+    }
+    if (['senza lattosio', 'lactose free', 'lactose-free', 'lattosio', 'lactose'].includes(term)) {
+      return 'lactose-free';
+    }
+    if (['vegano', 'vegana', 'vegan'].includes(term)) {
+      return 'vegan';
+    }
+    if (['vegetariano', 'vegetariana', 'vegetarian'].includes(term)) {
+      return 'vegetarian';
+    }
+    if (['senza zucchero', 'poco zucchero', 'low sugar', 'low-sugar'].includes(term)) {
+      return 'low-sugar';
+    }
+    return term;
+  }
+
+  private extractDietaryRestrictions(text: string): string[] {
+    const restrictions: string[] = [];
+
+    if (/(senza glutine|gluten[-\s]?free|celiac[oa]|no glutine|non.*glutine)/.test(text)) {
+      restrictions.push('gluten-free');
+    }
+    if (/(senza lattosio|lactose[-\s]?free|no lattosio|non.*lattosio)/.test(text)) {
+      restrictions.push('lactose-free');
+    }
+    if (/\b(vegano|vegana|vegan)\b/.test(text)) {
+      restrictions.push('vegan');
+    }
+    if (/\b(vegetariano|vegetariana|vegetarian)\b/.test(text)) {
+      restrictions.push('vegetarian');
+    }
+    if (/(senza zucchero|poco zucchero|no zucchero|low[-\s]?sugar)/.test(text)) {
+      restrictions.push('low-sugar');
+    }
+
+    return Array.from(new Set(restrictions));
+  }
+
+  private extractPreferenceSignals(text: string): Array<{ category: string; label: string; rating: number }> {
+    const positive = /\b(mi piace|adoro|preferisco|vorrei|prendo spesso|di solito prendo)\b/.test(text);
+    const negative = /\b(non mi piace|non voglio|evita|odio)\b/.test(text);
+    const rating = positive && !negative ? 4 : negative ? 1 : 0;
+    if (rating === 0) return [];
+
+    const signals: Array<{ category: string; label: string; rating: number }> = [];
+    const terms = [
+      { category: 'coffee', label: 'caffe' },
+      { category: 'tea', label: 'te' },
+      { category: 'food', label: 'proposte salate' },
+      { category: 'pastry', label: 'dolci e bakery' },
+      { category: 'salad', label: 'bowl e insalate' },
+      { category: 'sandwich', label: 'toast e sandwich' },
+      { category: 'vegan', label: 'opzioni vegane' },
+      { category: 'product', label: 'prodotti confezionati' }
+    ];
+
+    terms.forEach(term => {
+      const categoryPattern = new RegExp(`\\b${term.category}\\b`);
+      const labelPattern = new RegExp(`\\b${term.label.replace(/\s+/g, '\\s+')}\\b`);
+      if (categoryPattern.test(text) || labelPattern.test(text)) {
+        signals.push({ ...term, rating });
+      }
+    });
+
+    if (/\b(bowl|insalat[ae])\b/.test(text)) {
+      signals.push({ category: 'salad', label: 'bowl e insalate', rating });
+    }
+    if (/\b(toast|sandwich|panino|panini)\b/.test(text)) {
+      signals.push({ category: 'sandwich', label: 'toast e sandwich', rating });
+    }
+    if (/\b(caffe|espresso|cappuccino|filtro)\b/.test(text)) {
+      signals.push({ category: 'coffee', label: 'caffe', rating });
+    }
+
+    return Array.from(new Map(signals.map(signal => [signal.category, signal])).values());
   }
   
   /**

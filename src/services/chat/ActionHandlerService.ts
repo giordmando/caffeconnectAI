@@ -121,6 +121,7 @@ export class ActionHandlerService implements IActionHandlerService {
           type: itemType,
           category: itemDetails.category
         });
+        this.userService.recordItemSignal(itemDetails, itemType, 'view');
 
         // Crea componente dettaglio prodotto
         const productDetailComponent = this.uiComponentService.createFunctionResultComponent(
@@ -201,15 +202,13 @@ export class ActionHandlerService implements IActionHandlerService {
     );
     this.messageService.addMessage(confirmationMsg);
     
-    // Aggiorna preferenze utente
-    this.userService.updatePreference({
-      itemId: payload.id,
-      itemName: itemName,
-      itemType: itemType,
-      itemCategory: itemCategory,
-      rating: 4,
-      timestamp: Date.now()
-    });
+    this.userService.recordItemSignal({
+      ...itemDetails,
+      ...payload,
+      id: payload.id,
+      name: itemName,
+      category: itemCategory
+    }, itemType, 'cart');
   }
   
   private handleTopicSelection(payload: any): void {

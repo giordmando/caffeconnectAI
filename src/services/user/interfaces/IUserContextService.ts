@@ -29,6 +29,20 @@ export interface IUserContextService {
    * @param interaction Interaction text
    */
   addInteraction(interaction: string): void;
+
+  /**
+   * Learn lightweight preferences and restrictions from a natural-language interaction.
+   * @param interaction Interaction text
+   */
+  learnFromInteraction(interaction: string): void;
+
+  /**
+   * Record an implicit item signal such as view or add to cart.
+   * @param item Item payload
+   * @param itemType Item type
+   * @param signal Signal type
+   */
+  recordItemSignal(item: any, itemType: string, signal: 'view' | 'cart' | 'order'): void;
   
   /**
    * Update dietary restrictions
