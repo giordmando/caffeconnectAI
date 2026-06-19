@@ -38,21 +38,21 @@
     {
       "id": "pranzo-consigli",
       "title": "Pranzo e proposte salate",
-      "content": "A pranzo consiglia prima bowl, toast e insalate. Per un cliente che chiede qualcosa di leggero, proporre Bowl pollo e cereali o Insalata quinoa avocado. Per vegetariano o senza lattosio, proporre Toast hummus e verdure o Insalata quinoa avocado. Se il cliente chiede 'pranzo' non proporre solo caffe o dessert.",
+      "content": "Per pranzo le proposte principali sono bowl, toast e insalate. Per qualcosa di leggero sono adatte Bowl pollo e cereali o Insalata quinoa avocado. Per vegetariano o senza lattosio sono adatti Toast hummus e verdure o Insalata quinoa avocado. Quando il cliente chiede pranzo, le proposte salate hanno priorita rispetto a caffe e dessert.",
       "tags": ["pranzo", "bowl", "toast", "insalata", "consigli"],
       "source": "Playbook menu advisor"
     },
     {
       "id": "colazione-consigli",
       "title": "Colazione",
-      "content": "A colazione proporre espresso, cappuccino con latte o avena, cornetto integrale miele e noci. Se il cliente chiede una colazione senza lattosio, proporre cappuccino con bevanda d'avena ed evitare prodotti con burro o latte.",
+      "content": "A colazione sono disponibili espresso, cappuccino con latte o avena e cornetto integrale miele e noci. Per una colazione senza lattosio e preferibile il cappuccino con bevanda d'avena; i prodotti con burro o latte vanno evitati.",
       "tags": ["colazione", "cappuccino", "cornetto", "senza lattosio"],
       "source": "Playbook menu advisor"
     },
     {
       "id": "regali-prodotti",
       "title": "Regali e prodotti specialty",
-      "content": "Per richieste regalo proporre Box degustazione CafeConnect. Chiedere se il destinatario usa moka, espresso o filtro. Per appassionati consigliare Etiopia Yirgacheffe Specialty. Per gusto classico consigliare Caffe Arabica Premium. Per regalo economico aggiungere Tazza CafeConnect o Biscotti alle mandorle.",
+      "content": "Per richieste regalo e indicata la Box degustazione CafeConnect. Se il destinatario ama il filtro, il prodotto piu adatto e Etiopia Yirgacheffe Specialty. Per un gusto classico e indicato Caffe Arabica Premium. Per un regalo piu accessibile si possono abbinare Tazza CafeConnect o Biscotti alle mandorle.",
       "tags": ["regalo", "prodotti", "box", "sales", "upsell"],
       "source": "Playbook sales"
     },

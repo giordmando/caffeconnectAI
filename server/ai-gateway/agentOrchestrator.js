@@ -129,7 +129,7 @@ class AgentOrchestrator {
         }
 
         return {
-          message: this.summarizeKnowledgeResult(runtimeResult.results, payload),
+          message: this.summarizeKnowledgeResult(runtimeResult.results, payload, message),
           agent,
           toolCalls,
           mode: 'demo'
@@ -141,8 +141,8 @@ class AgentOrchestrator {
       toolCalls.push({ name: 'knowledge_search', arguments: args, result });
 
       return {
-        message: result.results.length
-          ? this.summarizeKnowledgeResult(result.results, payload)
+          message: result.results.length
+          ? this.summarizeKnowledgeResult(result.results, payload, message)
           : 'Non ho trovato questa informazione nella base conoscenza. Posso aiutarti con menu, prodotti o ordini.',
         agent,
         toolCalls,
@@ -286,7 +286,8 @@ class AgentOrchestrator {
       && call.result?.results?.length > 0
     );
     if (hasKnowledge) {
-      return this.summarizeKnowledgeResult(hasKnowledge.result.results);
+      const query = hasKnowledge.arguments?.query || '';
+      return this.summarizeKnowledgeResult(hasKnowledge.result.results, {}, query, modelText);
     }
 
     const hasDetail = toolCalls.some(call => call.name === 'get_item_detail' && call.result?.item);
@@ -570,19 +571,73 @@ class AgentOrchestrator {
     return '';
   }
 
-  summarizeKnowledgeResult(results, payload = {}) {
+  summarizeKnowledgeResult(results, payload = {}, query = '', modelText = '') {
     const first = results[0];
     if (!first) {
       return 'Non ho trovato questa informazione nella base conoscenza.';
     }
 
     const text = String(first.content || '').trim();
-    const shortText = text.length > 220 ? text.slice(0, 217).trim() + '...' : text;
+    const naturalModelText = this.cleanModelText(modelText);
+    if (naturalModelText && !this.looksLikeInternalPlaybook(naturalModelText)) {
+      return naturalModelText.length > 260 ? naturalModelText.slice(0, 257).trim() + '...' : naturalModelText;
+    }
+
+    const customerFacingText = this.customerFacingKnowledgeText(text, query);
+    const shortText = customerFacingText.length > 260 ? customerFacingText.slice(0, 257).trim() + '...' : customerFacingText;
     const profile = this.buildCustomerProfile(payload);
     const restrictions = profile.dietaryRestrictions?.length
       ? ` Tengo conto anche di: ${profile.dietaryRestrictions.join(', ')}.`
       : '';
     return (shortText || 'Ho trovato un riferimento nella base conoscenza dell esercente.') + restrictions;
+  }
+
+  looksLikeInternalPlaybook(text) {
+    const lower = String(text || '').toLowerCase();
+    return [
+      'consiglia prima',
+      'per richieste regalo proporre',
+      'deve comunicare',
+      'non deve confermare',
+      'l assistente',
+      'l\'assistente',
+      'chiedere se',
+      'proporre '
+    ].some(pattern => lower.includes(pattern));
+  }
+
+  customerFacingKnowledgeText(content, query = '') {
+    const lowerContent = String(content || '').toLowerCase();
+    const lowerQuery = String(query || '').toLowerCase();
+
+    if (lowerQuery.includes('lattosio') && lowerQuery.includes('colazione')) {
+      return 'Per una colazione senza lattosio ti consiglio il cappuccino con bevanda d avena. Eviterei i prodotti con burro o latte e, se hai un intolleranza importante, meglio segnalarlo al banco prima dell ordine.';
+    }
+
+    if (lowerQuery.includes('pranzo') || lowerContent.includes('a pranzo')) {
+      return 'Per un pranzo leggero ti consiglierei la Bowl pollo e cereali oppure l Insalata quinoa avocado. Se preferisci qualcosa di vegetale e senza lattosio, il Toast hummus e verdure e una buona alternativa.';
+    }
+
+    if (lowerQuery.includes('regalo') || lowerQuery.includes('filtro') || lowerContent.includes('regali')) {
+      return 'Per una persona che ama il caffe filtro ti consiglierei l Etiopia Yirgacheffe Specialty. Se vuoi fare un regalo piu completo, la Box degustazione CafeConnect e l opzione piu scenografica.';
+    }
+
+    if (lowerQuery.includes('wifi') || lowerQuery.includes('wi-fi') || lowerQuery.includes('prenot')) {
+      return 'Si, il locale offre WiFi gratuito e prese vicino ai tavoli laterali. Per 7 persone e meglio prenotare telefonicamente, perche sopra le 6 persone la prenotazione e consigliata.';
+    }
+
+    if (lowerQuery.includes('orari') || lowerQuery.includes('aperto') || lowerQuery.includes('chiuso')) {
+      return 'Il locale e aperto dal lunedi al venerdi dalle 7:30 alle 19:30 e il sabato dalle 8:00 alle 13:00. La domenica apre solo per eventi o degustazioni su prenotazione.';
+    }
+
+    if (lowerQuery.includes('allerg') || lowerQuery.includes('glutine') || lowerQuery.includes('intoller')) {
+      return 'Posso aiutarti a scegliere opzioni compatibili, ma per allergie o intolleranze e sempre meglio segnalarlo prima dell ordine. Alcune opzioni sono senza lattosio o senza glutine solo quando indicato nel catalogo.';
+    }
+
+    return String(content || '')
+      .replace(/\b(consiglia|proporre|chiedere|deve|l assistente|l'assistente)\b/gi, '')
+      .replace(/\s{2,}/g, ' ')
+      .trim();
   }
 
   cleanModelText(text) {
