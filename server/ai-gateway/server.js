@@ -114,12 +114,17 @@ function isMerchantConfigAuthorized(req, accessMode) {
   const requiredKey = accessMode === 'write'
     ? config.merchantConfigWriteKey
     : config.merchantConfigReadKey;
+  const requestKey = getRequestApiKey(req);
 
   if (!requiredKey) {
     return true;
   }
 
-  return getRequestApiKey(req) === requiredKey;
+  if (accessMode === 'read' && config.merchantConfigWriteKey && requestKey === config.merchantConfigWriteKey) {
+    return true;
+  }
+
+  return requestKey === requiredKey;
 }
 
 function getHarnessHtml() {

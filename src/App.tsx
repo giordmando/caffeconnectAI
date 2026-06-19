@@ -6,6 +6,7 @@ import { CartDrawer } from './components/cart/CartDrawer';
 import { CartButton } from './components/cart/CartButton';
 import { ConfigPanelOrchestrator } from './components/config/ConfigPanelOrchestrator';
 import { BusinessDashboard } from './components/BusinessDashboard';
+import { AdminControlPlane } from './components/AdminControlPlane';
 import { businessEventService } from './services/analytics/BusinessEventService';
 
 /**
@@ -16,6 +17,7 @@ function App() {
   // Stati dell'applicazione
   const [isBusinessPanelOpen, setIsBusinessPanelOpen] = useState(false);
   const [isDashboardOpen, setIsDashboardOpen] = useState(false);
+  const [isAdminControlOpen, setIsAdminControlOpen] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
 
   const { currentAiProvider, reloadServices, appConfig, isInitialized, initializationError } = useServices();
@@ -34,6 +36,7 @@ function App() {
   const readinessScore = readinessItems.length
     ? Math.round((readinessItems.filter(Boolean).length / readinessItems.length) * 100)
     : 0;
+  const isAdminPanelEnabled = process.env.REACT_APP_ENABLE_ADMIN_PANEL === 'true';
 
   useEffect(() => {
     if (isInitialized && !initializationError && functionRegistry) {
@@ -86,6 +89,15 @@ function App() {
           >
             Impostazioni
           </button>
+
+          {isAdminPanelEnabled && (
+            <button
+              className="business-config-button admin-control-button"
+              onClick={() => setIsAdminControlOpen(true)}
+            >
+              Admin
+            </button>
+          )}
         </div>
       </header>
 
@@ -152,6 +164,16 @@ function App() {
       {isDashboardOpen && (
         <div className="modal-overlay">
           <BusinessDashboard onClose={() => setIsDashboardOpen(false)} />
+        </div>
+      )}
+
+      {isAdminControlOpen && (
+        <div className="modal-overlay">
+          <AdminControlPlane
+            appConfig={appConfig}
+            onClose={() => setIsAdminControlOpen(false)}
+            onSaved={handleBusinessConfigSave}
+          />
         </div>
       )}
     </div>

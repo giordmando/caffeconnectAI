@@ -104,6 +104,14 @@ AI_GATEWAY_MERCHANT_CONFIG_WRITE_KEY=admin-write-key
 If the keys are omitted, the gateway keeps demo-compatible open access. For enterprise deployments, configure both keys.
 Only expose the read key in the public React app. Do not expose the write key in a customer-facing build; keep writes behind an authenticated admin surface or a backend control plane.
 
+For the temporary admin control plane in the React app, enable the panel only on an internal/admin deployment:
+
+```bash
+REACT_APP_ENABLE_ADMIN_PANEL=true
+```
+
+The admin enters the write key at runtime in the panel; it should not be compiled into the public frontend bundle.
+
 Runtime config files are stored in:
 
 ```text
