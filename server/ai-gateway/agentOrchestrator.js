@@ -599,6 +599,7 @@ class AgentOrchestrator {
     const business = payload.business || {};
     const tenant = payload.tenant || {};
     const integrations = payload.integrations || {};
+    const dataGovernance = payload.dataGovernance || {};
     const runtimeKnowledge = this.formatRuntimeKnowledge(payload);
     const customerProfile = this.formatCustomerProfile(context.customerProfile);
     const retrievedKnowledge = this.formatRetrievedKnowledge(context.retrievedKnowledge);
@@ -625,6 +626,10 @@ class AgentOrchestrator {
       business.type ? 'Tipo locale: ' + business.type + '.' : '',
       tenant.merchantId ? 'Merchant ID: ' + tenant.merchantId + '.' : '',
       tenant.plan ? 'Piano merchant: ' + tenant.plan + '.' : '',
+      dataGovernance.customerProfileStorage ? 'Policy profilo cliente: ' + dataGovernance.customerProfileStorage + '.' : '',
+      dataGovernance.conversationTranscript ? 'Policy transcript: ' + dataGovernance.conversationTranscript + '.' : '',
+      dataGovernance.allowSensitiveInference === false ? 'Non inferire, memorizzare o riusare preferenze sensibili o dati sanitari: usa solo la richiesta corrente e chiedi conferma.' : '',
+      dataGovernance.tenantIsolation ? 'Isolamento tenant richiesto: ' + dataGovernance.tenantIsolation + '.' : '',
       integrations.bookingUrl ? 'Prenotazioni disponibili tramite URL configurato.' : '',
       integrations.paymentUrl ? 'Pagamento online disponibile tramite URL configurato.' : '',
       integrations.posProvider && integrations.posProvider !== 'none' ? 'POS collegato: ' + integrations.posProvider + '.' : '',

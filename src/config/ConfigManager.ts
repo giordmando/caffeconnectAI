@@ -303,6 +303,16 @@ export class ConfigManager implements IConfigManager {
           analytics: 'Ci permette di analizzare le conversazioni per personalizzare le risposte.'
         }
       },
+      dataGovernance: {
+        customerProfileStorage: 'local-only',
+        conversationTranscript: 'local',
+        analyticsEvents: 'gateway-aggregate',
+        tenantIsolation: 'schema-per-tenant',
+        retentionDays: 30,
+        region: 'eu',
+        encryptionMode: 'platform',
+        allowSensitiveInference: false
+      },
       knowledgeBase: [
         {
           key: "caffe qualita",

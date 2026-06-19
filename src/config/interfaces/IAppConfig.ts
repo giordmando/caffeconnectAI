@@ -115,6 +115,17 @@ export interface AppConfig {
       };
     };
 
+    dataGovernance?: {
+      customerProfileStorage: 'local-only' | 'cloud-opt-in' | 'disabled';
+      conversationTranscript: 'none' | 'local' | 'cloud-opt-in';
+      analyticsEvents: 'disabled' | 'local-only' | 'gateway-aggregate' | 'gateway-detailed';
+      tenantIsolation: 'shared-db' | 'schema-per-tenant' | 'database-per-tenant';
+      retentionDays: number;
+      region: 'eu' | 'us' | 'custom';
+      encryptionMode: 'platform' | 'tenant-key';
+      allowSensitiveInference: boolean;
+    };
+
     knowledgeBase?: Array<{
       key: string;
       facts: string[];

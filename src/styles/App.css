@@ -1572,6 +1572,18 @@ input:focus, select:focus, textarea:focus {
   width: auto;
 }
 
+.governance-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@media (max-width: 768px) {
+  .governance-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .form-text {
   font-size: 12px;
   color: var(--medium-gray);

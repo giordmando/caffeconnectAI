@@ -13,6 +13,7 @@ Il progetto combina una web app React/PWA con un AI Gateway server-side. Il gate
 - **Demo mode**: funziona anche senza `OPENAI_API_KEY`, usando dati locali deterministici.
 - **Go Live Center**: tenant merchant, Agent Studio, agenti specializzati e preset integrazioni in un unico pannello operativo.
 - **Modalita cliente/admin separate**: le tracce tecniche degli agenti sono disattivate nella chat cliente e riattivabili da impostazioni UI.
+- **Privacy by design**: profilo cliente local-first, transcript configurabile, analytics minimizzabili e isolamento tenant selezionabile.
 - **Pronto per evolvere in SaaS**: multi-agente, dashboard, tracciamento conversioni e integrazioni operative sono gia nella direzione architetturale.
 
 ## Esperienza demo

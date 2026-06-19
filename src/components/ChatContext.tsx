@@ -170,7 +170,7 @@ export const ChatProvider: React.FC<{
       
       // Track welcome message
       if (conversationManager.getCurrentConversationId()) {
-        await messageService.trackMessage(
+        await trackConversationMessage(
           message,
           conversationManager.getCurrentConversationId()!,
           userService.getUserContext()
@@ -228,6 +228,66 @@ export const ChatProvider: React.FC<{
       ? Boolean(appConfig?.catalog?.menuEndpoint)
       : Boolean(appConfig?.catalog?.productsEndpoint);
   }, [appConfig?.catalog, isProductionTenant]);
+
+  const dataGovernance = appConfig?.dataGovernance;
+  const shouldPersistCustomerProfile = dataGovernance?.customerProfileStorage !== 'disabled';
+  const shouldLearnSensitiveProfile = Boolean(dataGovernance?.allowSensitiveInference);
+  const shouldTrackTranscript = dataGovernance?.conversationTranscript !== 'none';
+  const analyticsMode = dataGovernance?.analyticsEvents || 'gateway-aggregate';
+
+  const governanceUserContext = useCallback((context: any): any => {
+    if (dataGovernance?.customerProfileStorage === 'disabled') {
+      return {
+        userId: context?.userId || 'anonymous',
+        preferences: [],
+        interactions: [],
+        dietaryRestrictions: []
+      };
+    }
+
+    if (dataGovernance?.allowSensitiveInference === false) {
+      return {
+        ...context,
+        dietaryRestrictions: []
+      };
+    }
+
+    return context;
+  }, [dataGovernance?.allowSensitiveInference, dataGovernance?.customerProfileStorage]);
+
+  const trackBusinessEvent = useCallback((
+    type: Parameters<typeof businessEventService.track>[0],
+    payload: Record<string, any> = {}
+  ) => {
+    if (analyticsMode === 'disabled') return;
+
+    const mirrorGateway = analyticsMode !== 'local-only';
+    const safePayload = analyticsMode === 'gateway-detailed'
+      ? payload
+      : Object.keys(payload).reduce((nextPayload, key) => {
+          if (key === 'trace') return nextPayload;
+          nextPayload[key] = key === 'content' ? '[redacted]' : payload[key];
+          return nextPayload;
+        }, {} as Record<string, any>);
+
+    businessEventService.track(type, safePayload, { mirrorGateway });
+  }, [analyticsMode]);
+
+  const trackConversationMessage = useCallback(async (
+    message: Message,
+    conversationId: string,
+    userContext: any,
+    nlpAnalysis?: any
+  ) => {
+    if (!shouldTrackTranscript) return;
+
+    await messageService.trackMessage(
+      message,
+      conversationId,
+      governanceUserContext(userContext),
+      nlpAnalysis
+    );
+  }, [governanceUserContext, messageService, shouldTrackTranscript]);
 
   const createGatewayActions = useCallback((gatewayResponse: AIGatewayChatResponse): any[] => {
     const actions: any[] = [];
@@ -438,7 +498,7 @@ export const ChatProvider: React.FC<{
         const assistantMessage = messageService.createAssistantMessage(gatewayLikeResponse.message);
         messageService.addMessage(assistantMessage);
         setMessages(messageService.getMessages());
-        await messageService.trackMessage(assistantMessage, conversationId, userService.getUserContext());
+        await trackConversationMessage(assistantMessage, conversationId, userService.getUserContext());
         uiComponentService.addComponents(createGatewayUIComponents(gatewayLikeResponse));
         setAvailableActions([]);
         return true;
@@ -458,7 +518,7 @@ export const ChatProvider: React.FC<{
       const assistantMessage = messageService.createAssistantMessage(gatewayLikeResponse.message);
       messageService.addMessage(assistantMessage);
       setMessages(messageService.getMessages());
-      await messageService.trackMessage(assistantMessage, conversationId, userService.getUserContext());
+      await trackConversationMessage(assistantMessage, conversationId, userService.getUserContext());
       uiComponentService.addComponents(createGatewayUIComponents(gatewayLikeResponse));
       setAvailableActions(createGatewayActions(gatewayLikeResponse));
       return true;
@@ -493,7 +553,7 @@ export const ChatProvider: React.FC<{
       const assistantMessage = messageService.createAssistantMessage(gatewayLikeResponse.message);
       messageService.addMessage(assistantMessage);
       setMessages(messageService.getMessages());
-      await messageService.trackMessage(assistantMessage, conversationId, userService.getUserContext());
+      await trackConversationMessage(assistantMessage, conversationId, userService.getUserContext());
       uiComponentService.addComponents(createGatewayUIComponents(gatewayLikeResponse));
       setAvailableActions(createGatewayActions(gatewayLikeResponse));
       return true;
@@ -529,7 +589,7 @@ export const ChatProvider: React.FC<{
       const gatewayResponse = await aiGatewayClient.sendMessage({
         message,
         conversationId,
-        userContext,
+        userContext: governanceUserContext(userContext),
         business: appConfig?.business
           ? {
               name: appConfig.business.name,
@@ -537,6 +597,7 @@ export const ChatProvider: React.FC<{
             }
           : undefined,
         tenant: appConfig?.tenant,
+        dataGovernance: appConfig?.dataGovernance,
         agents: appConfig?.agents,
         integrations: appConfig?.integrations,
         knowledgeBase: appConfig?.knowledgeBase || [],
@@ -556,7 +617,7 @@ export const ChatProvider: React.FC<{
       messageService.addMessage(assistantMessage);
       setMessages(messageService.getMessages());
 
-      await messageService.trackMessage(
+      await trackConversationMessage(
         assistantMessage,
         conversationId,
         userService.getUserContext()
@@ -566,7 +627,7 @@ export const ChatProvider: React.FC<{
       }
 
       setAvailableActions(createGatewayActions(gatewayResponse));
-      businessEventService.track('gateway_result', {
+      trackBusinessEvent('gateway_result', {
         mode: gatewayResponse.mode,
         agent: gatewayResponse.agent?.id,
         trace: messageMetadata?.trace,
@@ -595,14 +656,17 @@ export const ChatProvider: React.FC<{
     catalogService,
     userService,
     handleLocalCatalogFallback,
-    shouldShareRuntimeCatalog
+    shouldShareRuntimeCatalog,
+    governanceUserContext,
+    trackBusinessEvent,
+    trackConversationMessage
   ]);
   const handleSendMessage = useCallback(async () => {
     const conversationId = conversationManager.getCurrentConversationId();
     if (inputValue.trim() === '' || isTyping || !conversationId) return;
     
     const userMessageContent = inputValue;
-    businessEventService.track('message_sent', {
+    trackBusinessEvent('message_sent', {
       content: userMessageContent,
       length: userMessageContent.length
     });
@@ -627,7 +691,7 @@ export const ChatProvider: React.FC<{
     }
     
     // Track messaggio utente
-    await messageService.trackMessage(
+    await trackConversationMessage(
       userMessage,
       conversationId,
       userService.getUserContext(),
@@ -635,8 +699,12 @@ export const ChatProvider: React.FC<{
     );
     
     // Aggiungi interazione
-    userService.addInteraction(userMessageContent);
-    userService.learnFromInteraction(userMessageContent);
+    if (shouldPersistCustomerProfile) {
+      userService.addInteraction(userMessageContent);
+    }
+    if (shouldPersistCustomerProfile && shouldLearnSensitiveProfile) {
+      userService.learnFromInteraction(userMessageContent);
+    }
     
     try {
       // Prepara contesto per AI
@@ -644,7 +712,7 @@ export const ChatProvider: React.FC<{
       const aiContextForAnalytics = conversationTracker 
         ? await conversationTracker.getUserContext(userCtx.userId) 
         : {};
-      const extendedContext = { ...userCtx, aiContext: aiContextForAnalytics };
+      const extendedContext = governanceUserContext({ ...userCtx, aiContext: aiContextForAnalytics });
       
       // Invia prima al nuovo AI Gateway; se non disponibile, usa il provider corrente.
       const handledByGateway = await sendMessageThroughGateway(
@@ -661,7 +729,7 @@ export const ChatProvider: React.FC<{
         setMessages(messageService.getMessages());
         
         // Track risposta
-        await messageService.trackMessage(
+        await trackConversationMessage(
           response.message,
           conversationId,
           userService.getUserContext()
@@ -703,7 +771,12 @@ export const ChatProvider: React.FC<{
     userService,
     conversationTracker,
     aiService,
-    sendMessageThroughGateway
+    sendMessageThroughGateway,
+    governanceUserContext,
+    shouldLearnSensitiveProfile,
+    shouldPersistCustomerProfile,
+    trackBusinessEvent,
+    trackConversationMessage
   ]);
   
   const handleSuggestionClick = useCallback((suggestion: string) => {
@@ -711,7 +784,7 @@ export const ChatProvider: React.FC<{
   }, []);
   
   const handleUIAction = useCallback(async (action: string, payload: any) => {
-    businessEventService.track('ui_action', {
+    trackBusinessEvent('ui_action', {
       action,
       id: payload?.id,
       type: payload?.type,
@@ -719,7 +792,7 @@ export const ChatProvider: React.FC<{
     });
     await actionHandler.handleAction(action, payload);
     setMessages(messageService.getMessages());
-  }, [actionHandler, messageService]);
+  }, [actionHandler, messageService, trackBusinessEvent]);
   
   const clearMessages = useCallback(() => {
     messageService.clearMessages();

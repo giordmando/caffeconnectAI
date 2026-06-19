@@ -7,6 +7,7 @@
     type?: string;
   };
   tenant?: unknown;
+  dataGovernance?: unknown;
   agents?: unknown;
   integrations?: unknown;
   knowledgeBase?: Array<{

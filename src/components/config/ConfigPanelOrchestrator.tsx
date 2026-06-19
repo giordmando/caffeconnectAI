@@ -57,7 +57,17 @@ const PANEL_COMPONENTS: Record<string, React.FC<PanelProps<any>>[]> = {
     (props) => <UISettingsPanel {...props} config={props.config.ui} onChange={(field, value) => props.onChange('ui', { ...props.config.ui, [field]: value })} className="config-panel-section" />,
   ],
   privacy: [
-    (props) => <PrivacySettingsPanel {...props} config={props.config.privacy} onChange={(field, value) => props.onChange('privacy', { ...props.config.privacy, [field]: value })} className="config-panel-section" />,
+    (props) => (
+      <PrivacySettingsPanel
+        {...props}
+        config={{
+          privacy: props.config.privacy,
+          dataGovernance: props.config.dataGovernance
+        }}
+        onChange={(field, value) => props.onChange(field, value)}
+        className="config-panel-section"
+      />
+    ),
   ],
   knowledge: [
     (props) => (
@@ -127,6 +137,14 @@ export const ConfigPanelOrchestrator: React.FC<ConfigPanelOrchestratorProps> = (
         if (
           activeTab === 'golive' &&
           ['tenant', 'agents', 'integrations'].includes(sectionOrField)
+        ) {
+          updateTopLevelSection(sectionOrField, value);
+          return;
+        }
+
+        if (
+          activeTab === 'privacy' &&
+          ['privacy', 'dataGovernance'].includes(sectionOrField)
         ) {
           updateTopLevelSection(sectionOrField, value);
           return;
