@@ -140,9 +140,13 @@ export class CatalogService implements ICatalogService{
   private async refreshMenu(): Promise<void> {
     try {
       const catalogConfig = configManager.getSection('catalog');
+      const productionTenant = this.isProductionTenant();
       
       if (catalogConfig.menuEndpoint && !catalogConfig.enableLocalData) {
         this.menuItems = await this.loadRemoteMenuItems(catalogConfig.menuEndpoint);
+      } else if (productionTenant) {
+        this.menuItems = [];
+        console.warn('Production tenant without remote menu endpoint: local demo menu disabled');
       } else {
         // Usa dati mock
         this.menuItems = await mockApiGetMenuItems();
@@ -152,7 +156,7 @@ export class CatalogService implements ICatalogService{
       console.log(`Menu refreshed: ${this.menuItems.length} items`);
     } catch (error) {
       console.error('Error refreshing menu:', error);
-      if (this.menuItems.length === 0) {
+      if (this.menuItems.length === 0 && !this.isProductionTenant()) {
         this.menuItems = await mockApiGetMenuItems();
         this.lastMenuRefresh = Date.now();
         console.warn('Menu fallback loaded from local mock data');
@@ -166,9 +170,13 @@ export class CatalogService implements ICatalogService{
   private async refreshProducts(): Promise<void> {
     try {
       const catalogConfig = configManager.getSection('catalog');
+      const productionTenant = this.isProductionTenant();
       
       if (catalogConfig.productsEndpoint && !catalogConfig.enableLocalData) {
         this.products = await this.loadRemoteProducts(catalogConfig.productsEndpoint);
+      } else if (productionTenant) {
+        this.products = [];
+        console.warn('Production tenant without remote products endpoint: local demo products disabled');
       } else {
         // Usa dati mock
         this.products = await mockApiGetProducts();
@@ -178,7 +186,7 @@ export class CatalogService implements ICatalogService{
       console.log(`Products refreshed: ${this.products.length} items`);
     } catch (error) {
       console.error('Error refreshing products:', error);
-      if (this.products.length === 0) {
+      if (this.products.length === 0 && !this.isProductionTenant()) {
         this.products = await mockApiGetProducts();
         this.lastProductsRefresh = Date.now();
         console.warn('Products fallback loaded from local mock data');
@@ -217,6 +225,13 @@ export class CatalogService implements ICatalogService{
     }
 
     return parseCatalogPayload(await response.text());
+  }
+
+  private isProductionTenant(): boolean {
+    const tenantConfig = configManager.getSection('tenant');
+    const environment = String(tenantConfig?.environment || '').toLowerCase();
+    const plan = String(tenantConfig?.plan || '').toLowerCase();
+    return environment === 'production' || plan === 'pro' || plan === 'enterprise';
   }
   
   /**

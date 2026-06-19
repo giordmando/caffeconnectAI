@@ -38,6 +38,7 @@ class AgentOrchestrator {
   async runResponsesWithTools(message, payload, agent) {
     const retrievedKnowledge = await this.retrieveKnowledgeContext(message, payload);
     const customerProfile = this.buildCustomerProfile(payload);
+    const allowedTools = Array.isArray(agent.tools) && agent.tools.length > 0 ? agent.tools : null;
     const instructions = this.buildInstructions(payload, agent, {
       retrievedKnowledge,
       customerProfile
@@ -45,7 +46,7 @@ class AgentOrchestrator {
     let response = await this.openaiClient.createResponse({
       instructions,
       input: message,
-      tools: this.toolRegistry.asOpenAITools(),
+      tools: this.toolRegistry.asOpenAITools(allowedTools),
       parallel_tool_calls: true,
       metadata: {
         product: 'cafeconnect-ai',
@@ -85,7 +86,7 @@ class AgentOrchestrator {
         instructions,
         previous_response_id: response.id,
         input: toolOutputs,
-        tools: this.toolRegistry.asOpenAITools(),
+        tools: this.toolRegistry.asOpenAITools(allowedTools),
         parallel_tool_calls: true
       });
     }
@@ -171,11 +172,14 @@ class AgentOrchestrator {
       const args = { query: '', limit: 4 };
       const result = await this.toolRegistry.execute('search_products', args, payload);
       toolCalls.push({ name: 'search_products', arguments: args, result });
+      const productMessage = result.products.length
+        ? this.summarizePersonalizedSelection(result.products, 'prodotti')
+        : result.source === 'missing-production-catalog'
+          ? 'Non trovo un catalogo prodotti collegato per questo merchant. Configura una fonte prodotti reale per attivare consigli e acquisto.'
+          : 'Non ho trovato prodotti coerenti con la richiesta, ma posso cercare per categoria.';
 
       return {
-        message: result.products.length
-          ? this.summarizePersonalizedSelection(result.products, 'prodotti')
-          : 'Non ho trovato prodotti coerenti con la richiesta, ma posso cercare per categoria.',
+        message: productMessage,
         agent,
         toolCalls,
         mode: 'demo'
@@ -204,13 +208,16 @@ class AgentOrchestrator {
     };
     const result = await this.toolRegistry.execute('search_menu', args, payload);
     toolCalls.push({ name: 'search_menu', arguments: args, result });
-
-    return {
-      message: result.items.length
-        ? this.summarizeMenuSuggestion(timeOfDay, lower, result.items)
+    const menuMessage = result.items.length
+      ? this.summarizeMenuSuggestion(timeOfDay, lower, result.items)
+      : result.source === 'missing-production-catalog'
+        ? 'Non trovo un menu collegato per questo merchant. Configura una fonte menu reale per attivare consigli affidabili.'
         : args.dietaryPreference
           ? `Non trovo opzioni ${args.dietaryPreference} compatibili per questa fascia oraria nel catalogo attuale. Posso proporti un alternativa sicura o segnalare la richiesta al locale.`
-          : 'Posso aiutarti con menu, prodotti acquistabili, carrello o ordine WhatsApp.',
+          : 'Posso aiutarti con menu, prodotti acquistabili, carrello o ordine WhatsApp.';
+
+    return {
+      message: menuMessage,
       agent,
       toolCalls,
       mode: 'demo'
@@ -600,6 +607,7 @@ class AgentOrchestrator {
       'Sei CafeConnect AI, un assistente commerciale per bar, cafe e piccoli locali.',
       agent?.label ? 'Agente attivo: ' + agent.label + '.' : '',
       agent?.instruction ? agent.instruction : '',
+      Array.isArray(agent?.tools) && agent.tools.length > 0 ? 'Tool autorizzati per questo agente: ' + agent.tools.join(', ') + '.' : '',
       'Obiettivo: aiutare il cliente a scegliere, comprare o ordinare con precisione e tono naturale.',
       'Usa i tool quando servono dati di menu, prodotto, dettaglio o bozza ordine.',
       'Usa knowledge_search per rispondere su storia del locale, orari, policy, allergeni, fornitori, offerte, FAQ o informazioni personalizzate dell esercente.',

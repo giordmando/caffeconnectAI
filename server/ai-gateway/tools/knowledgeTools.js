@@ -78,23 +78,35 @@ async function loadRemoteKnowledge(url) {
   }];
 }
 
+function isDemoContext(context = {}) {
+  const environment = String(context.tenant?.environment || '').toLowerCase();
+  const plan = String(context.tenant?.plan || '').toLowerCase();
+  return environment !== 'production' && plan !== 'pro' && plan !== 'enterprise';
+}
+
 class KnowledgeSourceService {
   constructor(config) {
     this.config = config;
     this.cache = null;
     this.cacheLoadedAt = 0;
+    this.cacheContextKey = '';
   }
 
-  async loadEntries() {
+  async loadEntries(context = {}) {
     const now = Date.now();
     const cacheTtlMs = this.config.knowledgeCacheTtlMs || 300000;
+    const contextKey = isDemoContext(context) ? 'demo' : 'production';
 
-    if (this.cache && now - this.cacheLoadedAt < cacheTtlMs) {
+    if (this.cache && this.cacheContextKey === contextKey && now - this.cacheLoadedAt < cacheTtlMs) {
       return this.cache;
     }
 
-    const defaultPath = path.resolve(process.cwd(), 'server', 'ai-gateway', 'data', 'defaultKnowledge.json');
-    const entries = toEntries(readJsonFile(defaultPath, []), 'default-demo');
+    const entries = [];
+
+    if (isDemoContext(context)) {
+      const defaultPath = path.resolve(process.cwd(), 'server', 'ai-gateway', 'data', 'defaultKnowledge.json');
+      entries.push(...toEntries(readJsonFile(defaultPath, []), 'default-demo'));
+    }
 
     if (this.config.knowledgeInline) {
       try {
@@ -114,11 +126,12 @@ class KnowledgeSourceService {
 
     this.cache = entries;
     this.cacheLoadedAt = now;
+    this.cacheContextKey = contextKey;
     return entries;
   }
 
-  async search(query, options = {}) {
-    const entries = await this.loadEntries();
+  async search(query, options = {}, context = {}) {
+    const entries = await this.loadEntries(context);
     const terms = tokenize(query);
     const limit = Number(options.limit || 5);
 
@@ -154,8 +167,8 @@ function createKnowledgeTools(config) {
         required: ['query'],
         additionalProperties: false
       },
-      execute: async ({ query, limit = 5 } = {}) => {
-        const results = await knowledgeService.search(query, { limit });
+      execute: async ({ query, limit = 5 } = {}, context = {}) => {
+        const results = await knowledgeService.search(query, { limit }, context);
         return {
           results,
           count: results.length,

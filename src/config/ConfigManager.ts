@@ -355,7 +355,69 @@ export class ConfigManager implements IConfigManager {
       agents: {
         enabled: true,
         activeAgents: ['triage', 'menu_advisor', 'sales', 'order', 'knowledge', 'analytics'],
-        handoffMode: 'auto'
+        handoffMode: 'auto',
+        definitions: [
+          {
+            id: 'triage',
+            label: 'Triage Agent',
+            goal: 'Capire intento, urgenza e prossimo agente migliore.',
+            terms: [],
+            tools: ['search_menu', 'search_products', 'get_item_detail', 'customer_profile', 'create_order_draft', 'knowledge_search'],
+            tone: 'naturale, breve, orientato al prossimo passo',
+            instruction: 'Classifica la richiesta e accompagna il cliente verso menu, vendita, ordine o supporto.',
+            fallback: 'Chiedi una domanda di chiarimento se intento o dati non sono sufficienti.'
+          },
+          {
+            id: 'menu_advisor',
+            label: 'Menu Advisor Agent',
+            goal: 'Consigliare menu e alternative compatibili con momento, allergeni e preferenze.',
+            terms: ['menu', 'colazione', 'pranzo', 'aperitivo', 'allerg', 'glutine', 'lattosio', 'vegano', 'ingredient'],
+            tools: ['search_menu', 'get_item_detail', 'customer_profile', 'knowledge_search'],
+            tone: 'consulente, rassicurante, concreto',
+            instruction: 'Focalizzati su menu, ingredienti, allergeni, fasce orarie e alternative alimentari.',
+            fallback: 'Se manca il menu reale, dillo e chiedi di configurare una fonte menu.'
+          },
+          {
+            id: 'sales',
+            label: 'Sales Agent',
+            goal: 'Trasformare interesse in prodotto, bundle o carrello senza forzare la vendita.',
+            terms: ['prodot', 'comprare', 'acquist', 'regalo', 'box', 'shop', 'prezzo', 'offerta', 'sconto'],
+            tools: ['search_products', 'get_item_detail', 'customer_profile', 'create_order_draft', 'knowledge_search'],
+            tone: 'commerciale leggero, utile, non insistente',
+            instruction: 'Focalizzati su prodotti acquistabili, bundle, upsell leggero e prossima azione commerciale.',
+            fallback: 'Se manca il catalogo prodotti reale, spiega che va collegato prima di vendere.'
+          },
+          {
+            id: 'order',
+            label: 'Order Agent',
+            goal: 'Preparare ordine, conferma, ritiro/consegna e passaggio al checkout.',
+            terms: ['ordine', 'ordina', 'carrello', 'checkout', 'ritiro', 'consegna', 'whatsapp', 'pagamento'],
+            tools: ['search_menu', 'search_products', 'get_item_detail', 'customer_profile', 'create_order_draft', 'knowledge_search'],
+            tone: 'operativo, preciso, prudente',
+            instruction: 'Focalizzati su preparazione ordine, conferma, ritiro, consegna e passaggio al checkout.',
+            fallback: 'Non inviare mai un ordine senza conferma esplicita.'
+          },
+          {
+            id: 'knowledge',
+            label: 'Knowledge Agent',
+            goal: 'Rispondere usando solo fonti merchant verificabili.',
+            terms: ['orari', 'aperto', 'chiuso', 'storia', 'policy', 'privacy', 'faq', 'fornitori', 'wifi', 'prenotazione', 'allergeni', 'intolleranze'],
+            tools: ['knowledge_search', 'customer_profile'],
+            tone: 'chiaro, affidabile, senza inventare',
+            instruction: 'Recupera informazioni specifiche dalle fonti merchant configurate e rispondi solo con dati verificati o chiedi conferma.',
+            fallback: 'Se la knowledge non contiene la risposta, dichiaralo e proponi di contattare il locale.'
+          },
+          {
+            id: 'analytics',
+            label: 'Analytics Agent',
+            goal: 'Trasformare conversazioni e richieste in insight per esercente.',
+            terms: ['dashboard', 'metriche', 'analytics', 'conversion', 'vendite', 'report', 'insight'],
+            tools: ['customer_profile', 'knowledge_search'],
+            tone: 'business, sintetico, orientato ad azioni',
+            instruction: 'Focalizzati su insight per esercente, performance, prodotti richiesti e azioni consigliate.',
+            fallback: 'Se i dati sono pochi, evidenzia il limite e suggerisci cosa tracciare.'
+          }
+        ]
       },
       integrations: {
         posProvider: 'generic-webhook',

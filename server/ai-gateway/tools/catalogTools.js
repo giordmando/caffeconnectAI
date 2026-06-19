@@ -20,14 +20,36 @@ function loadLocalProducts() {
   return Array.isArray(data) ? data : [];
 }
 
+function isDemoContext(context = {}) {
+  const environment = String(context.tenant?.environment || '').toLowerCase();
+  const plan = String(context.tenant?.plan || '').toLowerCase();
+  return environment !== 'production' && plan !== 'pro' && plan !== 'enterprise';
+}
+
 function loadMenuItems(context = {}) {
   const runtimeItems = context.catalog?.menuItems;
-  return Array.isArray(runtimeItems) && runtimeItems.length > 0 ? runtimeItems : loadLocalMenuItems();
+  if (Array.isArray(runtimeItems) && runtimeItems.length > 0) {
+    return { items: runtimeItems, source: 'runtime-catalog' };
+  }
+
+  if (isDemoContext(context)) {
+    return { items: loadLocalMenuItems(), source: 'local-demo-catalog' };
+  }
+
+  return { items: [], source: 'missing-production-catalog' };
 }
 
 function loadProducts(context = {}) {
   const runtimeProducts = context.catalog?.products;
-  return Array.isArray(runtimeProducts) && runtimeProducts.length > 0 ? runtimeProducts : loadLocalProducts();
+  if (Array.isArray(runtimeProducts) && runtimeProducts.length > 0) {
+    return { products: runtimeProducts, source: 'runtime-catalog' };
+  }
+
+  if (isDemoContext(context)) {
+    return { products: loadLocalProducts(), source: 'local-demo-catalog' };
+  }
+
+  return { products: [], source: 'missing-production-catalog' };
 }
 
 function normalize(value) {
@@ -252,7 +274,8 @@ function createCatalogTools() {
         const { query = '', category = 'all', timeOfDay = 'all', limit = 6 } = args;
         const q = normalize(query);
         const restrictions = requestDietaryRestrictions(args, context);
-        const items = loadMenuItems(context)
+        const catalog = loadMenuItems(context);
+        const items = catalog.items
           .filter(item => category === 'all' || !category || item.category === category)
           .filter(item => timeOfDay === 'all' || !timeOfDay || (item.timeOfDay || []).includes(timeOfDay))
           .filter(item => matchesQuery(item, q))
@@ -264,7 +287,7 @@ function createCatalogTools() {
           ))
           .slice(0, limit);
 
-        return { items: withPersonalization(items, context), count: items.length, source: context.catalog?.menuItems?.length ? 'runtime-catalog' : 'local-catalog' };
+        return { items: withPersonalization(items, context), count: items.length, source: catalog.source };
       }
     },
     {
@@ -285,14 +308,15 @@ function createCatalogTools() {
         const { query = '', category = 'all', limit = 6 } = args;
         const q = normalize(query);
         const restrictions = requestDietaryRestrictions(args, context);
-        const products = loadProducts(context)
+        const catalog = loadProducts(context);
+        const products = catalog.products
           .filter(product => category === 'all' || !category || product.category === category)
           .filter(product => matchesQuery(product, q))
           .filter(product => isCompatibleWithRestrictions(product, restrictions))
           .sort((a, b) => scoreCustomerFit(b, context) - scoreCustomerFit(a, context))
           .slice(0, limit);
 
-        return { products: withPersonalization(products, context), count: products.length, source: context.catalog?.products?.length ? 'runtime-catalog' : 'local-catalog' };
+        return { products: withPersonalization(products, context), count: products.length, source: catalog.source };
       }
     },
     {
@@ -308,9 +332,10 @@ function createCatalogTools() {
         additionalProperties: false
       },
       execute: async ({ id, type }, context = {}) => {
-        const collection = type === 'product' ? loadProducts(context) : loadMenuItems(context);
+        const catalog = type === 'product' ? loadProducts(context) : loadMenuItems(context);
+        const collection = type === 'product' ? catalog.products : catalog.items;
         const item = findByIdOrName(collection, id) || null;
-        return { item, found: Boolean(item), source: item ? 'catalog' : 'not-found' };
+        return { item, found: Boolean(item), source: item ? catalog.source : 'not-found' };
       }
     },
     {
@@ -360,8 +385,10 @@ function createCatalogTools() {
         additionalProperties: false
       },
       execute: async ({ items = [], customerName = '', notes = '' }, context = {}) => {
-        const menu = loadMenuItems(context);
-        const products = loadProducts(context);
+        const menuCatalog = loadMenuItems(context);
+        const productCatalog = loadProducts(context);
+        const menu = menuCatalog.items;
+        const products = productCatalog.products;
         const lines = items
           .map(requested => {
             const source = requested.type === 'product' ? products : menu;

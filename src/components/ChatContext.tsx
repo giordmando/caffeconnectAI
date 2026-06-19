@@ -215,6 +215,20 @@ export const ChatProvider: React.FC<{
     return process.env.REACT_APP_ENABLE_AI_GATEWAY !== 'false';
   }, []);
 
+  const isProductionTenant = useCallback((): boolean => {
+    const environment = String(appConfig?.tenant?.environment || '').toLowerCase();
+    const plan = String(appConfig?.tenant?.plan || '').toLowerCase();
+    return environment === 'production' || plan === 'pro' || plan === 'enterprise';
+  }, [appConfig?.tenant]);
+
+  const shouldShareRuntimeCatalog = useCallback((type: 'menu' | 'products'): boolean => {
+    if (!isProductionTenant()) return true;
+    if (appConfig?.catalog?.enableLocalData) return false;
+    return type === 'menu'
+      ? Boolean(appConfig?.catalog?.menuEndpoint)
+      : Boolean(appConfig?.catalog?.productsEndpoint);
+  }, [appConfig?.catalog, isProductionTenant]);
+
   const createGatewayActions = useCallback((gatewayResponse: AIGatewayChatResponse): any[] => {
     const actions: any[] = [];
 
@@ -374,6 +388,10 @@ export const ChatProvider: React.FC<{
     message: string,
     conversationId: string
   ): Promise<boolean> => {
+    if (isProductionTenant()) {
+      return false;
+    }
+
     const lower = normalizeSearchText(message);
     const wantsProducts = /\b(prodotti|prodotto|shop|acquistare|comprare|confezioni|biscotti|tazza|caffe in grani|decaffeinato|sencha)\b/.test(lower);
     const wantsMenu = /\b(menu|pranzo|colazione|aperitivo|cena|mangiare|bere|consigli|consiglia|avete)\b/.test(lower);
@@ -384,8 +402,8 @@ export const ChatProvider: React.FC<{
     }
 
     const [menuItems, products] = await Promise.all([
-      catalogService.getAllMenuItems(),
-      catalogService.getProducts()
+      shouldShareRuntimeCatalog('menu') ? catalogService.getAllMenuItems() : Promise.resolve([]),
+      shouldShareRuntimeCatalog('products') ? catalogService.getProducts() : Promise.resolve([])
     ]);
     const allItems = [...products, ...menuItems];
 
@@ -478,7 +496,9 @@ export const ChatProvider: React.FC<{
     messageService,
     normalizeSearchText,
     uiComponentService,
-    userService
+    userService,
+    isProductionTenant,
+    shouldShareRuntimeCatalog
   ]);
 
   const sendMessageThroughGateway = useCallback(async (
@@ -490,8 +510,8 @@ export const ChatProvider: React.FC<{
 
     try {
       const [menuItems, products] = await Promise.all([
-        catalogService.getAllMenuItems(),
-        catalogService.getProducts()
+        shouldShareRuntimeCatalog('menu') ? catalogService.getAllMenuItems() : Promise.resolve([]),
+        shouldShareRuntimeCatalog('products') ? catalogService.getProducts() : Promise.resolve([])
       ]);
 
       const gatewayResponse = await aiGatewayClient.sendMessage({
@@ -562,7 +582,8 @@ export const ChatProvider: React.FC<{
     uiComponentService,
     catalogService,
     userService,
-    handleLocalCatalogFallback
+    handleLocalCatalogFallback,
+    shouldShareRuntimeCatalog
   ]);
   const handleSendMessage = useCallback(async () => {
     const conversationId = conversationManager.getCurrentConversationId();

@@ -17,16 +17,22 @@ class ToolRegistry {
     tools.forEach(tool => this.register(tool));
   }
 
-  list() {
-    return Array.from(this.tools.values()).map(tool => ({
+  list(allowedNames = null) {
+    const allowed = Array.isArray(allowedNames) && allowedNames.length > 0
+      ? new Set(allowedNames)
+      : null;
+
+    return Array.from(this.tools.values())
+      .filter(tool => !allowed || allowed.has(tool.name))
+      .map(tool => ({
       name: tool.name,
       description: tool.description,
       parameters: tool.parameters
     }));
   }
 
-  asOpenAITools() {
-    return this.list().map(tool => ({
+  asOpenAITools(allowedNames = null) {
+    return this.list(allowedNames).map(tool => ({
       type: 'function',
       name: tool.name,
       description: tool.description,

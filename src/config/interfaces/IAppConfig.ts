@@ -147,6 +147,16 @@ export interface AppConfig {
       enabled: boolean;
       activeAgents: string[];
       handoffMode: 'auto' | 'guided';
+      definitions?: Array<{
+        id: string;
+        label: string;
+        goal: string;
+        terms: string[];
+        tools: string[];
+        tone?: string;
+        instruction?: string;
+        fallback?: string;
+      }>;
     };
 
     integrations?: {

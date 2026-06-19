@@ -12,7 +12,9 @@ npm run gateway:start
 
 Default URL: `http://localhost:8787`.
 
-Without `OPENAI_API_KEY`, the gateway runs in deterministic demo mode and uses the local mock catalog files.
+Without `OPENAI_API_KEY`, the gateway runs in deterministic demo mode.
+Local mock catalog and default knowledge are used only for demo-like tenants.
+For `tenant.environment=production` or `tenant.plan=pro|enterprise`, the gateway does not silently fall back to demo catalog or default knowledge.
 
 ## Endpoints
 
@@ -29,7 +31,9 @@ Without `OPENAI_API_KEY`, the gateway runs in deterministic demo mode and uses t
 - `search_menu`
 - `search_products`
 - `get_item_detail`
+- `customer_profile`
 - `create_order_draft`
+- `knowledge_search`
 
 ## Next architecture step
 
@@ -98,6 +102,8 @@ Default demo data lives in:
 ```text
 server/ai-gateway/data/defaultKnowledge.json
 ```
+
+This file is ignored for production/pro/enterprise tenant requests. Production knowledge must come from runtime merchant knowledge, `AI_GATEWAY_KNOWLEDGE_URLS`, or `AI_GATEWAY_KNOWLEDGE_INLINE`.
 
 Remote sources can be configured with comma-separated URLs:
 
