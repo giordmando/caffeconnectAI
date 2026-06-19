@@ -111,17 +111,32 @@ class MerchantConfigStore {
   }
 
   put(merchantId, rawConfig) {
+    return this.putPrepared(this.prepareRecord(merchantId, rawConfig));
+  }
+
+  prepareRecord(merchantId, rawConfig) {
     const safeMerchantId = sanitizeMerchantId(merchantId);
     const existing = this.get(safeMerchantId);
-    const record = {
+
+    return {
       merchantId: safeMerchantId,
       updatedAt: new Date().toISOString(),
       version: existing ? Number(existing.version || 1) + 1 : 1,
       config: sanitizeMerchantConfig(rawConfig)
     };
+  }
 
-    fs.writeFileSync(this.getPath(safeMerchantId), JSON.stringify(record, null, 2));
-    return record;
+  putPrepared(record) {
+    const safeMerchantId = sanitizeMerchantId(record.merchantId);
+    const safeRecord = {
+      merchantId: safeMerchantId,
+      updatedAt: record.updatedAt || new Date().toISOString(),
+      version: Number(record.version || 1),
+      config: sanitizeMerchantConfig(record.config)
+    };
+
+    fs.writeFileSync(this.getPath(safeMerchantId), JSON.stringify(safeRecord, null, 2));
+    return safeRecord;
   }
 }
 

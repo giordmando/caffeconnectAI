@@ -9,6 +9,7 @@ const { EventStore } = require('./eventStore');
 const { OrderProcessor } = require('./orderProcessor');
 const { OrderStore } = require('./orderStore');
 const { MerchantConfigStore } = require('./merchantConfigStore');
+const { AuditLogStore } = require('./auditLogStore');
 
 const config = createGatewayConfig();
 const toolRegistry = createDefaultToolRegistry(config);
@@ -21,7 +22,17 @@ const orchestrator = new AgentOrchestrator({ openaiClient, toolRegistry, config 
 const eventStore = new EventStore({ maxEvents: config.maxBusinessEvents });
 const orderStore = new OrderStore({ maxOrders: config.maxOrders });
 const merchantConfigStore = new MerchantConfigStore();
+const auditLogStore = new AuditLogStore({ maxEvents: config.maxAuditEvents });
 const orderProcessor = new OrderProcessor({ defaultWebhookUrl: config.orderWebhookUrl });
+
+const ROLE_RANK = {
+  anonymous: 0,
+  viewer: 1,
+  admin: 2,
+  owner: 3
+};
+
+const OWNER_ONLY_CONFIG_SECTIONS = new Set(['agents', 'integrations', 'dataGovernance']);
 
 function getCorsOrigin(req) {
   const requestOrigin = req.headers.origin;
@@ -110,21 +121,58 @@ function getRequestApiKey(req) {
   return req.headers['x-api-key'] || (bearerMatch ? bearerMatch[1] : '');
 }
 
-function isMerchantConfigAuthorized(req, accessMode) {
-  const requiredKey = accessMode === 'write'
-    ? config.merchantConfigWriteKey
-    : config.merchantConfigReadKey;
+function getRequestActor(req) {
   const requestKey = getRequestApiKey(req);
 
-  if (!requiredKey) {
-    return true;
+  if (config.merchantConfigOwnerKey && requestKey === config.merchantConfigOwnerKey) {
+    return { role: 'owner', id: 'owner-key' };
   }
 
-  if (accessMode === 'read' && config.merchantConfigWriteKey && requestKey === config.merchantConfigWriteKey) {
-    return true;
+  if (config.merchantConfigWriteKey && requestKey === config.merchantConfigWriteKey) {
+    return { role: 'admin', id: 'admin-key' };
   }
 
-  return requestKey === requiredKey;
+  if (config.merchantConfigReadKey && requestKey === config.merchantConfigReadKey) {
+    return { role: 'viewer', id: 'viewer-key' };
+  }
+
+  if (!config.merchantConfigReadKey && !config.merchantConfigWriteKey && !config.merchantConfigOwnerKey) {
+    return { role: 'owner', id: 'demo-open-access' };
+  }
+
+  return { role: 'anonymous', id: 'anonymous' };
+}
+
+function hasRole(actor, requiredRole) {
+  return ROLE_RANK[actor.role] >= ROLE_RANK[requiredRole];
+}
+
+function getRequestMetadata(req) {
+  return {
+    origin: req.headers.origin || '',
+    userAgent: req.headers['user-agent'] || '',
+    ip: req.headers['x-forwarded-for'] || req.socket.remoteAddress || ''
+  };
+}
+
+function getChangedSections(previousConfig = {}, nextConfig = {}) {
+  const keys = new Set([
+    ...Object.keys(previousConfig || {}),
+    ...Object.keys(nextConfig || {})
+  ]);
+
+  return Array.from(keys).filter(key => (
+    JSON.stringify(previousConfig ? previousConfig[key] : undefined) !==
+    JSON.stringify(nextConfig ? nextConfig[key] : undefined)
+  ));
+}
+
+function getForbiddenSectionsForRole(role, changedSections) {
+  if (role === 'owner') {
+    return [];
+  }
+
+  return changedSections.filter(section => OWNER_ONLY_CONFIG_SECTIONS.has(section));
 }
 
 function getHarnessHtml() {
@@ -159,6 +207,7 @@ async function handleRequest(req, res) {
 
   try {
     const merchantConfigMatch = url.pathname.match(/^\/v1\/merchants\/([^/]+)\/config$/);
+    const merchantAuditMatch = url.pathname.match(/^\/v1\/merchants\/([^/]+)\/audit$/);
 
     if (req.method === 'GET' && (url.pathname === '/' || url.pathname === '/index.html')) {
       return sendHtml(req, res, 200, getHarnessHtml());
@@ -179,26 +228,81 @@ async function handleRequest(req, res) {
     }
 
     if (merchantConfigMatch && req.method === 'GET') {
-      if (!isMerchantConfigAuthorized(req, 'read')) {
+      const actor = getRequestActor(req);
+      if (!hasRole(actor, 'viewer')) {
         return sendJson(req, res, 401, { error: 'Merchant config read access denied' });
       }
 
       const merchantId = decodeURIComponent(merchantConfigMatch[1]);
       const record = merchantConfigStore.get(merchantId);
+      auditLogStore.append({
+        merchantId,
+        action: 'merchant_config_read',
+        actor,
+        result: record ? 'found' : 'not_found',
+        metadata: getRequestMetadata(req)
+      });
       return sendJson(req, res, 200, record
-        ? { found: true, ...record }
+        ? { found: true, actorRole: actor.role, ...record }
         : { found: false, merchantId, config: null });
     }
 
     if (merchantConfigMatch && req.method === 'PUT') {
-      if (!isMerchantConfigAuthorized(req, 'write')) {
+      const actor = getRequestActor(req);
+      if (!hasRole(actor, 'admin')) {
         return sendJson(req, res, 401, { error: 'Merchant config write access denied' });
       }
 
       const merchantId = decodeURIComponent(merchantConfigMatch[1]);
       const body = await readBody(req);
-      const record = merchantConfigStore.put(merchantId, body.config || body);
-      return sendJson(req, res, 200, { ok: true, ...record });
+      const previousRecord = merchantConfigStore.get(merchantId);
+      const nextRecordPreview = merchantConfigStore.prepareRecord(merchantId, body.config || body);
+      const changedSections = getChangedSections(previousRecord && previousRecord.config, nextRecordPreview.config);
+      const forbiddenSections = getForbiddenSectionsForRole(actor.role, changedSections);
+
+      if (forbiddenSections.length) {
+        auditLogStore.append({
+          merchantId,
+          action: 'merchant_config_write_denied',
+          actor,
+          changedSections,
+          forbiddenSections,
+          versionBefore: previousRecord ? previousRecord.version : null,
+          metadata: getRequestMetadata(req)
+        });
+        return sendJson(req, res, 403, {
+          error: 'Owner role required for sensitive merchant config sections',
+          forbiddenSections
+        });
+      }
+
+      const record = merchantConfigStore.putPrepared(nextRecordPreview);
+      const audit = auditLogStore.append({
+        merchantId,
+        action: 'merchant_config_write',
+        actor,
+        changedSections,
+        versionBefore: previousRecord ? previousRecord.version : null,
+        versionAfter: record.version,
+        metadata: getRequestMetadata(req)
+      });
+
+      return sendJson(req, res, 200, { ok: true, auditId: audit.id, actorRole: actor.role, ...record });
+    }
+
+    if (merchantAuditMatch && req.method === 'GET') {
+      const actor = getRequestActor(req);
+      if (!hasRole(actor, 'viewer')) {
+        return sendJson(req, res, 401, { error: 'Merchant audit access denied' });
+      }
+
+      const merchantId = decodeURIComponent(merchantAuditMatch[1]);
+      const limit = Number(url.searchParams.get('limit') || 50);
+      return sendJson(req, res, 200, {
+        merchantId,
+        actorRole: actor.role,
+        events: auditLogStore.listForMerchant(merchantId, limit)
+      });
     }
 
     if (req.method === 'GET' && url.pathname === '/v1/events/summary') {

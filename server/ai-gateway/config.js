@@ -29,6 +29,8 @@ function createGatewayConfig(env = process.env) {
     orderWebhookUrl: env.AI_GATEWAY_ORDER_WEBHOOK_URL || '',
     merchantConfigReadKey: env.AI_GATEWAY_MERCHANT_CONFIG_READ_KEY || '',
     merchantConfigWriteKey: env.AI_GATEWAY_MERCHANT_CONFIG_WRITE_KEY || env.AI_GATEWAY_MERCHANT_CONFIG_READ_KEY || '',
+    merchantConfigOwnerKey: env.AI_GATEWAY_MERCHANT_CONFIG_OWNER_KEY || '',
+    maxAuditEvents: Number(env.AI_GATEWAY_MAX_AUDIT_EVENTS || 5000),
     knowledgeUrls: readList(env.AI_GATEWAY_KNOWLEDGE_URLS),
     knowledgeInline: env.AI_GATEWAY_KNOWLEDGE_INLINE || '',
     knowledgeCacheTtlMs: Number(env.AI_GATEWAY_KNOWLEDGE_CACHE_TTL_MS || 300000)

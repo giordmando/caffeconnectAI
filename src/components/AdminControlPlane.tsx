@@ -7,6 +7,21 @@ interface AdminControlPlaneProps {
   onSaved?: () => Promise<void> | void;
 }
 
+interface AuditEvent {
+  id: string;
+  timestamp: string;
+  action: string;
+  actor?: {
+    role: string;
+    id: string;
+  };
+  changedSections?: string[];
+  forbiddenSections?: string[];
+  versionBefore?: number | null;
+  versionAfter?: number | null;
+  result?: string;
+}
+
 const ALLOWED_SECTIONS: Array<keyof AppConfig> = [
   'business',
   'catalog',
@@ -55,13 +70,16 @@ function stripSensitiveConfig(value: any): any {
 }
 
 function getSafeMerchantConfig(appConfig: AppConfig): Partial<AppConfig> {
-  return ALLOWED_SECTIONS.reduce((clean, section) => {
+  const clean: Record<string, any> = {};
+
+  ALLOWED_SECTIONS.forEach(section => {
     const value = appConfig[section];
     if (value !== undefined) {
       clean[section] = stripSensitiveConfig(value) as any;
     }
-    return clean;
-  }, {} as Partial<AppConfig>);
+  });
+
+  return clean as Partial<AppConfig>;
 }
 
 export function AdminControlPlane({ appConfig, onClose, onSaved }: AdminControlPlaneProps) {
@@ -73,10 +91,19 @@ export function AdminControlPlane({ appConfig, onClose, onSaved }: AdminControlP
   const [configText, setConfigText] = useState(() => JSON.stringify(getSafeMerchantConfig(appConfig), null, 2));
   const [status, setStatus] = useState('');
   const [isBusy, setIsBusy] = useState(false);
+  const [actorRole, setActorRole] = useState('');
+  const [remoteVersion, setRemoteVersion] = useState<number | null>(null);
+  const [remoteUpdatedAt, setRemoteUpdatedAt] = useState('');
+  const [auditEvents, setAuditEvents] = useState<AuditEvent[]>([]);
 
   const endpoint = useMemo(() => {
     const cleanGatewayUrl = gatewayUrl.replace(/\/$/, '');
     return `${cleanGatewayUrl}/v1/merchants/${encodeURIComponent(merchantId)}/config`;
+  }, [gatewayUrl, merchantId]);
+
+  const auditEndpoint = useMemo(() => {
+    const cleanGatewayUrl = gatewayUrl.replace(/\/$/, '');
+    return `${cleanGatewayUrl}/v1/merchants/${encodeURIComponent(merchantId)}/audit?limit=8`;
   }, [gatewayUrl, merchantId]);
 
   const headers = useMemo(() => ({
@@ -97,7 +124,11 @@ export function AdminControlPlane({ appConfig, onClose, onSaved }: AdminControlP
       }
 
       setConfigText(JSON.stringify(payload.config || getSafeMerchantConfig(appConfig), null, 2));
+      setActorRole(payload.actorRole || '');
+      setRemoteVersion(payload.version || null);
+      setRemoteUpdatedAt(payload.updatedAt || '');
       setStatus(payload.found ? 'Configurazione caricata dal gateway.' : 'Nessuna configurazione remota: pronta la base locale.');
+      await loadAudit(false);
     } catch (error: any) {
       setStatus(`Errore caricamento: ${error.message || 'richiesta fallita'}`);
     } finally {
@@ -123,10 +154,42 @@ export function AdminControlPlane({ appConfig, onClose, onSaved }: AdminControlP
       }
 
       setConfigText(JSON.stringify(payload.config || parsedConfig, null, 2));
+      setActorRole(payload.actorRole || actorRole);
+      setRemoteVersion(payload.version || null);
+      setRemoteUpdatedAt(payload.updatedAt || '');
       setStatus(`Configurazione salvata. Versione ${payload.version || 'n/d'}.`);
+      await loadAudit(false);
       await onSaved?.();
     } catch (error: any) {
       setStatus(`Errore salvataggio: ${error.message || 'JSON non valido o richiesta fallita'}`);
+    } finally {
+      setIsBusy(false);
+    }
+  };
+
+  const loadAudit = async (showStatus = true) => {
+    setIsBusy(true);
+    if (showStatus) {
+      setStatus('');
+    }
+
+    try {
+      const response = await fetch(auditEndpoint, { headers });
+      const payload = await response.json();
+
+      if (!response.ok) {
+        throw new Error(payload.error || `HTTP ${response.status}`);
+      }
+
+      setActorRole(payload.actorRole || actorRole);
+      setAuditEvents(Array.isArray(payload.events) ? payload.events : []);
+      if (showStatus) {
+        setStatus('Audit log aggiornato.');
+      }
+    } catch (error: any) {
+      if (showStatus) {
+        setStatus(`Errore audit: ${error.message || 'richiesta fallita'}`);
+      }
     } finally {
       setIsBusy(false);
     }
@@ -161,6 +224,11 @@ export function AdminControlPlane({ appConfig, onClose, onSaved }: AdminControlP
               />
             </label>
           </div>
+          <div className="admin-status-strip">
+            <span>Ruolo: <strong>{actorRole || 'non verificato'}</strong></span>
+            <span>Versione: <strong>{remoteVersion || 'locale'}</strong></span>
+            <span>Ultimo update: <strong>{remoteUpdatedAt || 'n/d'}</strong></span>
+          </div>
         </section>
 
         <section className="admin-control-section">
@@ -171,6 +239,30 @@ export function AdminControlPlane({ appConfig, onClose, onSaved }: AdminControlP
             onChange={event => setConfigText(event.target.value)}
             spellCheck={false}
           />
+        </section>
+
+        <section className="admin-control-section">
+          <div className="admin-section-title-row">
+            <h3>Audit recente</h3>
+            <button type="button" onClick={() => loadAudit()} disabled={isBusy || !adminKey}>Aggiorna audit</button>
+          </div>
+          <div className="audit-log-list">
+            {auditEvents.length === 0 && (
+              <p className="audit-empty">Nessun evento audit caricato.</p>
+            )}
+            {auditEvents.map(event => (
+              <div className="audit-log-row" key={event.id}>
+                <div>
+                  <strong>{event.action}</strong>
+                  <span>{new Date(event.timestamp).toLocaleString()}</span>
+                </div>
+                <div>
+                  <span>{event.actor?.role || 'n/d'}</span>
+                  <span>{event.changedSections?.join(', ') || event.result || 'lettura'}</span>
+                </div>
+              </div>
+            ))}
+          </div>
         </section>
       </div>
 
