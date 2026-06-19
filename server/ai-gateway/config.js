@@ -27,6 +27,8 @@ function createGatewayConfig(env = process.env) {
     maxBusinessEvents: Number(env.AI_GATEWAY_MAX_BUSINESS_EVENTS || 5000),
     maxOrders: Number(env.AI_GATEWAY_MAX_ORDERS || 500),
     orderWebhookUrl: env.AI_GATEWAY_ORDER_WEBHOOK_URL || '',
+    defaultMerchantId: env.AI_GATEWAY_DEFAULT_MERCHANT_ID || 'cafeconnect-roastery',
+    tenantIsolationMode: env.AI_GATEWAY_TENANT_ISOLATION_MODE || 'schema-per-tenant',
     merchantConfigReadKey: env.AI_GATEWAY_MERCHANT_CONFIG_READ_KEY || '',
     merchantConfigWriteKey: env.AI_GATEWAY_MERCHANT_CONFIG_WRITE_KEY || env.AI_GATEWAY_MERCHANT_CONFIG_READ_KEY || '',
     merchantConfigOwnerKey: env.AI_GATEWAY_MERCHANT_CONFIG_OWNER_KEY || '',

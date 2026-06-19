@@ -10,6 +10,7 @@ const { OrderProcessor } = require('./orderProcessor');
 const { OrderStore } = require('./orderStore');
 const { MerchantConfigStore } = require('./merchantConfigStore');
 const { AuditLogStore } = require('./auditLogStore');
+const { TenantStorageResolver } = require('./tenantStorageResolver');
 
 const config = createGatewayConfig();
 const toolRegistry = createDefaultToolRegistry(config);
@@ -19,10 +20,8 @@ const openaiClient = new OpenAIResponsesClient({
   model: config.model
 });
 const orchestrator = new AgentOrchestrator({ openaiClient, toolRegistry, config });
-const eventStore = new EventStore({ maxEvents: config.maxBusinessEvents });
-const orderStore = new OrderStore({ maxOrders: config.maxOrders });
-const merchantConfigStore = new MerchantConfigStore();
-const auditLogStore = new AuditLogStore({ maxEvents: config.maxAuditEvents });
+const storageResolver = new TenantStorageResolver({ isolationMode: config.tenantIsolationMode });
+const tenantStores = new Map();
 const orderProcessor = new OrderProcessor({ defaultWebhookUrl: config.orderWebhookUrl });
 
 const ROLE_RANK = {
@@ -33,6 +32,39 @@ const ROLE_RANK = {
 };
 
 const OWNER_ONLY_CONFIG_SECTIONS = new Set(['agents', 'integrations', 'dataGovernance']);
+
+function getStoresForMerchant(merchantId) {
+  const safeMerchantId = String(merchantId || config.defaultMerchantId).trim() || config.defaultMerchantId;
+
+  if (!tenantStores.has(safeMerchantId)) {
+    const paths = storageResolver.getPaths(safeMerchantId);
+    tenantStores.set(safeMerchantId, {
+      paths,
+      merchantConfigStore: new MerchantConfigStore({ configDir: paths.merchantConfigDir }),
+      auditLogStore: new AuditLogStore({ filePath: paths.auditLogPath, maxEvents: config.maxAuditEvents }),
+      eventStore: new EventStore({ filePath: paths.businessEventsPath, maxEvents: config.maxBusinessEvents }),
+      orderStore: new OrderStore({ filePath: paths.ordersPath, maxOrders: config.maxOrders })
+    });
+  }
+
+  return tenantStores.get(safeMerchantId);
+}
+
+function getRequestMerchantId(req, url, body) {
+  return (
+    url.searchParams.get('merchantId') ||
+    req.headers['x-merchant-id'] ||
+    body?.merchantId ||
+    body?.tenant?.merchantId ||
+    body?.event?.merchantId ||
+    body?.event?.payload?.merchantId ||
+    body?.events?.[0]?.merchantId ||
+    body?.events?.[0]?.payload?.merchantId ||
+    body?.order?.businessId ||
+    body?.order?.merchantId ||
+    config.defaultMerchantId
+  );
+}
 
 function getCorsOrigin(req) {
   const requestOrigin = req.headers.origin;
@@ -219,6 +251,8 @@ async function handleRequest(req, res) {
         service: 'cafeconnect-ai-gateway',
         mode: config.demoMode || !openaiClient.isConfigured() ? 'demo' : 'openai-responses',
         model: config.model,
+        storage: storageResolver.describe(),
+        defaultMerchantId: config.defaultMerchantId,
         tools: toolRegistry.list().map(tool => tool.name)
       });
     }
@@ -234,6 +268,7 @@ async function handleRequest(req, res) {
       }
 
       const merchantId = decodeURIComponent(merchantConfigMatch[1]);
+      const { merchantConfigStore, auditLogStore } = getStoresForMerchant(merchantId);
       const record = merchantConfigStore.get(merchantId);
       auditLogStore.append({
         merchantId,
@@ -255,6 +290,7 @@ async function handleRequest(req, res) {
 
       const merchantId = decodeURIComponent(merchantConfigMatch[1]);
       const body = await readBody(req);
+      const { merchantConfigStore, auditLogStore } = getStoresForMerchant(merchantId);
       const previousRecord = merchantConfigStore.get(merchantId);
       const nextRecordPreview = merchantConfigStore.prepareRecord(merchantId, body.config || body);
       const changedSections = getChangedSections(previousRecord && previousRecord.config, nextRecordPreview.config);
@@ -297,6 +333,7 @@ async function handleRequest(req, res) {
       }
 
       const merchantId = decodeURIComponent(merchantAuditMatch[1]);
+      const { auditLogStore } = getStoresForMerchant(merchantId);
       const limit = Number(url.searchParams.get('limit') || 50);
       return sendJson(req, res, 200, {
         merchantId,
@@ -306,14 +343,23 @@ async function handleRequest(req, res) {
     }
 
     if (req.method === 'GET' && url.pathname === '/v1/events/summary') {
-      return sendJson(req, res, 200, eventStore.summary());
+      const merchantId = getRequestMerchantId(req, url);
+      const { eventStore } = getStoresForMerchant(merchantId);
+      return sendJson(req, res, 200, {
+        merchantId,
+        storage: storageResolver.describe(),
+        ...eventStore.summary()
+      });
     }
 
     if (req.method === 'POST' && url.pathname === '/v1/events') {
       const body = await readBody(req);
+      const merchantId = getRequestMerchantId(req, url, body);
+      const { eventStore } = getStoresForMerchant(merchantId);
       const savedEvents = eventStore.append(body.events || body.event || body);
       return sendJson(req, res, 201, {
         ok: true,
+        merchantId,
         saved: savedEvents.length,
         summary: eventStore.summary()
       });
@@ -321,11 +367,15 @@ async function handleRequest(req, res) {
 
     if (req.method === 'GET' && url.pathname === '/v1/orders') {
       const limit = Number(url.searchParams.get('limit') || 25);
+      const merchantId = getRequestMerchantId(req, url);
+      const { orderStore } = getStoresForMerchant(merchantId);
       return sendJson(req, res, 200, { orders: orderStore.list(limit) });
     }
 
     if (req.method === 'POST' && url.pathname === '/v1/orders') {
       const body = await readBody(req);
+      const merchantId = getRequestMerchantId(req, url, body);
+      const { orderStore, eventStore } = getStoresForMerchant(merchantId);
 
       try {
         const result = await orderProcessor.process(body);
@@ -348,6 +398,7 @@ async function handleRequest(req, res) {
           }
         });
         return sendJson(req, res, 201, {
+          merchantId,
           ...result,
           orderRecord
         });
@@ -368,6 +419,7 @@ async function handleRequest(req, res) {
           }
         });
         return sendJson(req, res, 502, {
+          merchantId,
           error: orderError.message || 'Order gateway error',
           orderRecord
         });

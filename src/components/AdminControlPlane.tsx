@@ -82,12 +82,17 @@ function getSafeMerchantConfig(appConfig: AppConfig): Partial<AppConfig> {
   return clean as Partial<AppConfig>;
 }
 
+function getErrorMessage(error: unknown, fallback: string): string {
+  return error instanceof Error ? error.message : fallback;
+}
+
 export function AdminControlPlane({ appConfig, onClose, onSaved }: AdminControlPlaneProps) {
   const defaultMerchantId = process.env.REACT_APP_MERCHANT_ID || appConfig.tenant?.merchantId || 'cafeconnect-roastery';
   const defaultGatewayUrl = process.env.REACT_APP_AI_GATEWAY_URL || 'http://localhost:8787';
   const [gatewayUrl, setGatewayUrl] = useState(defaultGatewayUrl);
   const [merchantId, setMerchantId] = useState(defaultMerchantId);
   const [adminKey, setAdminKey] = useState('');
+  const [sourceConfigUrl, setSourceConfigUrl] = useState('https://caffeconnectai-1.onrender.com/demo-data/cafeconnect-production-config.json');
   const [configText, setConfigText] = useState(() => JSON.stringify(getSafeMerchantConfig(appConfig), null, 2));
   const [status, setStatus] = useState('');
   const [isBusy, setIsBusy] = useState(false);
@@ -129,8 +134,29 @@ export function AdminControlPlane({ appConfig, onClose, onSaved }: AdminControlP
       setRemoteUpdatedAt(payload.updatedAt || '');
       setStatus(payload.found ? 'Configurazione caricata dal gateway.' : 'Nessuna configurazione remota: pronta la base locale.');
       await loadAudit(false);
-    } catch (error: any) {
-      setStatus(`Errore caricamento: ${error.message || 'richiesta fallita'}`);
+    } catch (error) {
+      setStatus(`Errore caricamento: ${getErrorMessage(error, 'richiesta fallita')}`);
+    } finally {
+      setIsBusy(false);
+    }
+  };
+
+  const importSourceConfig = async () => {
+    setIsBusy(true);
+    setStatus('');
+
+    try {
+      const response = await fetch(sourceConfigUrl);
+      const payload = await response.json();
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      setConfigText(JSON.stringify(payload.config || payload, null, 2));
+      setStatus('Config sorgente importata. Controllala e salva sul tenant.');
+    } catch (error) {
+      setStatus(`Errore import sorgente: ${getErrorMessage(error, 'richiesta fallita')}`);
     } finally {
       setIsBusy(false);
     }
@@ -160,8 +186,8 @@ export function AdminControlPlane({ appConfig, onClose, onSaved }: AdminControlP
       setStatus(`Configurazione salvata. Versione ${payload.version || 'n/d'}.`);
       await loadAudit(false);
       await onSaved?.();
-    } catch (error: any) {
-      setStatus(`Errore salvataggio: ${error.message || 'JSON non valido o richiesta fallita'}`);
+    } catch (error) {
+      setStatus(`Errore salvataggio: ${getErrorMessage(error, 'JSON non valido o richiesta fallita')}`);
     } finally {
       setIsBusy(false);
     }
@@ -186,9 +212,9 @@ export function AdminControlPlane({ appConfig, onClose, onSaved }: AdminControlP
       if (showStatus) {
         setStatus('Audit log aggiornato.');
       }
-    } catch (error: any) {
+    } catch (error) {
       if (showStatus) {
-        setStatus(`Errore audit: ${error.message || 'richiesta fallita'}`);
+        setStatus(`Errore audit: ${getErrorMessage(error, 'richiesta fallita')}`);
       }
     } finally {
       setIsBusy(false);
@@ -228,6 +254,13 @@ export function AdminControlPlane({ appConfig, onClose, onSaved }: AdminControlP
             <span>Ruolo: <strong>{actorRole || 'non verificato'}</strong></span>
             <span>Versione: <strong>{remoteVersion || 'locale'}</strong></span>
             <span>Ultimo update: <strong>{remoteUpdatedAt || 'n/d'}</strong></span>
+          </div>
+          <div className="admin-source-import">
+            <label>
+              URL config sorgente
+              <input value={sourceConfigUrl} onChange={event => setSourceConfigUrl(event.target.value)} />
+            </label>
+            <button type="button" onClick={importSourceConfig} disabled={isBusy || !sourceConfigUrl}>Importa sorgente</button>
           </div>
         </section>
 

@@ -2150,6 +2150,40 @@ input:focus, select:focus, textarea:focus {
   font-size: 13px;
 }
 
+.admin-source-import {
+  display: grid;
+  grid-template-columns: minmax(240px, 1fr) auto;
+  gap: 12px;
+  align-items: end;
+  margin-top: 14px;
+}
+
+.admin-source-import label {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  color: #4a5568;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.admin-source-import input {
+  min-height: 42px;
+  padding: 9px 12px;
+  border: 1px solid #cbd5e0;
+  border-radius: 8px;
+}
+
+.admin-source-import button {
+  min-height: 42px;
+  border: 1px solid #cbd5e0;
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--primary-color);
+  font-weight: 700;
+  padding: 8px 12px;
+}
+
 .admin-section-title-row {
   display: flex;
   align-items: center;
@@ -2268,6 +2302,7 @@ input:focus, select:focus, textarea:focus {
   .merchant-source-row { align-items: stretch; grid-template-columns: 1fr; }
   .admin-control-plane { width: calc(100vw - 20px); }
   .admin-control-grid { grid-template-columns: 1fr; }
+  .admin-source-import { grid-template-columns: 1fr; }
   .audit-log-row { grid-template-columns: 1fr; }
   .admin-control-footer { align-items: stretch; flex-direction: column; }
   .admin-control-footer > div { justify-content: flex-end; }

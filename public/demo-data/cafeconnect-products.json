@@ -1,0 +1,99 @@
+{
+  "products": [
+    {
+      "id": "arabica-premium-250",
+      "name": "Caffe Arabica Premium 250g",
+      "category": "coffee",
+      "price": 8.9,
+      "description": "Miscela in grani con note di cacao, nocciola e frutta secca, ideale per moka e macchina espresso.",
+      "details": {
+        "formato": "250g",
+        "macinatura": ["grani", "moka", "espresso"],
+        "origine": "Brasile, Colombia",
+        "intensita": 7,
+        "abbinamento": "Tiramisu della casa"
+      },
+      "imageUrl": "https://images.unsplash.com/photo-1611854779393-1b2da9d400fe?auto=format&fit=crop&w=900&q=80",
+      "inStock": true,
+      "popularity": 94
+    },
+    {
+      "id": "etiopia-yirgacheffe-250",
+      "name": "Etiopia Yirgacheffe Specialty 250g",
+      "category": "coffee",
+      "price": 12.5,
+      "description": "Monorigine a tostatura leggera, con note di agrumi, fiori bianchi e miele. Perfetto per V60 e filtro.",
+      "details": {
+        "formato": "250g",
+        "macinatura": ["grani", "filtro"],
+        "origine": "Etiopia",
+        "processo": "washed",
+        "profilo": "floreale e agrumato"
+      },
+      "imageUrl": "https://images.unsplash.com/photo-1447933601403-0c6688de566e?auto=format&fit=crop&w=900&q=80",
+      "inStock": true,
+      "popularity": 90
+    },
+    {
+      "id": "decaffeinato-acqua-250",
+      "name": "Decaffeinato ad acqua 250g",
+      "category": "coffee",
+      "price": 9.9,
+      "description": "Caffe decaffeinato con processo ad acqua, bilanciato, dolce e adatto alla sera.",
+      "details": {
+        "formato": "250g",
+        "macinatura": ["grani", "moka", "espresso"],
+        "decaffeinizzazione": "water process",
+        "intensita": 5
+      },
+      "imageUrl": "https://images.unsplash.com/photo-1509042239860-f550ce710b93?auto=format&fit=crop&w=900&q=80",
+      "inStock": true,
+      "popularity": 78
+    },
+    {
+      "id": "box-degustazione",
+      "name": "Box degustazione CafeConnect",
+      "category": "gift",
+      "price": 29.9,
+      "description": "Confezione regalo con tre caffe specialty, biscotti artigianali e guida alla preparazione.",
+      "details": {
+        "include": ["3 caffe 100g", "biscotti artigianali", "scheda degustazione"],
+        "occasione": ["regalo", "azienda", "compleanno"],
+        "personalizzabile": true
+      },
+      "imageUrl": "https://images.unsplash.com/photo-1511537190424-bbbab87ac5eb?auto=format&fit=crop&w=900&q=80",
+      "inStock": true,
+      "popularity": 88
+    },
+    {
+      "id": "tazza-cafeconnect",
+      "name": "Tazza CafeConnect 250ml",
+      "category": "accessories",
+      "price": 12,
+      "description": "Tazza in ceramica artigianale da 250ml, ideale per cappuccino, flat white e caffe filtro.",
+      "details": {
+        "materiale": "ceramica",
+        "capacita": "250ml",
+        "lavastoviglie": true
+      },
+      "imageUrl": "https://images.unsplash.com/photo-1514228742587-6b1558fcca3d?auto=format&fit=crop&w=900&q=80",
+      "inStock": true,
+      "popularity": 72
+    },
+    {
+      "id": "biscotti-mandorle",
+      "name": "Biscotti alle mandorle 200g",
+      "category": "food",
+      "price": 4.9,
+      "description": "Biscotti artigianali alle mandorle, perfetti con espresso o caffe filtro.",
+      "details": {
+        "formato": "200g",
+        "allergeni": ["glutine", "uova", "frutta a guscio"],
+        "abbinamento": "Espresso specialty"
+      },
+      "imageUrl": "https://images.unsplash.com/photo-1499636136210-6f4ee915583e?auto=format&fit=crop&w=900&q=80",
+      "inStock": true,
+      "popularity": 80
+    }
+  ]
+}

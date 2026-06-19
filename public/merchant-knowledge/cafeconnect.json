@@ -1,46 +1,88 @@
 {
   "entries": [
     {
-      "id": "faq-orari",
-      "title": "Orari e contatti",
-      "content": "CafeConnect Roastery e aperto dal lunedi al venerdi dalle 7:30 alle 19:30 e il sabato dalle 8:00 alle 13:00. La domenica e aperto solo per eventi e degustazioni su prenotazione.",
-      "tags": ["orari", "contatti", "prenotazioni"],
+      "id": "identity-positioning",
+      "title": "Identita e posizionamento",
+      "content": "CafeConnect Roastery e una caffetteria specialty urbana con pranzo leggero, prodotti da banco e vendita di caffe in grani. Il tono deve essere naturale, competente, pratico e mai troppo tecnico. L'assistente deve guidare verso scelta, dettagli prodotto, carrello o contatto umano.",
+      "tags": ["brand", "tono", "posizionamento", "sales"],
+      "source": "Brand brief"
+    },
+    {
+      "id": "orari-contatti",
+      "title": "Orari, contatti e posizione",
+      "content": "CafeConnect Roastery e aperto dal lunedi al venerdi dalle 7:30 alle 19:30 e il sabato dalle 8:00 alle 13:00. La domenica apre solo per eventi e degustazioni su prenotazione. Telefono demo: +39 02 1234567. Email demo: info@cafeconnect.example.com. Indirizzo demo: Via Roma 123, Milano.",
+      "tags": ["orari", "contatti", "telefono", "prenotazioni", "milano"],
       "source": "FAQ merchant"
     },
     {
-      "id": "faq-wifi",
-      "title": "Servizi in locale",
-      "content": "Il locale offre WiFi gratuito, prese vicino ai tavoli laterali e tavoli adatti a lavoro breve. Per gruppi sopra 6 persone e consigliata la prenotazione telefonica.",
-      "tags": ["wifi", "tavoli", "servizi", "prenotazione"],
+      "id": "wifi-servizi",
+      "title": "WiFi, tavoli e lavoro",
+      "content": "Il locale offre WiFi gratuito. Le prese sono disponibili vicino ai tavoli laterali. I tavoli sono adatti a lavoro breve, studio leggero e incontri informali. Per gruppi sopra 6 persone e consigliata prenotazione telefonica.",
+      "tags": ["wifi", "tavoli", "lavoro", "servizi", "prenotazione"],
       "source": "FAQ merchant"
     },
     {
-      "id": "faq-allergeni",
+      "id": "prenotazioni",
+      "title": "Prenotazioni",
+      "content": "Per gruppi fino a 4 persone non e obbligatoria la prenotazione nei giorni feriali. Per gruppi sopra 6 persone, eventi, degustazioni o domenica e consigliata la prenotazione telefonica. L'assistente puo suggerire di chiamare il locale, ma non deve confermare una prenotazione se non e collegata un'integrazione booking.",
+      "tags": ["prenotazione", "booking", "gruppi", "eventi"],
+      "source": "Policy operativa"
+    },
+    {
+      "id": "allergeni-intolleranze",
       "title": "Allergeni e intolleranze",
-      "content": "Il cliente deve comunicare allergie o intolleranze prima dell'ordine. Sono disponibili bevande vegetali, opzioni senza lattosio e alcune proposte senza glutine quando indicate nel catalogo.",
-      "tags": ["allergeni", "glutine", "lattosio", "vegano"],
-      "source": "FAQ merchant"
+      "content": "Prima di consigliare articoli a clienti con allergie o intolleranze, chiedere sempre conferma della restrizione. Sono disponibili bevande vegetali e opzioni senza lattosio. Alcuni piatti sono senza glutine solo se indicato nel catalogo. Non garantire assenza di contaminazione crociata senza conferma del personale.",
+      "tags": ["allergeni", "glutine", "lattosio", "vegano", "intolleranze"],
+      "source": "Policy allergeni"
     },
     {
-      "id": "faq-pranzo",
+      "id": "pranzo-consigli",
       "title": "Pranzo e proposte salate",
-      "content": "Per pranzo consiglia prima bowl, toast e proposte salate. Se il cliente ha restrizioni alimentari, filtra il catalogo e non proporre articoli con allergeni incompatibili.",
-      "tags": ["pranzo", "bowl", "toast", "allergeni"],
-      "source": "FAQ merchant"
+      "content": "A pranzo consiglia prima bowl, toast e insalate. Per un cliente che chiede qualcosa di leggero, proporre Bowl pollo e cereali o Insalata quinoa avocado. Per vegetariano o senza lattosio, proporre Toast hummus e verdure o Insalata quinoa avocado. Se il cliente chiede 'pranzo' non proporre solo caffe o dessert.",
+      "tags": ["pranzo", "bowl", "toast", "insalata", "consigli"],
+      "source": "Playbook menu advisor"
     },
     {
-      "id": "faq-regali",
+      "id": "colazione-consigli",
+      "title": "Colazione",
+      "content": "A colazione proporre espresso, cappuccino con latte o avena, cornetto integrale miele e noci. Se il cliente chiede una colazione senza lattosio, proporre cappuccino con bevanda d'avena ed evitare prodotti con burro o latte.",
+      "tags": ["colazione", "cappuccino", "cornetto", "senza lattosio"],
+      "source": "Playbook menu advisor"
+    },
+    {
+      "id": "regali-prodotti",
       "title": "Regali e prodotti specialty",
-      "content": "Per richieste regalo proponi una box degustazione con caffe specialty, biscotti artigianali e tazza CafeConnect. Chiedi se il regalo e per espresso, moka o filtro.",
-      "tags": ["regali", "prodotti", "box", "sales"],
-      "source": "FAQ merchant"
+      "content": "Per richieste regalo proporre Box degustazione CafeConnect. Chiedere se il destinatario usa moka, espresso o filtro. Per appassionati consigliare Etiopia Yirgacheffe Specialty. Per gusto classico consigliare Caffe Arabica Premium. Per regalo economico aggiungere Tazza CafeConnect o Biscotti alle mandorle.",
+      "tags": ["regalo", "prodotti", "box", "sales", "upsell"],
+      "source": "Playbook sales"
     },
     {
-      "id": "faq-ordini",
+      "id": "ordini-ritiro",
       "title": "Ordini e ritiro",
-      "content": "Gli ordini possono essere preparati per ritiro in negozio. Prima di inviare un ordine raccogli nome, telefono, orario di ritiro e note su allergeni o preferenze.",
-      "tags": ["ordini", "ritiro", "telefono", "whatsapp"],
-      "source": "FAQ merchant"
+      "content": "Gli ordini possono essere preparati per ritiro in negozio. Prima di inviare un ordine raccogliere nome, telefono, orario di ritiro e note su allergeni o preferenze. Non inviare mai l'ordine senza conferma esplicita del cliente.",
+      "tags": ["ordini", "ritiro", "telefono", "checkout", "conferma"],
+      "source": "Policy ordini"
+    },
+    {
+      "id": "promo-giorno",
+      "title": "Promozioni demo",
+      "content": "Promozione demo colazione: cappuccino d'avena e cornetto integrale a 4,80 euro. Promozione demo pranzo: Bowl pollo e cereali con espresso a 10,80 euro. Promozione demo regalo: Box degustazione con Tazza CafeConnect a 39,00 euro.",
+      "tags": ["promozioni", "offerte", "bundle", "demo"],
+      "source": "Promozioni demo"
+    },
+    {
+      "id": "privacy-compliance",
+      "title": "Privacy e preferenze cliente",
+      "content": "Le preferenze cliente devono restare locali salvo opt-in esplicito. Non inferire o memorizzare dati sensibili come salute, religione o condizioni mediche. Per allergeni e intolleranze usare solo il minimo necessario alla richiesta e chiedere conferma quando serve.",
+      "tags": ["privacy", "compliance", "preferenze", "governance"],
+      "source": "Policy privacy"
+    },
+    {
+      "id": "handoff-umano",
+      "title": "Quando passare a un umano",
+      "content": "Passare a contatto umano quando il cliente chiede reclami, modifiche ordine gia inviato, prenotazioni certe, allergie severe, disponibilita non chiara o richieste fuori catalogo. Proporre telefono o email del locale.",
+      "tags": ["handoff", "supporto", "reclami", "umano"],
+      "source": "Support policy"
     }
   ]
 }

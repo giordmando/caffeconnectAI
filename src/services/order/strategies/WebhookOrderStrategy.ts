@@ -9,6 +9,7 @@ export class WebhookOrderStrategy implements IOrderStrategy {
   async processOrder(order: OrderRequest): Promise<OrderResult> {
     const appConfig = configManager.getConfig();
     const businessConfig = appConfig.business;
+    const merchantId = appConfig.tenant?.merchantId || process.env.REACT_APP_MERCHANT_ID || 'cafeconnect-roastery';
     const integrations = appConfig.integrations || {};
     const webhookUrl = (
       businessConfig.orderWebhook ||
@@ -28,9 +29,11 @@ export class WebhookOrderStrategy implements IOrderStrategy {
     const response = await fetch(`${GATEWAY_URL}/v1/orders`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'X-Merchant-Id': merchantId
       },
       body: JSON.stringify({
+        merchantId,
         webhookUrl,
         business: {
           name: businessConfig.name,

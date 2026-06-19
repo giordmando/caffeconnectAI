@@ -54,6 +54,7 @@ export interface GatewayOrderRecord {
 const STORAGE_KEY = 'cafeconnect_business_events';
 const MAX_EVENTS = 500;
 const GATEWAY_URL = process.env.REACT_APP_AI_GATEWAY_URL || 'http://localhost:8787';
+const MERCHANT_ID = process.env.REACT_APP_MERCHANT_ID || 'cafeconnect-roastery';
 const GATEWAY_RETRY_COOLDOWN_MS = 60_000;
 
 class BusinessEventService {
@@ -105,7 +106,9 @@ class BusinessEventService {
     if (!this.canUseGateway()) return null;
 
     try {
-      const response = await fetch(`${GATEWAY_URL}/v1/events/summary`);
+      const response = await fetch(`${GATEWAY_URL}/v1/events/summary?merchantId=${encodeURIComponent(MERCHANT_ID)}`, {
+        headers: { 'X-Merchant-Id': MERCHANT_ID }
+      });
       if (!response.ok) return null;
       return response.json();
     } catch (_error) {
@@ -118,7 +121,9 @@ class BusinessEventService {
     if (!this.canUseGateway()) return [];
 
     try {
-      const response = await fetch(`${GATEWAY_URL}/v1/orders?limit=${limit}`);
+      const response = await fetch(`${GATEWAY_URL}/v1/orders?limit=${limit}&merchantId=${encodeURIComponent(MERCHANT_ID)}`, {
+        headers: { 'X-Merchant-Id': MERCHANT_ID }
+      });
       if (!response.ok) return [];
       const result = await response.json();
       return Array.isArray(result.orders) ? result.orders : [];
@@ -134,8 +139,21 @@ class BusinessEventService {
     try {
       fetch(`${GATEWAY_URL}/v1/events`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ event })
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Merchant-Id': MERCHANT_ID
+        },
+        body: JSON.stringify({
+          merchantId: MERCHANT_ID,
+          event: {
+            ...event,
+            merchantId: MERCHANT_ID,
+            payload: {
+              ...event.payload,
+              merchantId: MERCHANT_ID
+            }
+          }
+        })
       }).catch(() => {
         this.markGatewayUnavailable();
         // Local analytics still work when the gateway is offline.

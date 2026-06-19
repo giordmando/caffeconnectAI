@@ -8,3 +8,6 @@ server/ai-gateway/data/businessEvents.json
 server/ai-gateway/data/orders.json
 server/ai-gateway/data/auditLog.json
 server/ai-gateway/data/merchant-configs/
+server/ai-gateway/data/shared-db/
+server/ai-gateway/data/tenant-schemas/
+server/ai-gateway/data/tenant-databases/

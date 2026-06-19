@@ -101,6 +101,8 @@ AI_GATEWAY_MERCHANT_CONFIG_READ_KEY=read-only-key
 AI_GATEWAY_MERCHANT_CONFIG_WRITE_KEY=admin-write-key
 AI_GATEWAY_MERCHANT_CONFIG_OWNER_KEY=owner-key
 AI_GATEWAY_MAX_AUDIT_EVENTS=5000
+AI_GATEWAY_DEFAULT_MERCHANT_ID=cafeconnect-roastery
+AI_GATEWAY_TENANT_ISOLATION_MODE=schema-per-tenant
 ```
 
 If the keys are omitted, the gateway keeps demo-compatible open access. For enterprise deployments, configure all three role keys.
@@ -133,6 +135,33 @@ server/ai-gateway/data/auditLog.json
 ```
 
 This file is intentionally ignored by git.
+
+## Tenant Isolation
+
+Runtime gateway storage is tenant-aware. The gateway resolves config, audit, analytics, and order records under a tenant-specific storage path.
+
+Supported modes:
+
+- `shared-db`: shared runtime area with tenant partition folders.
+- `schema-per-tenant`: default; one tenant folder per merchant, matching a future schema-per-tenant database strategy.
+- `database-per-tenant`: one stronger tenant database folder per merchant, matching a future database-per-tenant strategy.
+
+Configure the mode on the Node service:
+
+```bash
+AI_GATEWAY_TENANT_ISOLATION_MODE=schema-per-tenant
+AI_GATEWAY_DEFAULT_MERCHANT_ID=cafeconnect-roastery
+```
+
+Tenant-aware runtime files are ignored by git:
+
+```text
+server/ai-gateway/data/shared-db/
+server/ai-gateway/data/tenant-schemas/
+server/ai-gateway/data/tenant-databases/
+```
+
+Requests can identify the merchant with `X-Merchant-Id`, `?merchantId=...`, or a `merchantId` field in the JSON body.
 
 Runtime config files are stored in:
 

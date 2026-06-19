@@ -1,0 +1,173 @@
+{
+  "business": {
+    "name": "CafeConnect Roastery",
+    "type": "cafe",
+    "logo": "/logo.svg",
+    "indirizzo": "Via Roma 123, Milano",
+    "telefono": "+39 02 1234567",
+    "email": "info@cafeconnect.example.com",
+    "orari": "Lun-Ven 7:30-19:30, Sab 8:00-13:00, Dom eventi su prenotazione",
+    "website": "https://cafeconnect.example.com",
+    "privacyPolicy": "https://cafeconnect.example.com/privacy",
+    "termsOfService": "https://cafeconnect.example.com/terms",
+    "theme": {
+      "primaryColor": "#2a4365",
+      "secondaryColor": "#ed8936",
+      "backgroundColor": "#f7fafc",
+      "textColor": "#1a202c"
+    },
+    "whatsappBusiness": "+39021234567",
+    "orderEmail": "ordini@cafeconnect.example.com",
+    "orderWebhook": ""
+  },
+  "catalog": {
+    "menuEndpoint": "https://caffeconnectai-1.onrender.com/demo-data/cafeconnect-menu.json",
+    "productsEndpoint": "https://caffeconnectai-1.onrender.com/demo-data/cafeconnect-products.json",
+    "enableLocalData": false,
+    "dataRefreshInterval": 30,
+    "categories": [
+      { "id": "beverage", "name": "Bevande", "icon": "coffee" },
+      { "id": "food", "name": "Menu", "icon": "utensils" },
+      { "id": "coffee", "name": "Caffe specialty", "icon": "shopping-bag" },
+      { "id": "gift", "name": "Regali", "icon": "gift" },
+      { "id": "accessories", "name": "Accessori", "icon": "cup" }
+    ],
+    "timeBasedMenus": {
+      "morning": ["coffee", "breakfast"],
+      "afternoon": ["lunch", "dessert", "coffee"],
+      "evening": ["aperitivo", "dessert", "coffee"]
+    }
+  },
+  "knowledgeSources": {
+    "urls": ["https://caffeconnectai-1.onrender.com/merchant-knowledge/cafeconnect.json"],
+    "inlineText": ""
+  },
+  "merchantKnowledge": {
+    "sources": [
+      {
+        "id": "cafeconnect-knowledge-production",
+        "label": "CafeConnect public knowledge",
+        "type": "json",
+        "url": "https://caffeconnectai-1.onrender.com/merchant-knowledge/cafeconnect.json",
+        "enabled": true
+      }
+    ]
+  },
+  "tenant": {
+    "merchantId": "cafeconnect-roastery",
+    "workspaceId": "demo-production",
+    "plan": "enterprise",
+    "environment": "production"
+  },
+  "agents": {
+    "enabled": true,
+    "activeAgents": ["triage", "menu_advisor", "sales", "order", "knowledge", "analytics"],
+    "handoffMode": "auto",
+    "definitions": [
+      {
+        "id": "triage",
+        "label": "Triage Agent",
+        "goal": "Capire intento, urgenza e prossimo agente migliore.",
+        "terms": [],
+        "tools": ["knowledge_search", "search_menu", "search_products", "get_item_detail", "customer_profile"],
+        "tone": "naturale, breve, orientato al prossimo passo",
+        "instruction": "Classifica la richiesta e indirizza verso menu, vendita, ordine, supporto o analytics. Se la richiesta e ambigua fai una sola domanda utile.",
+        "fallback": "Chiedi una domanda di chiarimento se intento o dati non sono sufficienti."
+      },
+      {
+        "id": "menu_advisor",
+        "label": "Menu Advisor Agent",
+        "goal": "Consigliare menu e alternative compatibili con momento, allergeni e preferenze.",
+        "terms": ["menu", "colazione", "pranzo", "aperitivo", "allerg", "glutine", "lattosio", "vegano", "ingredient"],
+        "tools": ["knowledge_search", "search_menu", "get_item_detail", "customer_profile"],
+        "tone": "consulente, rassicurante, concreto",
+        "instruction": "Usa menu reale e knowledge merchant. Se il cliente chiede pranzo, proponi articoli salati prima di caffe o dessert. Per allergeni chiedi conferma e non promettere assenza contaminazione.",
+        "fallback": "Se mancano dati, dichiara il limite e proponi contatto con il locale."
+      },
+      {
+        "id": "sales",
+        "label": "Sales Agent",
+        "goal": "Trasformare interesse in prodotto, bundle o carrello senza forzare la vendita.",
+        "terms": ["prodot", "comprare", "acquist", "regalo", "box", "shop", "prezzo", "offerta", "sconto"],
+        "tools": ["knowledge_search", "search_products", "get_item_detail", "customer_profile", "create_order_draft"],
+        "tone": "commerciale leggero, utile, non insistente",
+        "instruction": "Suggerisci prodotto principale e un solo upsell pertinente. Per regali chiedi metodo di preparazione preferito: moka, espresso o filtro.",
+        "fallback": "Se il catalogo non ha prodotti adatti, proponi contatto umano."
+      },
+      {
+        "id": "order",
+        "label": "Order Agent",
+        "goal": "Preparare ordine, conferma, ritiro/consegna e passaggio al checkout.",
+        "terms": ["ordine", "ordina", "carrello", "checkout", "ritiro", "consegna", "whatsapp", "pagamento"],
+        "tools": ["knowledge_search", "search_menu", "search_products", "get_item_detail", "create_order_draft"],
+        "tone": "operativo, preciso, prudente",
+        "instruction": "Raccogli nome, telefono, orario di ritiro e note. Non inviare ordini senza conferma esplicita.",
+        "fallback": "Se mancano dati obbligatori, chiedili in modo breve."
+      },
+      {
+        "id": "knowledge",
+        "label": "Knowledge Agent",
+        "goal": "Rispondere usando fonti merchant verificabili.",
+        "terms": ["orari", "aperto", "chiuso", "wifi", "prenotazione", "allergeni", "policy", "telefono", "indirizzo"],
+        "tools": ["knowledge_search"],
+        "tone": "chiaro, affidabile, senza inventare",
+        "instruction": "Rispondi solo con dati presenti nella knowledge o nel catalogo. Se manca una risposta, dichiara il limite e proponi contatto.",
+        "fallback": "Non inventare informazioni operative."
+      },
+      {
+        "id": "analytics",
+        "label": "Analytics Agent",
+        "goal": "Trasformare conversazioni e richieste in insight per esercente.",
+        "terms": ["dashboard", "metriche", "analytics", "conversion", "vendite", "report", "insight"],
+        "tools": ["knowledge_search", "customer_profile"],
+        "tone": "business, sintetico, orientato ad azioni",
+        "instruction": "Sintetizza insight su intenzioni, richieste, prodotti e prossime azioni commerciali.",
+        "fallback": "Se i dati sono pochi, evidenzia il limite e suggerisci cosa tracciare."
+      }
+    ]
+  },
+  "integrations": {
+    "posProvider": "generic-webhook",
+    "crmProvider": "make",
+    "bookingUrl": "",
+    "paymentUrl": "",
+    "makeWebhookUrl": "",
+    "zapierWebhookUrl": ""
+  },
+  "ui": {
+    "enableSuggestions": true,
+    "enableDynamicComponents": true,
+    "enableNLP": false,
+    "showAgentTrace": false,
+    "showSidebar": false,
+    "maxRecommendations": 3,
+    "welcomeMessage": "Benvenuto da CafeConnect Roastery. Posso consigliarti pranzo, colazione, prodotti specialty, allergeni o preparare un ordine."
+  },
+  "privacy": {
+    "enabled": true,
+    "bannerTitle": "Preferenze privacy",
+    "bannerMessage": "Usiamo i dati minimi necessari per gestire conversazione, carrello e preferenze locali.",
+    "additionalInfo": "Le preferenze personali restano sul dispositivo salvo consenso esplicito.",
+    "policyLink": "https://cafeconnect.example.com/privacy",
+    "consentLabels": {
+      "minimal": "Solo essenziali",
+      "functional": "Funzionali",
+      "analytics": "Esperienza completa"
+    },
+    "consentDescriptions": {
+      "minimal": "Funzioni essenziali e nessuna personalizzazione persistente.",
+      "functional": "Memorizza preferenze locali per migliorare la conversazione.",
+      "analytics": "Permette insight aggregati per migliorare menu e servizio."
+    }
+  },
+  "dataGovernance": {
+    "customerProfileStorage": "local-only",
+    "conversationTranscript": "local",
+    "analyticsEvents": "gateway-aggregate",
+    "tenantIsolation": "schema-per-tenant",
+    "retentionDays": 30,
+    "region": "eu",
+    "encryptionMode": "platform",
+    "allowSensitiveInference": false
+  }
+}
