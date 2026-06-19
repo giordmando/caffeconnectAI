@@ -1530,6 +1530,48 @@ input:focus, select:focus, textarea:focus {
   color: #ffffff;
 }
 
+.agent-chip.selected {
+  box-shadow: 0 0 0 2px rgba(44, 74, 115, 0.22);
+}
+
+.agent-editor {
+  background: #f8fafc;
+  border: 1px solid var(--light-gray);
+  border-radius: 8px;
+  margin: 14px 0;
+  padding: 14px;
+}
+
+.agent-editor textarea {
+  min-height: 62px;
+  resize: vertical;
+}
+
+.agent-tool-grid {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-bottom: 14px;
+}
+
+.agent-tool-toggle {
+  align-items: center;
+  background: #ffffff;
+  border: 1px solid var(--light-gray);
+  border-radius: 8px;
+  color: var(--dark-gray);
+  display: flex;
+  font-size: 12px;
+  font-weight: 700;
+  gap: 8px;
+  padding: 8px 10px;
+}
+
+.agent-tool-toggle input {
+  margin: 0;
+  width: auto;
+}
+
 .form-text {
   font-size: 12px;
   color: var(--medium-gray);

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import { IConfigSection } from '../../interfaces/IConfigSection';
 import { AppConfig } from '../../../../config/interfaces/IAppConfig';
 
@@ -12,6 +12,88 @@ const AGENT_OPTIONS = [
   { id: 'knowledge', label: 'Knowledge' },
   { id: 'analytics', label: 'Analytics' }
 ];
+
+const TOOL_OPTIONS = [
+  'search_menu',
+  'search_products',
+  'get_item_detail',
+  'customer_profile',
+  'create_order_draft',
+  'knowledge_search'
+];
+
+const DEFAULT_AGENT_DEFINITIONS = [
+  {
+    id: 'triage',
+    label: 'Triage Agent',
+    goal: 'Capire intento e prossimo agente migliore.',
+    terms: [],
+    tools: TOOL_OPTIONS,
+    tone: 'naturale, breve',
+    instruction: 'Classifica la richiesta e accompagna il cliente verso menu, vendita, ordine o supporto.',
+    fallback: 'Chiedi una domanda di chiarimento.'
+  },
+  {
+    id: 'menu_advisor',
+    label: 'Menu Advisor Agent',
+    goal: 'Consigliare menu e alternative compatibili.',
+    terms: ['menu', 'colazione', 'pranzo', 'aperitivo', 'allerg', 'glutine', 'lattosio'],
+    tools: ['search_menu', 'get_item_detail', 'customer_profile', 'knowledge_search'],
+    tone: 'consulente, rassicurante',
+    instruction: 'Focalizzati su menu, ingredienti, allergeni, fasce orarie e alternative alimentari.',
+    fallback: 'Se manca il menu reale, chiedi di configurarlo.'
+  },
+  {
+    id: 'sales',
+    label: 'Sales Agent',
+    goal: 'Portare interesse verso prodotto, bundle o carrello.',
+    terms: ['prodot', 'comprare', 'acquist', 'regalo', 'box', 'offerta'],
+    tools: ['search_products', 'get_item_detail', 'customer_profile', 'create_order_draft', 'knowledge_search'],
+    tone: 'commerciale leggero',
+    instruction: 'Focalizzati su prodotti acquistabili, bundle, upsell leggero e prossima azione commerciale.',
+    fallback: 'Se manca il catalogo prodotti reale, dichiaralo.'
+  },
+  {
+    id: 'order',
+    label: 'Order Agent',
+    goal: 'Preparare ordine e conferma senza invii automatici.',
+    terms: ['ordine', 'ordina', 'carrello', 'checkout', 'ritiro', 'consegna', 'pagamento'],
+    tools: ['search_menu', 'search_products', 'get_item_detail', 'customer_profile', 'create_order_draft', 'knowledge_search'],
+    tone: 'operativo, preciso',
+    instruction: 'Focalizzati su preparazione ordine, conferma, ritiro, consegna e passaggio al checkout.',
+    fallback: 'Non inviare mai un ordine senza conferma.'
+  },
+  {
+    id: 'knowledge',
+    label: 'Knowledge Agent',
+    goal: 'Rispondere usando solo fonti merchant verificabili.',
+    terms: ['orari', 'wifi', 'prenotazione', 'allergeni', 'policy', 'faq'],
+    tools: ['knowledge_search', 'customer_profile'],
+    tone: 'chiaro, affidabile',
+    instruction: 'Recupera informazioni specifiche dalle fonti merchant configurate.',
+    fallback: 'Se manca la fonte, dichiaralo.'
+  },
+  {
+    id: 'analytics',
+    label: 'Analytics Agent',
+    goal: 'Trasformare richieste in insight per esercente.',
+    terms: ['dashboard', 'metriche', 'analytics', 'vendite', 'report', 'insight'],
+    tools: ['customer_profile', 'knowledge_search'],
+    tone: 'business, sintetico',
+    instruction: 'Focalizzati su insight, performance e azioni consigliate.',
+    fallback: 'Se i dati sono pochi, evidenzia il limite.'
+  }
+];
+
+type AgentDefinition = NonNullable<NonNullable<FullConfig['agents']>['definitions']>[number];
+
+function listToText(values: string[] = []): string {
+  return values.join(', ');
+}
+
+function textToList(value: string): string[] {
+  return value.split(',').map(item => item.trim()).filter(Boolean);
+}
 
 function setupScore(config: FullConfig): number {
   const checks = [
@@ -31,6 +113,7 @@ export const GoLivePanel: React.FC<IConfigSection<FullConfig>> = ({
   onChange,
   className = ''
 }) => {
+  const [selectedAgentId, setSelectedAgentId] = useState('triage');
   const tenant = config.tenant || {
     merchantId: '',
     workspaceId: '',
@@ -40,8 +123,17 @@ export const GoLivePanel: React.FC<IConfigSection<FullConfig>> = ({
   const agents = config.agents || {
     enabled: true,
     activeAgents: [],
-    handoffMode: 'auto'
+    handoffMode: 'auto',
+    definitions: DEFAULT_AGENT_DEFINITIONS
   };
+  const agentDefinitions = useMemo(() => {
+    const configured = Array.isArray(agents.definitions) ? agents.definitions : [];
+    return DEFAULT_AGENT_DEFINITIONS.map(defaultAgent => ({
+      ...defaultAgent,
+      ...(configured.find(agent => agent.id === defaultAgent.id) || {})
+    }));
+  }, [agents.definitions]);
+  const selectedAgent = agentDefinitions.find(agent => agent.id === selectedAgentId) || agentDefinitions[0];
   const integrations = config.integrations || {};
   const score = setupScore(config);
 
@@ -51,6 +143,13 @@ export const GoLivePanel: React.FC<IConfigSection<FullConfig>> = ({
 
   const updateAgents = (field: string, value: any) => {
     onChange('agents', { ...agents, [field]: value });
+  };
+
+  const updateAgentDefinition = (agentId: string, patch: Partial<AgentDefinition>) => {
+    const nextDefinitions = agentDefinitions.map(agent =>
+      agent.id === agentId ? { ...agent, ...patch } : agent
+    );
+    updateAgents('definitions', nextDefinitions);
   };
 
   const updateIntegrations = (field: string, value: any) => {
@@ -132,7 +231,7 @@ export const GoLivePanel: React.FC<IConfigSection<FullConfig>> = ({
         </section>
 
         <section className="go-live-block">
-          <h4>Agenti specializzati</h4>
+          <h4>Agent Studio</h4>
           <label className="config-toggle">
             <input
               type="checkbox"
@@ -146,13 +245,108 @@ export const GoLivePanel: React.FC<IConfigSection<FullConfig>> = ({
               <button
                 key={agent.id}
                 type="button"
-                className={agents.activeAgents.includes(agent.id) ? 'agent-chip active' : 'agent-chip'}
+                className={[
+                  agents.activeAgents.includes(agent.id) ? 'agent-chip active' : 'agent-chip',
+                  selectedAgentId === agent.id ? 'selected' : ''
+                ].filter(Boolean).join(' ')}
                 onClick={() => toggleAgent(agent.id)}
+                onDoubleClick={() => setSelectedAgentId(agent.id)}
               >
                 {agent.label}
               </button>
             ))}
           </div>
+          <div className="form-group">
+            <label htmlFor="agent-editor-select">Modifica agente</label>
+            <select
+              id="agent-editor-select"
+              value={selectedAgentId}
+              onChange={(event) => setSelectedAgentId(event.target.value)}
+            >
+              {agentDefinitions.map(agent => (
+                <option key={agent.id} value={agent.id}>{agent.label}</option>
+              ))}
+            </select>
+          </div>
+          {selectedAgent && (
+            <div className="agent-editor">
+              <div className="go-live-inline">
+                <div className="form-group">
+                  <label htmlFor="agent-label">Nome</label>
+                  <input
+                    id="agent-label"
+                    type="text"
+                    value={selectedAgent.label}
+                    onChange={(event) => updateAgentDefinition(selectedAgent.id, { label: event.target.value })}
+                  />
+                </div>
+                <div className="form-group">
+                  <label htmlFor="agent-tone">Tono</label>
+                  <input
+                    id="agent-tone"
+                    type="text"
+                    value={selectedAgent.tone || ''}
+                    onChange={(event) => updateAgentDefinition(selectedAgent.id, { tone: event.target.value })}
+                  />
+                </div>
+              </div>
+              <div className="form-group">
+                <label htmlFor="agent-goal">Obiettivo</label>
+                <textarea
+                  id="agent-goal"
+                  value={selectedAgent.goal}
+                  onChange={(event) => updateAgentDefinition(selectedAgent.id, { goal: event.target.value })}
+                  rows={2}
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="agent-terms">Trigger intenti</label>
+                <input
+                  id="agent-terms"
+                  type="text"
+                  value={listToText(selectedAgent.terms)}
+                  onChange={(event) => updateAgentDefinition(selectedAgent.id, { terms: textToList(event.target.value) })}
+                />
+              </div>
+              <div className="agent-tool-grid">
+                {TOOL_OPTIONS.map(tool => (
+                  <label key={tool} className="agent-tool-toggle">
+                    <input
+                      type="checkbox"
+                      checked={(selectedAgent.tools || []).includes(tool)}
+                      onChange={(event) => {
+                        const tools = selectedAgent.tools || [];
+                        updateAgentDefinition(selectedAgent.id, {
+                          tools: event.target.checked
+                            ? Array.from(new Set([...tools, tool]))
+                            : tools.filter(item => item !== tool)
+                        });
+                      }}
+                    />
+                    <span>{tool}</span>
+                  </label>
+                ))}
+              </div>
+              <div className="form-group">
+                <label htmlFor="agent-instruction">Istruzioni operative</label>
+                <textarea
+                  id="agent-instruction"
+                  value={selectedAgent.instruction || ''}
+                  onChange={(event) => updateAgentDefinition(selectedAgent.id, { instruction: event.target.value })}
+                  rows={3}
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="agent-fallback">Fallback</label>
+                <input
+                  id="agent-fallback"
+                  type="text"
+                  value={selectedAgent.fallback || ''}
+                  onChange={(event) => updateAgentDefinition(selectedAgent.id, { fallback: event.target.value })}
+                />
+              </div>
+            </div>
+          )}
           <div className="form-group">
             <label htmlFor="agent-handoff">Handoff</label>
             <select

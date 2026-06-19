@@ -11,7 +11,7 @@ Il progetto combina una web app React/PWA con un AI Gateway server-side. Il gate
 - **Componenti dinamici**: la chat mostra card, carousel e dettagli prodotto invece di solo testo.
 - **Gateway server-side**: le chiamate al modello e i tool vivono fuori dal browser.
 - **Demo mode**: funziona anche senza `OPENAI_API_KEY`, usando dati locali deterministici.
-- **Go Live Center**: tenant merchant, agenti specializzati e preset integrazioni in un unico pannello operativo.
+- **Go Live Center**: tenant merchant, Agent Studio, agenti specializzati e preset integrazioni in un unico pannello operativo.
 - **Pronto per evolvere in SaaS**: multi-agente, dashboard, tracciamento conversioni e integrazioni operative sono gia nella direzione architetturale.
 
 ## Esperienza demo
@@ -131,7 +131,7 @@ Guide rapide:
 Priorita consigliate:
 
 1. Demo commerciale verticale con dati e immagini realistiche.
-2. Router multi-agente: triage, menu advisor, sales, order, campaign, analytics.
+2. Router multi-agente: triage, menu advisor, sales, order, campaign, analytics, con tool autorizzati per agente.
 3. Dashboard esercente con conversioni, domande frequenti, prodotti richiesti e richieste senza risposta.
 4. Integrazioni: Google Sheets, webhook ordine, WhatsApp Business, pagamenti, POS.
 5. Multi-tenant SaaS con configurazioni server-side, sicurezza, rate limit e cost tracking AI.
