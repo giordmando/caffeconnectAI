@@ -5,6 +5,7 @@ export interface ChatConfig {
   enableSuggestions?: boolean;
   enableDynamicComponents?: boolean;
   enableNLP?: boolean;
+  showAgentTrace?: boolean;
   maxRecommendations?: number;
 }
 

@@ -6,6 +6,7 @@ interface MessageBubbleProps {
   message: Message;
   isTyping?: boolean;
   className?: string;
+  showTechnicalTrace?: boolean;
 }
 
 /**
@@ -14,7 +15,8 @@ interface MessageBubbleProps {
 export const MessageBubble: React.FC<MessageBubbleProps> = ({
   message,
   isTyping = false,
-  className = ''
+  className = '',
+  showTechnicalTrace = false
 }) => {
   const isUser = message.role === 'user';
   const bubbleClassName = `message ${isUser ? 'user-message' : 'ai-message'} ${isTyping ? 'typing' : ''} ${className}`;
@@ -65,7 +67,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
   
   return (
     <div className={bubbleClassName}>
-      {!isUser && message.metadata?.agent && (
+      {!isUser && showTechnicalTrace && message.metadata?.agent && (
         <div className="message-agent-strip">
           <span>{message.metadata.agent.label.replace(' Agent', '')}</span>
           {typeof message.metadata.agent.confidence === 'number' && (
@@ -77,7 +79,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
         className="message-content"
         dangerouslySetInnerHTML={{ __html: formatContent(message.content) }}
       ></div>
-      {!isUser && message.metadata?.trace && message.metadata.trace.length > 0 && (
+      {!isUser && showTechnicalTrace && message.metadata?.trace && message.metadata.trace.length > 0 && (
         <div className="message-trace">
           {message.metadata.trace.map((step, index) => (
             <span key={`${step.label}-${index}`}>

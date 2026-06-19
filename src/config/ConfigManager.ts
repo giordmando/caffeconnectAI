@@ -281,6 +281,7 @@ export class ConfigManager implements IConfigManager {
         enableSuggestions: true,
         enableDynamicComponents: true,
         enableNLP: false,
+        showAgentTrace: false,
         showSidebar: false,
         maxRecommendations: 3,
         welcomeMessage: 'Benvenuto da {business.name}! Posso consigliarti colazione, prodotti specialty, allergeni o preparare un ordine.'

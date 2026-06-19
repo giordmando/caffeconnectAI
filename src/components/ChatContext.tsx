@@ -273,7 +273,19 @@ export const ChatProvider: React.FC<{
       trace.push({ label: 'Profilo', value: 'preferenze cliente' });
     }
     if (toolNames.length > 0) {
-      trace.push({ label: 'Azione', value: Array.from(new Set(toolNames)).join(', ') });
+      const readableTools = Array.from(new Set(toolNames)).map(toolName => {
+        const labels: Record<string, string> = {
+          runtime_knowledge_search: 'ricerca fonti merchant',
+          knowledge_search: 'ricerca knowledge',
+          search_menu: 'ricerca menu',
+          search_products: 'ricerca prodotti',
+          get_item_detail: 'dettaglio articolo',
+          customer_profile: 'profilo cliente',
+          create_order_draft: 'bozza ordine'
+        };
+        return labels[toolName] || toolName;
+      });
+      trace.push({ label: 'Azione', value: readableTools.join(', ') });
     }
 
     return {

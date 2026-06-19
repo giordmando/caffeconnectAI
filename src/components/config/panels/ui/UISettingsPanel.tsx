@@ -53,6 +53,21 @@ export const UISettingsPanel: React.FC<IConfigSection<UIConfig>> = ({
           Mostra insight NLP nella sidebar
         </small>
       </div>
+
+      <div className="form-group">
+        <div className="form-check">
+          <input
+            type="checkbox"
+            id="show-agent-trace"
+            checked={Boolean(config.showAgentTrace)}
+            onChange={(e) => onChange('showAgentTrace', e.target.checked)}
+          />
+          <label htmlFor="show-agent-trace">Mostra traccia agenti</label>
+        </div>
+        <small className="form-text">
+          Utile in demo/admin; nella chat cliente resta disattivata
+        </small>
+      </div>
       
       <div className="form-group">
         <div className="form-check">

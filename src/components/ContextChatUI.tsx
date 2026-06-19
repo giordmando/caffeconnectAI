@@ -29,6 +29,7 @@ const ChatInterface: React.FC = () => {
 
   const { appConfig } = useServices();
   const chatTitle = appConfig?.business?.name || 'CafeConnect AI';
+  const showTechnicalTrace = Boolean(appConfig?.ui?.showAgentTrace);
 
   return (
     <div className="chat-container">
@@ -46,6 +47,7 @@ const ChatInterface: React.FC = () => {
             <MessageBubble
               key={`${msg.timestamp}-${index}-${msg.role}`}
               message={msg}
+              showTechnicalTrace={showTechnicalTrace}
             />
           ))}
 
@@ -53,6 +55,7 @@ const ChatInterface: React.FC = () => {
             <MessageBubble
               message={{ role: 'assistant', content: '', timestamp: Date.now() }}
               isTyping={true}
+              showTechnicalTrace={showTechnicalTrace}
             />
           )}
 
