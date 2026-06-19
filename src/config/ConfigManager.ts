@@ -10,6 +10,7 @@ export class ConfigManager implements IConfigManager {
   private static instance: ConfigManager;
   private config: AppConfig;
   private isLoaded: boolean = false;
+  private remoteConfigUrl?: string;
 
   private constructor(initialConfig?: Partial<AppConfig>) {
     this.config = this.mergeWithDefault(initialConfig || {});
@@ -27,8 +28,10 @@ export class ConfigManager implements IConfigManager {
         console.log('ConfigManager already initialized with local/default config.');
         return;
     }
-    if (configUrl) {
-      await this.loadConfig(configUrl);
+    const resolvedConfigUrl = configUrl || this.getGatewayMerchantConfigUrl();
+    if (resolvedConfigUrl) {
+      this.remoteConfigUrl = resolvedConfigUrl;
+      await this.loadConfig(resolvedConfigUrl);
     } else {
       // Prova a caricare da localStorage come fallback prima dei default assoluti
       this.loadFromLocalStorageOrDefaults();
@@ -66,7 +69,7 @@ export class ConfigManager implements IConfigManager {
       }
 
       const loadedConfig = await response.json();
-      this.config = this.mergeWithDefault(loadedConfig);
+      this.config = this.mergeWithDefault(loadedConfig.config || loadedConfig);
       this.isLoaded = true;
       this.saveToLocalStorage(); // Salva la configurazione caricata remotamente
       console.log('Remote configuration loaded and saved to localStorage successfully');
@@ -100,6 +103,101 @@ export class ConfigManager implements IConfigManager {
     }
   }
 
+  private getGatewayMerchantConfigUrl(): string | undefined {
+    const env = typeof process !== 'undefined' ? process.env : {};
+    const explicitUrl = env.REACT_APP_MERCHANT_CONFIG_URL;
+    const gatewayUrl = env.REACT_APP_AI_GATEWAY_URL;
+
+    if (explicitUrl) {
+      return explicitUrl;
+    }
+
+    if (!gatewayUrl) {
+      return undefined;
+    }
+
+    const merchantId = env.REACT_APP_MERCHANT_ID || this.config.tenant?.merchantId;
+    if (!merchantId) {
+      return undefined;
+    }
+
+    return `${gatewayUrl.replace(/\/$/, '')}/v1/merchants/${encodeURIComponent(merchantId)}/config`;
+  }
+
+  private saveToRemoteConfig(): void {
+    if (!this.remoteConfigUrl) {
+      return;
+    }
+
+    fetch(this.remoteConfigUrl, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ config: this.getServerSafeConfig() })
+    }).catch(error => {
+      console.warn('Remote merchant configuration save failed.', error);
+    });
+  }
+
+  private getServerSafeConfig(): Partial<AppConfig> {
+    const allowedSections: Array<keyof AppConfig> = [
+      'business',
+      'catalog',
+      'knowledgeBase',
+      'knowledgeSources',
+      'merchantKnowledge',
+      'tenant',
+      'agents',
+      'integrations',
+      'ui',
+      'privacy',
+      'dataGovernance'
+    ];
+
+    const clean: Record<string, any> = {};
+
+    allowedSections.forEach(section => {
+      const value = this.config[section];
+      if (value !== undefined) {
+        clean[section] = this.stripSensitiveConfig(value) as any;
+      }
+    });
+
+    return clean as Partial<AppConfig>;
+  }
+
+  private stripSensitiveConfig(value: any): any {
+    const blockedKeys = new Set([
+      'apiKey',
+      'openaiApiKey',
+      'secret',
+      'token',
+      'password',
+      'userContext',
+      'customerProfile',
+      'customerProfiles',
+      'conversation',
+      'conversations',
+      'transcript',
+      'transcripts',
+      'messages'
+    ]);
+
+    if (Array.isArray(value)) {
+      return value.map(item => this.stripSensitiveConfig(item));
+    }
+
+    if (!value || typeof value !== 'object') {
+      return value;
+    }
+
+    return Object.entries(value).reduce((clean, [key, entryValue]) => {
+      if (!blockedKeys.has(key)) {
+        clean[key] = this.stripSensitiveConfig(entryValue);
+      }
+      return clean;
+    }, {} as Record<string, any>);
+  }
+
   /**
    * Ottiene la configurazione completa
    */
@@ -129,6 +227,7 @@ export class ConfigManager implements IConfigManager {
     if (Array.isArray(data)) {
       this.config[section] = data as AppConfig[K];
       this.saveToLocalStorage();
+      this.saveToRemoteConfig();
       console.log(`Configuration section '${section}' updated and saved.`);
       return;
     }
@@ -137,6 +236,7 @@ export class ConfigManager implements IConfigManager {
     const currentSection = this.config[section] || {};
     this.config[section] = this.deepMerge(currentSection, data) as AppConfig[K];
     this.saveToLocalStorage(); // Salva dopo ogni aggiornamento
+    this.saveToRemoteConfig();
     console.log(`Configuration section '${section}' updated and saved.`);
   }
 

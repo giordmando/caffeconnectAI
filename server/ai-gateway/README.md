@@ -25,6 +25,8 @@ For `tenant.environment=production` or `tenant.plan=pro|enterprise`, the gateway
 - `GET /v1/events/summary`: aggregate business analytics for the merchant dashboard.
 - `POST /v1/orders`: validate and forward checkout orders to the merchant webhook.
 - `GET /v1/orders?limit=25`: recent gateway order submissions and failures.
+- `GET /v1/merchants/:merchantId/config`: read server-side merchant configuration.
+- `PUT /v1/merchants/:merchantId/config`: save server-side merchant configuration.
 
 ## Current tools
 
@@ -65,6 +67,39 @@ server/ai-gateway/data/businessEvents.json
 ```
 
 This file is intentionally ignored by git.
+
+## Merchant Configuration Store
+
+Enterprise merchant configuration can be stored server-side instead of relying only on browser `localStorage`:
+
+```text
+GET /v1/merchants/cafeconnect/config
+PUT /v1/merchants/cafeconnect/config
+```
+
+The store persists only allowlisted merchant settings: business, catalog, knowledge, tenant, agents, integrations, UI, privacy, and data governance.
+It strips API keys, secrets, customer profiles, user context, conversation messages, and transcripts before writing to disk.
+
+The React app can load and mirror merchant config through the gateway when these frontend environment variables are set:
+
+```bash
+REACT_APP_AI_GATEWAY_URL=https://caffeconnectai.onrender.com
+REACT_APP_MERCHANT_ID=cafeconnect-roastery
+```
+
+Alternatively, point the app at an explicit config endpoint:
+
+```bash
+REACT_APP_MERCHANT_CONFIG_URL=https://caffeconnectai.onrender.com/v1/merchants/cafeconnect-roastery/config
+```
+
+Runtime config files are stored in:
+
+```text
+server/ai-gateway/data/merchant-configs/
+```
+
+This directory is intentionally ignored by git. Customer taste/preference storage remains controlled by `dataGovernance.customerProfileStorage` and defaults to local-only.
 
 ## Order Webhook Gateway
 

@@ -6,3 +6,4 @@ node_modules/*
 package-lock.json
 server/ai-gateway/data/businessEvents.json
 server/ai-gateway/data/orders.json
+server/ai-gateway/data/merchant-configs/

@@ -8,6 +8,7 @@ const { createDefaultToolRegistry } = require('./toolRegistry');
 const { EventStore } = require('./eventStore');
 const { OrderProcessor } = require('./orderProcessor');
 const { OrderStore } = require('./orderStore');
+const { MerchantConfigStore } = require('./merchantConfigStore');
 
 const config = createGatewayConfig();
 const toolRegistry = createDefaultToolRegistry(config);
@@ -19,6 +20,7 @@ const openaiClient = new OpenAIResponsesClient({
 const orchestrator = new AgentOrchestrator({ openaiClient, toolRegistry, config });
 const eventStore = new EventStore({ maxEvents: config.maxBusinessEvents });
 const orderStore = new OrderStore({ maxOrders: config.maxOrders });
+const merchantConfigStore = new MerchantConfigStore();
 const orderProcessor = new OrderProcessor({ defaultWebhookUrl: config.orderWebhookUrl });
 
 function getCorsOrigin(req) {
@@ -56,7 +58,7 @@ function corsHeaders(req) {
   return {
     'Access-Control-Allow-Origin': getCorsOrigin(req),
     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, OPTIONS',
     'Access-Control-Max-Age': '86400',
     'Vary': 'Origin'
   };
@@ -133,6 +135,8 @@ async function handleRequest(req, res) {
   }
 
   try {
+    const merchantConfigMatch = url.pathname.match(/^\/v1\/merchants\/([^/]+)\/config$/);
+
     if (req.method === 'GET' && (url.pathname === '/' || url.pathname === '/index.html')) {
       return sendHtml(req, res, 200, getHarnessHtml());
     }
@@ -149,6 +153,21 @@ async function handleRequest(req, res) {
 
     if (req.method === 'GET' && url.pathname === '/v1/tools') {
       return sendJson(req, res, 200, { tools: toolRegistry.list() });
+    }
+
+    if (merchantConfigMatch && req.method === 'GET') {
+      const merchantId = decodeURIComponent(merchantConfigMatch[1]);
+      const record = merchantConfigStore.get(merchantId);
+      return sendJson(req, res, 200, record
+        ? { found: true, ...record }
+        : { found: false, merchantId, config: null });
+    }
+
+    if (merchantConfigMatch && req.method === 'PUT') {
+      const merchantId = decodeURIComponent(merchantConfigMatch[1]);
+      const body = await readBody(req);
+      const record = merchantConfigStore.put(merchantId, body.config || body);
+      return sendJson(req, res, 200, { ok: true, ...record });
     }
 
     if (req.method === 'GET' && url.pathname === '/v1/events/summary') {
@@ -228,6 +247,10 @@ async function handleRequest(req, res) {
 
     return sendJson(req, res, 404, { error: 'Route not found' });
   } catch (error) {
+    if (error.message === 'Invalid merchant id') {
+      return sendJson(req, res, 400, { error: error.message });
+    }
+
     console.error('[ai-gateway] Request failed:', error);
     return sendJson(req, res, 500, { error: error.message || 'Internal gateway error' });
   }
