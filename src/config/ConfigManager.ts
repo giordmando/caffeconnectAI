@@ -2,6 +2,11 @@
 import { AppConfig } from "./interfaces/IAppConfig";
 import { IConfigManager } from "./interfaces/IConfigManager";
 
+function getRuntimeEnv(): Record<string, string | undefined> {
+  return typeof process !== 'undefined'
+    ? process.env as Record<string, string | undefined>
+    : {};
+}
 
 /**
  * Gestore della configurazione dell'applicazione * Implementa il pattern Singleton per accesso globale
@@ -106,7 +111,7 @@ export class ConfigManager implements IConfigManager {
   }
 
   private getGatewayMerchantConfigUrl(): string | undefined {
-    const env = typeof process !== 'undefined' ? process.env : {};
+    const env = getRuntimeEnv();
     const explicitUrl = env.REACT_APP_MERCHANT_CONFIG_URL;
     const gatewayUrl = env.REACT_APP_AI_GATEWAY_URL;
 
@@ -168,7 +173,7 @@ export class ConfigManager implements IConfigManager {
   }
 
   private getRemoteConfigHeaders(accessMode: 'read' | 'write'): HeadersInit {
-    const env = typeof process !== 'undefined' ? process.env : {};
+    const env = getRuntimeEnv();
     const readKey = env.REACT_APP_MERCHANT_CONFIG_READ_KEY || env.REACT_APP_MERCHANT_CONFIG_KEY;
     const writeKey = env.REACT_APP_MERCHANT_CONFIG_WRITE_KEY || env.REACT_APP_MERCHANT_CONFIG_KEY;
     const key = accessMode === 'write' ? writeKey : readKey;
