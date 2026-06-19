@@ -98,7 +98,7 @@ export function AdminControlPlane({ appConfig, onClose, onSaved }: AdminControlP
 
       setConfigText(JSON.stringify(payload.config || getSafeMerchantConfig(appConfig), null, 2));
       setStatus(payload.found ? 'Configurazione caricata dal gateway.' : 'Nessuna configurazione remota: pronta la base locale.');
-    } catch (error: any) {
+    } catch (error) {
       setStatus(`Errore caricamento: ${error.message || 'richiesta fallita'}`);
     } finally {
       setIsBusy(false);
@@ -125,7 +125,7 @@ export function AdminControlPlane({ appConfig, onClose, onSaved }: AdminControlP
       setConfigText(JSON.stringify(payload.config || parsedConfig, null, 2));
       setStatus(`Configurazione salvata. Versione ${payload.version || 'n/d'}.`);
       await onSaved?.();
-    } catch (error: any) {
+    } catch (error) {
       setStatus(`Errore salvataggio: ${error.message || 'JSON non valido o richiesta fallita'}`);
     } finally {
       setIsBusy(false);
