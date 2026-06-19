@@ -63,7 +63,9 @@ export class ConfigManager implements IConfigManager {
    */
   public async loadConfig(configUrl: string): Promise<void> {
     try {
-      const response = await fetch(configUrl);
+      const response = await fetch(configUrl, {
+        headers: this.getRemoteConfigHeaders('read')
+      });
       if (!response.ok) {
         throw new Error(`Failed to load config: ${response.status} ${response.statusText}`);
       }
@@ -131,7 +133,7 @@ export class ConfigManager implements IConfigManager {
 
     fetch(this.remoteConfigUrl, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: this.getRemoteConfigHeaders('write'),
       body: JSON.stringify({ config: this.getServerSafeConfig() })
     }).catch(error => {
       console.warn('Remote merchant configuration save failed.', error);
@@ -163,6 +165,22 @@ export class ConfigManager implements IConfigManager {
     });
 
     return clean as Partial<AppConfig>;
+  }
+
+  private getRemoteConfigHeaders(accessMode: 'read' | 'write'): HeadersInit {
+    const env = typeof process !== 'undefined' ? process.env : {};
+    const readKey = env.REACT_APP_MERCHANT_CONFIG_READ_KEY || env.REACT_APP_MERCHANT_CONFIG_KEY;
+    const writeKey = env.REACT_APP_MERCHANT_CONFIG_WRITE_KEY || env.REACT_APP_MERCHANT_CONFIG_KEY;
+    const key = accessMode === 'write' ? writeKey : readKey;
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json'
+    };
+
+    if (key) {
+      headers.Authorization = `Bearer ${key}`;
+    }
+
+    return headers;
   }
 
   private stripSensitiveConfig(value: any): any {

@@ -57,7 +57,7 @@ function isTrustedRenderOrigin(origin) {
 function corsHeaders(req) {
   return {
     'Access-Control-Allow-Origin': getCorsOrigin(req),
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-API-Key',
     'Access-Control-Allow-Methods': 'GET, POST, PUT, OPTIONS',
     'Access-Control-Max-Age': '86400',
     'Vary': 'Origin'
@@ -102,6 +102,24 @@ function readBody(req) {
 
     req.on('error', reject);
   });
+}
+
+function getRequestApiKey(req) {
+  const authHeader = req.headers.authorization || '';
+  const bearerMatch = authHeader.match(/^Bearer\s+(.+)$/i);
+  return req.headers['x-api-key'] || (bearerMatch ? bearerMatch[1] : '');
+}
+
+function isMerchantConfigAuthorized(req, accessMode) {
+  const requiredKey = accessMode === 'write'
+    ? config.merchantConfigWriteKey
+    : config.merchantConfigReadKey;
+
+  if (!requiredKey) {
+    return true;
+  }
+
+  return getRequestApiKey(req) === requiredKey;
 }
 
 function getHarnessHtml() {
@@ -156,6 +174,10 @@ async function handleRequest(req, res) {
     }
 
     if (merchantConfigMatch && req.method === 'GET') {
+      if (!isMerchantConfigAuthorized(req, 'read')) {
+        return sendJson(req, res, 401, { error: 'Merchant config read access denied' });
+      }
+
       const merchantId = decodeURIComponent(merchantConfigMatch[1]);
       const record = merchantConfigStore.get(merchantId);
       return sendJson(req, res, 200, record
@@ -164,6 +186,10 @@ async function handleRequest(req, res) {
     }
 
     if (merchantConfigMatch && req.method === 'PUT') {
+      if (!isMerchantConfigAuthorized(req, 'write')) {
+        return sendJson(req, res, 401, { error: 'Merchant config write access denied' });
+      }
+
       const merchantId = decodeURIComponent(merchantConfigMatch[1]);
       const body = await readBody(req);
       const record = merchantConfigStore.put(merchantId, body.config || body);

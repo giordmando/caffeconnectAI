@@ -85,6 +85,7 @@ The React app can load and mirror merchant config through the gateway when these
 ```bash
 REACT_APP_AI_GATEWAY_URL=https://caffeconnectai.onrender.com
 REACT_APP_MERCHANT_ID=cafeconnect-roastery
+REACT_APP_MERCHANT_CONFIG_READ_KEY=read-only-key
 ```
 
 Alternatively, point the app at an explicit config endpoint:
@@ -92,6 +93,16 @@ Alternatively, point the app at an explicit config endpoint:
 ```bash
 REACT_APP_MERCHANT_CONFIG_URL=https://caffeconnectai.onrender.com/v1/merchants/cafeconnect-roastery/config
 ```
+
+Protect the gateway endpoints on Render by setting these variables on the Node web service:
+
+```bash
+AI_GATEWAY_MERCHANT_CONFIG_READ_KEY=read-only-key
+AI_GATEWAY_MERCHANT_CONFIG_WRITE_KEY=admin-write-key
+```
+
+If the keys are omitted, the gateway keeps demo-compatible open access. For enterprise deployments, configure both keys.
+Only expose the read key in the public React app. Do not expose the write key in a customer-facing build; keep writes behind an authenticated admin surface or a backend control plane.
 
 Runtime config files are stored in:
 
