@@ -1597,6 +1597,7 @@ input:focus, select:focus, textarea:focus {
   border: 1px solid var(--light-gray);
   border-radius: 8px;
   padding: 16px;
+  scroll-margin-top: 16px;
 }
 
 .go-live-block:last-child {

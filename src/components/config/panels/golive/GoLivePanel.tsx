@@ -15,6 +15,7 @@ interface ReadinessCheck {
   status: ReadinessStatus;
   detail: string;
   targetTab: ReadinessTargetTab;
+  targetSection?: 'tenant' | 'agents' | 'integrations';
   actionLabel: string;
 }
 
@@ -179,6 +180,7 @@ function getReadinessChecks(config: FullConfig): ReadinessCheck[] {
       status: hasAgents ? 'ready' : 'missing',
       detail: hasAgents ? `${config.agents?.activeAgents.length || 0} agenti attivi.` : 'Attiva router agentico e almeno un agente.',
       targetTab: 'golive',
+      targetSection: 'agents',
       actionLabel: 'Configura agenti'
     },
     {
@@ -186,6 +188,7 @@ function getReadinessChecks(config: FullConfig): ReadinessCheck[] {
       status: hasOrderChannel ? 'ready' : 'missing',
       detail: hasOrderChannel ? 'Canale ordine/handoff configurato.' : 'Aggiungi WhatsApp, order webhook, Make o Zapier.',
       targetTab: 'golive',
+      targetSection: 'integrations',
       actionLabel: 'Configura handoff'
     },
     {
@@ -193,6 +196,7 @@ function getReadinessChecks(config: FullConfig): ReadinessCheck[] {
       status: hasOperationalIntegration ? 'ready' : 'warning',
       detail: hasOperationalIntegration ? 'Provider operativo selezionato.' : 'Non bloccante per demo, richiesto per vendita reale.',
       targetTab: 'golive',
+      targetSection: 'integrations',
       actionLabel: 'Configura integrazioni'
     },
     {
@@ -262,6 +266,19 @@ export const GoLivePanel: React.FC<GoLivePanelProps> = ({
     onChange('integrations', { ...integrations, [field]: value });
   };
 
+  const handleReadinessAction = (check: ReadinessCheck) => {
+    if (check.targetTab !== 'golive') {
+      onNavigateTab?.(check.targetTab);
+      return;
+    }
+
+    if (check.targetSection) {
+      document
+        .getElementById(`go-live-${check.targetSection}`)
+        ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
+
   const toggleAgent = (agentId: string) => {
     const activeAgents = agents.activeAgents || [];
     const nextAgents = activeAgents.includes(agentId)
@@ -303,7 +320,7 @@ export const GoLivePanel: React.FC<GoLivePanelProps> = ({
               <button
                 type="button"
                 className="readiness-action"
-                onClick={() => onNavigateTab?.(check.targetTab)}
+                onClick={() => handleReadinessAction(check)}
               >
                 {check.actionLabel}
               </button>
@@ -313,7 +330,7 @@ export const GoLivePanel: React.FC<GoLivePanelProps> = ({
       </section>
 
       <div className="go-live-grid">
-        <section className="go-live-block">
+        <section className="go-live-block" id="go-live-tenant">
           <h4>Tenant merchant</h4>
           <div className="form-group">
             <label htmlFor="tenant-merchant-id">Merchant ID</label>
@@ -364,7 +381,7 @@ export const GoLivePanel: React.FC<GoLivePanelProps> = ({
           </div>
         </section>
 
-        <section className="go-live-block">
+        <section className="go-live-block" id="go-live-agents">
           <h4>Agent Studio</h4>
           <label className="config-toggle">
             <input
@@ -494,7 +511,7 @@ export const GoLivePanel: React.FC<GoLivePanelProps> = ({
           </div>
         </section>
 
-        <section className="go-live-block">
+        <section className="go-live-block" id="go-live-integrations">
           <h4>Integrazioni operative</h4>
           <div className="go-live-inline">
             <div className="form-group">
