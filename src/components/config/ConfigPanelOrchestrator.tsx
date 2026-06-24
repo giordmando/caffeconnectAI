@@ -29,6 +29,7 @@ interface ConfigPanelOrchestratorProps {
 type PanelProps<T> = {
   config: T;
   onChange: (field: string, value: any) => void;
+  onNavigateTab?: (tab: string) => void;
   className?: string;
 };
 
@@ -95,6 +96,7 @@ const PANEL_COMPONENTS: Record<string, React.FC<PanelProps<any>>[]> = {
         {...props}
         config={props.config}
         onChange={(field, value) => props.onChange(field, value)}
+        onNavigateTab={props.onNavigateTab}
         className="config-panel-section"
       />
     ),
@@ -125,6 +127,7 @@ export const ConfigPanelOrchestrator: React.FC<ConfigPanelOrchestratorProps> = (
 
     const panelSharedProps = {
       config,
+      onNavigateTab: setActiveTab,
       onChange: (sectionOrField: string, value: any) => {
         if (
           activeTab === 'knowledge' &&

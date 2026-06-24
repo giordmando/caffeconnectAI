@@ -1528,8 +1528,9 @@ input:focus, select:focus, textarea:focus {
   background-color: #ffffff;
   border: 1px solid var(--light-gray);
   border-radius: 8px;
-  display: flex;
+  display: grid;
   gap: 10px;
+  grid-template-columns: 10px minmax(0, 1fr) auto;
   padding: 12px;
 }
 
@@ -1565,6 +1566,25 @@ input:focus, select:focus, textarea:focus {
 
 .readiness-missing .readiness-dot {
   background-color: #dc2626;
+}
+
+.readiness-action {
+  align-self: center;
+  background-color: #f7fafc;
+  border: 1px solid var(--light-gray);
+  border-radius: 999px;
+  color: var(--primary-color);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 800;
+  padding: 7px 10px;
+  white-space: nowrap;
+}
+
+.readiness-action:hover {
+  background-color: var(--primary-color);
+  border-color: var(--primary-color);
+  color: #ffffff;
 }
 
 .go-live-grid {
@@ -1958,6 +1978,13 @@ input:focus, select:focus, textarea:focus {
   }
   .readiness-check-grid {
     grid-template-columns: 1fr;
+  }
+  .readiness-check {
+    grid-template-columns: 10px minmax(0, 1fr);
+  }
+  .readiness-action {
+    grid-column: 2;
+    justify-self: start;
   }
   .config-panel-orchestrator, .business-dashboard {
       max-height: calc(100vh - 20px); /* Adatta per mobile */

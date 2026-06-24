@@ -3,6 +3,20 @@ import { IConfigSection } from '../../interfaces/IConfigSection';
 import { AppConfig } from '../../../../config/interfaces/IAppConfig';
 
 type FullConfig = AppConfig;
+type ReadinessStatus = 'ready' | 'warning' | 'missing';
+type ReadinessTargetTab = 'business' | 'catalog' | 'knowledge' | 'golive' | 'privacy';
+
+interface GoLivePanelProps extends IConfigSection<FullConfig> {
+  onNavigateTab?: (tab: string) => void;
+}
+
+interface ReadinessCheck {
+  label: string;
+  status: ReadinessStatus;
+  detail: string;
+  targetTab: ReadinessTargetTab;
+  actionLabel: string;
+}
 
 const AGENT_OPTIONS = [
   { id: 'triage', label: 'Triage' },
@@ -101,7 +115,7 @@ function setupScore(config: FullConfig): number {
   return Math.round((checks.filter(Boolean).length / checks.length) * 100);
 }
 
-function getReadinessChecks(config: FullConfig) {
+function getReadinessChecks(config: FullConfig): ReadinessCheck[] {
   const hasBusinessIdentity = Boolean(config.business.name && config.business.telefono);
   const hasMenuEndpoint = Boolean(config.catalog.menuEndpoint);
   const hasProductsEndpoint = Boolean(config.catalog.productsEndpoint);
@@ -138,7 +152,9 @@ function getReadinessChecks(config: FullConfig) {
     {
       label: 'Identita merchant',
       status: hasBusinessIdentity ? 'ready' : 'missing',
-      detail: hasBusinessIdentity ? 'Nome e telefono configurati.' : 'Aggiungi nome locale e telefono.'
+      detail: hasBusinessIdentity ? 'Nome e telefono configurati.' : 'Aggiungi nome locale e telefono.',
+      targetTab: 'business',
+      actionLabel: 'Apri Business'
     },
     {
       label: 'Catalogo menu/prodotti',
@@ -147,44 +163,59 @@ function getReadinessChecks(config: FullConfig) {
         ? 'Endpoint catalogo remoto configurato.'
         : hasDemoCatalog
           ? 'Attivo catalogo demo locale: ok per demo, non per produzione.'
-          : 'Configura endpoint menu o prodotti.'
+          : 'Configura endpoint menu o prodotti.',
+      targetTab: 'catalog',
+      actionLabel: 'Apri Catalogo'
     },
     {
       label: 'Knowledge merchant',
       status: hasKnowledge ? 'ready' : 'missing',
-      detail: hasKnowledge ? 'Fonti knowledge presenti.' : 'Aggiungi FAQ, URL o knowledge strutturata.'
+      detail: hasKnowledge ? 'Fonti knowledge presenti.' : 'Aggiungi FAQ, URL o knowledge strutturata.',
+      targetTab: 'knowledge',
+      actionLabel: 'Apri Knowledge'
     },
     {
       label: 'Agenti specializzati',
       status: hasAgents ? 'ready' : 'missing',
-      detail: hasAgents ? `${config.agents?.activeAgents.length || 0} agenti attivi.` : 'Attiva router agentico e almeno un agente.'
+      detail: hasAgents ? `${config.agents?.activeAgents.length || 0} agenti attivi.` : 'Attiva router agentico e almeno un agente.',
+      targetTab: 'golive',
+      actionLabel: 'Configura agenti'
     },
     {
       label: 'Ordini e handoff',
       status: hasOrderChannel ? 'ready' : 'missing',
-      detail: hasOrderChannel ? 'Canale ordine/handoff configurato.' : 'Aggiungi WhatsApp, order webhook, Make o Zapier.'
+      detail: hasOrderChannel ? 'Canale ordine/handoff configurato.' : 'Aggiungi WhatsApp, order webhook, Make o Zapier.',
+      targetTab: 'golive',
+      actionLabel: 'Configura handoff'
     },
     {
       label: 'POS/CRM operativo',
       status: hasOperationalIntegration ? 'ready' : 'warning',
-      detail: hasOperationalIntegration ? 'Provider operativo selezionato.' : 'Non bloccante per demo, richiesto per vendita reale.'
+      detail: hasOperationalIntegration ? 'Provider operativo selezionato.' : 'Non bloccante per demo, richiesto per vendita reale.',
+      targetTab: 'golive',
+      actionLabel: 'Configura integrazioni'
     },
     {
       label: 'Privacy governance',
       status: hasPrivacyGovernance ? 'ready' : 'missing',
-      detail: hasPrivacyGovernance ? 'Consent, profilo, transcript e analytics governati.' : 'Completa impostazioni privacy e data governance.'
+      detail: hasPrivacyGovernance ? 'Consent, profilo, transcript e analytics governati.' : 'Completa impostazioni privacy e data governance.',
+      targetTab: 'privacy',
+      actionLabel: 'Apri Privacy'
     },
     {
       label: 'Isolamento tenant',
       status: hasTenantIsolation ? 'ready' : 'warning',
-      detail: hasTenantIsolation ? 'Tenant isolato con schema/database dedicato.' : 'Per enterprise preferire schema o database per tenant.'
+      detail: hasTenantIsolation ? 'Tenant isolato con schema/database dedicato.' : 'Per enterprise preferire schema o database per tenant.',
+      targetTab: 'privacy',
+      actionLabel: 'Apri Privacy'
     }
   ];
 }
 
-export const GoLivePanel: React.FC<IConfigSection<FullConfig>> = ({
+export const GoLivePanel: React.FC<GoLivePanelProps> = ({
   config,
   onChange,
+  onNavigateTab,
   className = ''
 }) => {
   const [selectedAgentId, setSelectedAgentId] = useState('triage');
@@ -269,6 +300,13 @@ export const GoLivePanel: React.FC<IConfigSection<FullConfig>> = ({
                 <strong>{check.label}</strong>
                 <p>{check.detail}</p>
               </div>
+              <button
+                type="button"
+                className="readiness-action"
+                onClick={() => onNavigateTab?.(check.targetTab)}
+              >
+                {check.actionLabel}
+              </button>
             </div>
           ))}
         </div>
