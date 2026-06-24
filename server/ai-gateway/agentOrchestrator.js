@@ -715,7 +715,14 @@ class AgentOrchestrator {
       'l assistente',
       'l\'assistente',
       'chiedere se',
-      'proporre '
+      'proporre ',
+      'quando il cliente',
+      'quando l utente',
+      'quando l\'utente',
+      'il cliente chiede',
+      'le proposte salate hanno priorita',
+      'playbook',
+      'policy interna'
     ].some(pattern => lower.includes(pattern));
   }
 

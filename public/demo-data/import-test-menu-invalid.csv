@@ -1,0 +1,4 @@
+id,name,category,price,description,ingredients,allergens,dietaryInfo,timeOfDay,imageUrl
+menu-ok-espresso,Espresso specialty,beverage,1.40,"Espresso intenso con crema persistente.",caffe,,vegan, morning,
+menu-no-price,Toast senza prezzo,lunch,,"Toast con verdure e hummus.","pane; hummus; verdure","glutine; sesamo","vegetarian; lactose-free",afternoon,
+menu-no-description,Bowl senza descrizione,lunch,9.50,,"pollo; farro; verdure","latte; glutine","high-protein",afternoon,

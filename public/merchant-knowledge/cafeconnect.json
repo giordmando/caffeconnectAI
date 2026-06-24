@@ -38,7 +38,7 @@
     {
       "id": "pranzo-consigli",
       "title": "Pranzo e proposte salate",
-      "content": "Per pranzo le proposte principali sono bowl, toast e insalate. Per qualcosa di leggero sono adatte Bowl pollo e cereali o Insalata quinoa avocado. Per vegetariano o senza lattosio sono adatti Toast hummus e verdure o Insalata quinoa avocado. Quando il cliente chiede pranzo, le proposte salate hanno priorita rispetto a caffe e dessert.",
+      "content": "A pranzo sono consigliate proposte salate come bowl, toast e insalate. Per qualcosa di leggero sono adatte Bowl pollo e cereali o Insalata quinoa avocado. Per vegetariano o senza lattosio sono adatti Toast hummus e verdure o Insalata quinoa avocado.",
       "tags": ["pranzo", "bowl", "toast", "insalata", "consigli"],
       "source": "Playbook menu advisor"
     },

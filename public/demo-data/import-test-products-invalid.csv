@@ -1,0 +1,4 @@
+id,name,category,price,description,details,imageUrl,inStock
+prod-ok,Tazza CafeConnect,accessory,12.00,"Tazza in ceramica artigianale.","{""capacita"":""250ml""}",,true
+prod-no-price,Box senza prezzo,gift,,"Box regalo senza prezzo.","{""include"":""caffe specialty""}",,true
+prod-no-description,Caffe senza descrizione,coffee-beans,10.90,,"{""origine"":""Colombia""}",,true
