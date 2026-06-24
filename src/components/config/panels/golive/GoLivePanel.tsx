@@ -96,16 +96,90 @@ function textToList(value: string): string[] {
 }
 
 function setupScore(config: FullConfig): number {
-  const checks = [
-    Boolean(config.business.name && config.business.telefono),
-    Boolean(config.catalog.enableLocalData || config.catalog.menuEndpoint || config.catalog.productsEndpoint),
-    Boolean(config.knowledgeBase?.length || config.merchantKnowledge?.sources?.some(source => source.enabled && source.url) || config.knowledgeSources?.urls?.length),
-    Boolean(config.business.whatsappBusiness || config.business.orderWebhook),
-    Boolean(config.agents?.enabled && config.agents.activeAgents.length > 0),
-    Boolean(config.integrations?.posProvider && config.integrations.posProvider !== 'none')
-  ];
+  const checks = getReadinessChecks(config).map(check => check.status !== 'missing');
 
   return Math.round((checks.filter(Boolean).length / checks.length) * 100);
+}
+
+function getReadinessChecks(config: FullConfig) {
+  const hasBusinessIdentity = Boolean(config.business.name && config.business.telefono);
+  const hasMenuEndpoint = Boolean(config.catalog.menuEndpoint);
+  const hasProductsEndpoint = Boolean(config.catalog.productsEndpoint);
+  const hasRemoteCatalog = !config.catalog.enableLocalData && (hasMenuEndpoint || hasProductsEndpoint);
+  const hasDemoCatalog = Boolean(config.catalog.enableLocalData);
+  const hasKnowledge = Boolean(
+    config.knowledgeBase?.length ||
+    config.merchantKnowledge?.sources?.some(source => source.enabled && source.url) ||
+    config.knowledgeSources?.urls?.length ||
+    config.knowledgeSources?.inlineText
+  );
+  const hasOrderChannel = Boolean(
+    config.business.whatsappBusiness ||
+    config.business.orderWebhook ||
+    config.integrations?.makeWebhookUrl ||
+    config.integrations?.zapierWebhookUrl
+  );
+  const hasAgents = Boolean(config.agents?.enabled && config.agents.activeAgents.length > 0);
+  const hasOperationalIntegration = Boolean(
+    config.integrations?.posProvider && config.integrations.posProvider !== 'none'
+  );
+  const hasPrivacyGovernance = Boolean(
+    config.privacy?.enableConsentBanner &&
+    config.dataGovernance?.customerProfileStorage &&
+    config.dataGovernance?.conversationTranscript &&
+    config.dataGovernance?.analyticsEvents &&
+    config.dataGovernance?.tenantIsolation
+  );
+  const hasTenantIsolation = ['schema-per-tenant', 'database-per-tenant'].includes(
+    String(config.dataGovernance?.tenantIsolation || '')
+  );
+
+  return [
+    {
+      label: 'Identita merchant',
+      status: hasBusinessIdentity ? 'ready' : 'missing',
+      detail: hasBusinessIdentity ? 'Nome e telefono configurati.' : 'Aggiungi nome locale e telefono.'
+    },
+    {
+      label: 'Catalogo menu/prodotti',
+      status: hasRemoteCatalog ? 'ready' : hasDemoCatalog ? 'warning' : 'missing',
+      detail: hasRemoteCatalog
+        ? 'Endpoint catalogo remoto configurato.'
+        : hasDemoCatalog
+          ? 'Attivo catalogo demo locale: ok per demo, non per produzione.'
+          : 'Configura endpoint menu o prodotti.'
+    },
+    {
+      label: 'Knowledge merchant',
+      status: hasKnowledge ? 'ready' : 'missing',
+      detail: hasKnowledge ? 'Fonti knowledge presenti.' : 'Aggiungi FAQ, URL o knowledge strutturata.'
+    },
+    {
+      label: 'Agenti specializzati',
+      status: hasAgents ? 'ready' : 'missing',
+      detail: hasAgents ? `${config.agents?.activeAgents.length || 0} agenti attivi.` : 'Attiva router agentico e almeno un agente.'
+    },
+    {
+      label: 'Ordini e handoff',
+      status: hasOrderChannel ? 'ready' : 'missing',
+      detail: hasOrderChannel ? 'Canale ordine/handoff configurato.' : 'Aggiungi WhatsApp, order webhook, Make o Zapier.'
+    },
+    {
+      label: 'POS/CRM operativo',
+      status: hasOperationalIntegration ? 'ready' : 'warning',
+      detail: hasOperationalIntegration ? 'Provider operativo selezionato.' : 'Non bloccante per demo, richiesto per vendita reale.'
+    },
+    {
+      label: 'Privacy governance',
+      status: hasPrivacyGovernance ? 'ready' : 'missing',
+      detail: hasPrivacyGovernance ? 'Consent, profilo, transcript e analytics governati.' : 'Completa impostazioni privacy e data governance.'
+    },
+    {
+      label: 'Isolamento tenant',
+      status: hasTenantIsolation ? 'ready' : 'warning',
+      detail: hasTenantIsolation ? 'Tenant isolato con schema/database dedicato.' : 'Per enterprise preferire schema o database per tenant.'
+    }
+  ];
 }
 
 export const GoLivePanel: React.FC<IConfigSection<FullConfig>> = ({
@@ -135,6 +209,7 @@ export const GoLivePanel: React.FC<IConfigSection<FullConfig>> = ({
   }, [agents.definitions]);
   const selectedAgent = agentDefinitions.find(agent => agent.id === selectedAgentId) || agentDefinitions[0];
   const integrations = config.integrations || {};
+  const readinessChecks = useMemo(() => getReadinessChecks(config), [config]);
   const score = setupScore(config);
 
   const updateTenant = (field: string, value: any) => {
@@ -177,6 +252,27 @@ export const GoLivePanel: React.FC<IConfigSection<FullConfig>> = ({
           <span>pronto demo</span>
         </div>
       </div>
+
+      <section className="go-live-readiness">
+        <div className="readiness-header">
+          <div>
+            <h4>Checklist readiness</h4>
+            <p>Controlli principali per capire cosa e pronto, cosa basta per una demo e cosa manca per produzione.</p>
+          </div>
+          <span>{readinessChecks.filter(check => check.status === 'ready').length}/{readinessChecks.length} pronti</span>
+        </div>
+        <div className="readiness-check-grid">
+          {readinessChecks.map(check => (
+            <div key={check.label} className={`readiness-check readiness-${check.status}`}>
+              <span className="readiness-dot" aria-hidden="true" />
+              <div>
+                <strong>{check.label}</strong>
+                <p>{check.detail}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
 
       <div className="go-live-grid">
         <section className="go-live-block">

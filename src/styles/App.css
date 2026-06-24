@@ -1481,6 +1481,92 @@ input:focus, select:focus, textarea:focus {
   font-weight: 700;
 }
 
+.go-live-readiness {
+  border: 1px solid var(--light-gray);
+  border-radius: 8px;
+  margin-bottom: 14px;
+  padding: 16px;
+}
+
+.readiness-header {
+  align-items: flex-start;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.readiness-header h4 {
+  margin-bottom: 4px;
+}
+
+.readiness-header p {
+  color: var(--dark-gray);
+  font-size: 13px;
+  margin: 0;
+}
+
+.readiness-header > span {
+  background-color: #f7fafc;
+  border: 1px solid var(--light-gray);
+  border-radius: 999px;
+  color: var(--primary-color);
+  font-size: 12px;
+  font-weight: 800;
+  padding: 7px 11px;
+  white-space: nowrap;
+}
+
+.readiness-check-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.readiness-check {
+  align-items: flex-start;
+  background-color: #ffffff;
+  border: 1px solid var(--light-gray);
+  border-radius: 8px;
+  display: flex;
+  gap: 10px;
+  padding: 12px;
+}
+
+.readiness-check strong {
+  color: var(--primary-color);
+  display: block;
+  font-size: 13px;
+  margin-bottom: 3px;
+}
+
+.readiness-check p {
+  color: var(--dark-gray);
+  font-size: 12px;
+  line-height: 1.35;
+  margin: 0;
+}
+
+.readiness-dot {
+  border-radius: 999px;
+  flex: 0 0 10px;
+  height: 10px;
+  margin-top: 4px;
+  width: 10px;
+}
+
+.readiness-ready .readiness-dot {
+  background-color: #16a34a;
+}
+
+.readiness-warning .readiness-dot {
+  background-color: #f59e0b;
+}
+
+.readiness-missing .readiness-dot {
+  background-color: #dc2626;
+}
+
 .go-live-grid {
   display: grid;
   gap: 14px;
@@ -1866,6 +1952,12 @@ input:focus, select:focus, textarea:focus {
   .modal-overlay {
     padding: 10px; /* Riduci padding su mobile */
     align-items: flex-start; /* Allinea in alto per permettere lo scroll se il pannello è alto */
+  }
+  .readiness-header {
+    flex-direction: column;
+  }
+  .readiness-check-grid {
+    grid-template-columns: 1fr;
   }
   .config-panel-orchestrator, .business-dashboard {
       max-height: calc(100vh - 20px); /* Adatta per mobile */
