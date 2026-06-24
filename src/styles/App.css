@@ -96,19 +96,19 @@ input:focus, select:focus, textarea:focus {
 
 .demo-cockpit {
   align-items: center;
-  background: #ffffff;
-  border: 1px solid var(--light-gray);
+  background: #f8fafc;
+  border: 1px solid #dbe4f0;
   border-radius: 8px;
   display: grid;
   gap: 12px;
-  grid-template-columns: minmax(180px, 1fr) auto auto;
-  padding: 12px 16px;
+  grid-template-columns: minmax(180px, 0.8fr) minmax(260px, 1.2fr);
+  padding: 10px 14px;
 }
 
 .demo-cockpit strong {
   color: var(--primary-color);
   display: block;
-  font-size: 20px;
+  font-size: 18px;
   line-height: 1.2;
 }
 
@@ -120,12 +120,12 @@ input:focus, select:focus, textarea:focus {
   text-transform: uppercase;
 }
 
-.cockpit-pills,
-.cockpit-actions {
+.cockpit-pills {
   align-items: center;
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  justify-content: flex-end;
 }
 
 .cockpit-pills span {
@@ -136,17 +136,6 @@ input:focus, select:focus, textarea:focus {
   font-size: 12px;
   font-weight: 700;
   padding: 7px 10px;
-}
-
-.cockpit-actions button {
-  background: var(--primary-color);
-  color: #ffffff;
-  font-weight: 700;
-  padding: 9px 12px;
-}
-
-.cockpit-actions button:last-child {
-  background: var(--secondary-color);
 }
 
 .app-footer {
@@ -2284,6 +2273,10 @@ input:focus, select:focus, textarea:focus {
   .product-detail-content,
   .product-detail-actions {
     grid-template-columns: 1fr;
+  }
+
+  .cockpit-pills {
+    justify-content: flex-start;
   }
 
   .product-price {

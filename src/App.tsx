@@ -37,6 +37,13 @@ function App() {
     ? Math.round((readinessItems.filter(Boolean).length / readinessItems.length) * 100)
     : 0;
   const isAdminPanelEnabled = process.env.REACT_APP_ENABLE_ADMIN_PANEL === 'true';
+  const tenantEnvironment = appConfig?.tenant?.environment || 'demo';
+  const tenantPlan = appConfig?.tenant?.plan || 'demo';
+  const hasKnowledge = Boolean(
+    appConfig?.knowledgeBase?.length ||
+    appConfig?.merchantKnowledge?.sources?.some(source => source.enabled && source.url) ||
+    appConfig?.knowledgeSources?.urls?.length
+  );
 
   useEffect(() => {
     if (isInitialized && !initializationError && functionRegistry) {
@@ -105,18 +112,15 @@ function App() {
         <section className="demo-cockpit">
           <div>
             <span className="cockpit-eyebrow">
-              {appConfig.tenant?.environment || 'demo'} / {appConfig.tenant?.plan || 'demo'}
+              {tenantEnvironment === 'production' ? 'Production demo' : 'Demo workspace'}
             </span>
-            <strong>{readinessScore}% pronto demo</strong>
+            <strong>{readinessScore}% pronto</strong>
           </div>
           <div className="cockpit-pills">
-            <span>{appConfig.agents?.activeAgents?.length || 0} agenti</span>
-            <span>{appConfig.integrations?.posProvider || 'POS none'}</span>
-            <span>{appConfig.integrations?.crmProvider || 'CRM none'}</span>
-          </div>
-          <div className="cockpit-actions">
-            <button type="button" onClick={() => setIsBusinessPanelOpen(true)}>Go Live</button>
-            <button type="button" onClick={() => setIsDashboardOpen(true)}>Dashboard</button>
+            <span>{appConfig.agents?.activeAgents?.length || 0} agenti attivi</span>
+            <span>{hasKnowledge ? 'Knowledge collegata' : 'Knowledge da collegare'}</span>
+            <span>{appConfig.integrations?.crmProvider && appConfig.integrations.crmProvider !== 'none' ? `${appConfig.integrations.crmProvider} ready` : 'CRM da collegare'}</span>
+            <span>{tenantPlan} · {tenantEnvironment}</span>
           </div>
         </section>
         <CompleteChatInterface
