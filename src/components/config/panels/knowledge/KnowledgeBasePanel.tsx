@@ -1,6 +1,7 @@
 import React from 'react';
 import type { IConfigSection } from '../../interfaces/IConfigSection';
 import type { AppConfig } from '../../../../config/interfaces/IAppConfig';
+import { AIGatewayClient, AIGatewayChatResponse } from '../../../../services/ai/gateway/AIGatewayClient';
 
 type KnowledgeBase = AppConfig['knowledgeBase'];
 type KnowledgeSources = AppConfig['knowledgeSources'];
@@ -54,6 +55,7 @@ const KNOWLEDGE_TEMPLATES: KnowledgeEntry[] = [
 interface KnowledgeBasePanelProps extends IConfigSection<KnowledgeBase> {
   // Override per gestire l'array direttamente
   onChange: (field: string, value: KnowledgeBase) => void;
+  appConfig?: AppConfig;
   knowledgeSources?: KnowledgeSources;
   merchantKnowledge?: MerchantKnowledge;
   onSourcesChange?: (value: KnowledgeSources) => void;
@@ -63,12 +65,18 @@ interface KnowledgeBasePanelProps extends IConfigSection<KnowledgeBase> {
 export const KnowledgeBasePanel: React.FC<KnowledgeBasePanelProps> = ({
   config,
   onChange,
+  appConfig,
   knowledgeSources,
   merchantKnowledge,
   onSourcesChange,
   onMerchantKnowledgeChange,
   className = ''
 }) => {
+  const gatewayClient = React.useMemo(() => new AIGatewayClient(), []);
+  const [testQuestion, setTestQuestion] = React.useState('Avete WiFi e posso prenotare per 7 persone?');
+  const [testResult, setTestResult] = React.useState<AIGatewayChatResponse | null>(null);
+  const [testError, setTestError] = React.useState('');
+  const [isTestingKnowledge, setIsTestingKnowledge] = React.useState(false);
   const sources = knowledgeSources || { urls: [], inlineText: '' };
   const merchantSources = merchantKnowledge?.sources || [];
   const entries = config || [];
@@ -174,6 +182,50 @@ export const KnowledgeBasePanel: React.FC<KnowledgeBasePanelProps> = ({
       onChange('_self', newKnowledgeBase);
     }
   };
+
+  const handleTestKnowledge = async () => {
+    if (!testQuestion.trim()) {
+      setTestError('Inserisci una domanda di prova.');
+      return;
+    }
+
+    if (!appConfig) {
+      setTestError('Configurazione completa non disponibile per il test.');
+      return;
+    }
+
+    setIsTestingKnowledge(true);
+    setTestError('');
+    setTestResult(null);
+
+    try {
+      const effectiveConfig: AppConfig = {
+        ...appConfig,
+        knowledgeBase: entries,
+        knowledgeSources: sources,
+        merchantKnowledge: { sources: merchantSources }
+      };
+
+      const response = await gatewayClient.sendMessage({
+        message: testQuestion,
+        conversationId: `knowledge_test_${Date.now()}`,
+        business: effectiveConfig.business,
+        tenant: effectiveConfig.tenant,
+        dataGovernance: effectiveConfig.dataGovernance,
+        agents: effectiveConfig.agents,
+        integrations: effectiveConfig.integrations,
+        knowledgeBase: effectiveConfig.knowledgeBase || [],
+        knowledgeSources: effectiveConfig.knowledgeSources || { urls: [], inlineText: '' },
+        merchantKnowledge: effectiveConfig.merchantKnowledge || { sources: [] }
+      });
+
+      setTestResult(response);
+    } catch (error) {
+      setTestError(error instanceof Error ? error.message : 'Test knowledge non riuscito.');
+    } finally {
+      setIsTestingKnowledge(false);
+    }
+  };
   
   return (
     <div className={`config-section ${className}`}>
@@ -188,6 +240,56 @@ export const KnowledgeBasePanel: React.FC<KnowledgeBasePanelProps> = ({
           Fonti merchant attive: {activeMerchantSources.length}. Voci strutturate: {entries.length}.
           {invalidMerchantSources.length > 0 ? ` Fonti non valide: ${invalidMerchantSources.length}.` : ''}
         </p>
+      </div>
+
+      <div className="knowledge-entry-card knowledge-test-card">
+        <div className="knowledge-test-header">
+          <div>
+            <h4>Test domanda</h4>
+            <p className="form-text">
+              Prova subito come l AI usera fonti merchant, fatti strutturati e regole privacy configurate.
+            </p>
+          </div>
+          <span>{activeMerchantSources.length + entries.length} fonti valutate</span>
+        </div>
+        <div className="knowledge-test-controls">
+          <input
+            type="text"
+            value={testQuestion}
+            onChange={(event) => setTestQuestion(event.target.value)}
+            placeholder="Es. Avete WiFi e posso prenotare per 7 persone?"
+          />
+          <button
+            type="button"
+            className="catalog-apply-btn"
+            onClick={handleTestKnowledge}
+            disabled={isTestingKnowledge || !testQuestion.trim()}
+          >
+            {isTestingKnowledge ? 'Test in corso...' : 'Testa risposta AI'}
+          </button>
+        </div>
+        {testError && (
+          <div className="knowledge-test-result knowledge-test-error">
+            {testError}
+          </div>
+        )}
+        {testResult && (
+          <div className="knowledge-test-result">
+            <div className="knowledge-test-meta">
+              <span>{testResult.agent?.label || 'Agente non indicato'}</span>
+              <span>{testResult.mode}</span>
+              <span>{testResult.toolCalls?.length || 0} tool call</span>
+            </div>
+            <p>{testResult.message}</p>
+            {Boolean(testResult.toolCalls?.length) && (
+              <div className="knowledge-test-tools">
+                {testResult.toolCalls?.map((toolCall, index) => (
+                  <span key={`${toolCall.name}-${index}`}>{toolCall.name}</span>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="knowledge-entry-card">

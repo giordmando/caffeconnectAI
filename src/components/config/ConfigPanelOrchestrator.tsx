@@ -75,6 +75,7 @@ const PANEL_COMPONENTS: Record<string, React.FC<PanelProps<any>>[]> = {
       <KnowledgeBasePanel
         {...props}
         config={props.config.knowledgeBase || []}
+        appConfig={props.config}
         knowledgeSources={props.config.knowledgeSources || { urls: [], inlineText: '' }}
         merchantKnowledge={props.config.merchantKnowledge || { sources: [] }}
         onSourcesChange={(value) => props.onChange('knowledgeSources', value)}

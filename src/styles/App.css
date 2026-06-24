@@ -2086,6 +2086,74 @@ input:focus, select:focus, textarea:focus {
   margin-top: 14px;
   padding-top: 12px;
 }
+
+.knowledge-test-card {
+  border-color: var(--primary-light);
+}
+
+.knowledge-test-header {
+  align-items: flex-start;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+}
+
+.knowledge-test-header > span {
+  background-color: #f7fafc;
+  border: 1px solid var(--light-gray);
+  border-radius: 999px;
+  color: var(--primary-color);
+  font-size: 12px;
+  font-weight: 800;
+  padding: 7px 11px;
+  white-space: nowrap;
+}
+
+.knowledge-test-controls {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: minmax(0, 1fr) 180px;
+  margin-top: 12px;
+}
+
+.knowledge-test-result {
+  background-color: #f8fafc;
+  border: 1px solid var(--light-gray);
+  border-radius: 8px;
+  color: var(--text-color);
+  margin-top: 12px;
+  padding: 12px;
+}
+
+.knowledge-test-error {
+  background-color: #fff5f5;
+  border-color: #feb2b2;
+  color: #742a2a;
+}
+
+.knowledge-test-result p {
+  font-size: 14px;
+  line-height: 1.45;
+  margin: 8px 0 0;
+}
+
+.knowledge-test-meta,
+.knowledge-test-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.knowledge-test-meta span,
+.knowledge-test-tools span {
+  background-color: #ffffff;
+  border: 1px solid var(--light-gray);
+  border-radius: 999px;
+  color: var(--primary-color);
+  font-size: 11px;
+  font-weight: 800;
+  padding: 5px 8px;
+}
 .fact-item { display: flex; align-items: center; margin-bottom: 8px; }
 .fact-item textarea { flex-grow: 1; margin-right: 8px; }
 .remove-btn-small, .add-btn-small { padding: 4px 8px; font-size: 0.8rem; min-width: auto; border:none; color:white; }
@@ -2458,6 +2526,13 @@ input:focus, select:focus, textarea:focus {
   .item-controls { flex-wrap: wrap; justify-content: flex-end; /* Allinea a destra su mobile */ }
   .item-controls .quantity-control { margin-bottom: 8px; /* Spazio se va a capo */ }
   .merchant-source-row { align-items: stretch; grid-template-columns: 1fr; }
+  .knowledge-test-header,
+  .knowledge-test-controls {
+    grid-template-columns: 1fr;
+  }
+  .knowledge-test-header {
+    flex-direction: column;
+  }
   .admin-control-plane { width: calc(100vw - 20px); }
   .admin-control-grid { grid-template-columns: 1fr; }
   .admin-source-import { grid-template-columns: 1fr; }
