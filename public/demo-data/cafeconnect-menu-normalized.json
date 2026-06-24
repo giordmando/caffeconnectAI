@@ -1,0 +1,116 @@
+{
+  "menuItems": [
+    {
+      "id": "menu-bowl-pollo",
+      "name": "Bowl pollo e cereali",
+      "category": "lunch",
+      "subcategory": "lunch",
+      "timeOfDay": [
+        "afternoon"
+      ],
+      "price": 9.8,
+      "description": "Pollo grigliato, farro, verdure di stagione e dressing allo yogurt.",
+      "ingredients": [
+        "pollo",
+        "farro",
+        "verdure",
+        "yogurt"
+      ],
+      "preferences": [],
+      "imageUrl": "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=900&q=80",
+      "allergens": [
+        "latte",
+        "glutine"
+      ],
+      "dietaryInfo": [
+        "high-protein"
+      ],
+      "popularity": 86,
+      "alcoholic": false
+    },
+    {
+      "id": "menu-toast-hummus",
+      "name": "Toast hummus e verdure",
+      "category": "lunch",
+      "subcategory": "lunch",
+      "timeOfDay": [
+        "afternoon"
+      ],
+      "price": 7.4,
+      "description": "Toast integrale con hummus, zucchine, carote e semi tostati.",
+      "ingredients": [
+        "pane integrale",
+        "hummus",
+        "verdure",
+        "semi"
+      ],
+      "preferences": [],
+      "imageUrl": "https://images.unsplash.com/photo-1528736235302-52922df5c122?auto=format&fit=crop&w=900&q=80",
+      "allergens": [
+        "glutine",
+        "sesamo"
+      ],
+      "dietaryInfo": [
+        "vegetarian",
+        "lactose-free"
+      ],
+      "popularity": 78,
+      "alcoholic": false
+    },
+    {
+      "id": "menu-insalata-quinoa",
+      "name": "Insalata quinoa avocado",
+      "category": "lunch",
+      "subcategory": "lunch",
+      "timeOfDay": [
+        "afternoon"
+      ],
+      "price": 8.9,
+      "description": "Insalata leggera con quinoa, avocado, pomodorini e dressing al limone.",
+      "ingredients": [
+        "quinoa",
+        "avocado",
+        "pomodorini",
+        "limone"
+      ],
+      "preferences": [],
+      "imageUrl": "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=900&q=80",
+      "allergens": [
+        "\""
+      ],
+      "dietaryInfo": [
+        "vegan",
+        "gluten-free",
+        "lactose-free"
+      ],
+      "popularity": 81,
+      "alcoholic": false
+    },
+    {
+      "id": "menu-cappuccino-avena",
+      "name": "Cappuccino con bevanda d'avena",
+      "category": "beverage",
+      "subcategory": "beverage",
+      "timeOfDay": [
+        "morning"
+      ],
+      "price": 3.1,
+      "description": "Espresso specialty con bevanda d'avena montata.",
+      "ingredients": [
+        "espresso",
+        "bevanda d'avena"
+      ],
+      "preferences": [],
+      "imageUrl": "https://images.unsplash.com/photo-1517701550927-30cf4ba1dba5?auto=format&fit=crop&w=900&q=80",
+      "allergens": [
+        "glutine"
+      ],
+      "dietaryInfo": [
+        "vegan",
+        "lactose-free"
+      ],
+      "popularity": 74,
+      "alcoholic": false
+    }
+  ]
+}

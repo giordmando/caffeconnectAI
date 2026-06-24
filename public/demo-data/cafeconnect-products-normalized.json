@@ -1,0 +1,61 @@
+{
+  "products": [
+    {
+      "id": "prod-etiopia-filtro",
+      "name": "Etiopia Yirgacheffe Specialty",
+      "category": "coffee-beans",
+      "price": 12.5,
+      "description": "Caffe filtro monorigine con note di agrumi, fiori bianchi e miele.",
+      "details": {
+        "origine": "Etiopia",
+        "metodo": "Filtro V60",
+        "peso": "250g"
+      },
+      "imageUrl": "https://images.unsplash.com/photo-1447933601403-0c6688de566e?auto=format&fit=crop&w=900&q=80",
+      "inStock": true,
+      "popularity": 91
+    },
+    {
+      "id": "prod-box-degustazione",
+      "name": "Box degustazione CafeConnect",
+      "category": "gift",
+      "price": 24.9,
+      "description": "Selezione regalo con due caffe specialty e scheda degustazione.",
+      "details": {
+        "include": "2 caffe specialty, guida degustazione",
+        "idealePer": "regalo"
+      },
+      "imageUrl": "https://images.unsplash.com/photo-1511537190424-bbbab87ac5eb?auto=format&fit=crop&w=900&q=80",
+      "inStock": true,
+      "popularity": 88
+    },
+    {
+      "id": "prod-tazza-cafeconnect",
+      "name": "Tazza CafeConnect",
+      "category": "accessory",
+      "price": 12,
+      "description": "Tazza in ceramica artigianale da 250ml per cappuccino e caffe filtro.",
+      "details": {
+        "materiale": "ceramica",
+        "capacita": "250ml"
+      },
+      "imageUrl": "https://images.unsplash.com/photo-1514228742587-6b1558fcca3d?auto=format&fit=crop&w=900&q=80",
+      "inStock": true,
+      "popularity": 69
+    },
+    {
+      "id": "prod-biscotti-mandorle",
+      "name": "Biscotti alle mandorle",
+      "category": "food",
+      "price": 4.9,
+      "description": "Biscotti artigianali alle mandorle, confezione da 200g.",
+      "details": {
+        "peso": "200g",
+        "allergeni": "mandorle, glutine, uova"
+      },
+      "imageUrl": "https://images.unsplash.com/photo-1499636136210-6f4ee915583e?auto=format&fit=crop&w=900&q=80",
+      "inStock": true,
+      "popularity": 72
+    }
+  ]
+}
