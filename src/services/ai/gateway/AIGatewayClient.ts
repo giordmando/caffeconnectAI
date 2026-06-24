@@ -57,9 +57,16 @@ export class AIGatewayClient {
   ) {}
 
   async sendMessage(request: AIGatewayChatRequest): Promise<AIGatewayChatResponse> {
+    const merchantId = (request.tenant as any)?.merchantId || process.env.REACT_APP_MERCHANT_ID || '';
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+
+    if (merchantId) {
+      headers['X-Merchant-Id'] = String(merchantId);
+    }
+
     const response = await fetch(`${this.baseUrl}/v1/chat`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify(request)
     });
 

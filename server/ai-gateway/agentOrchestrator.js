@@ -28,11 +28,83 @@ class AgentOrchestrator {
       };
     }
 
+    const privacyGovernedResponse = this.handlePrivacyGovernedMemoryRequest(message, payload, agent);
+    if (privacyGovernedResponse) {
+      return privacyGovernedResponse;
+    }
+
     if (this.config.demoMode || !this.openaiClient.isConfigured()) {
       return this.runDemoMode(message, payload, agent);
     }
 
     return this.runResponsesWithTools(message, payload, agent);
+  }
+
+  handlePrivacyGovernedMemoryRequest(message, payload = {}, agent) {
+    const lower = String(message || '').toLowerCase();
+    const dataGovernance = payload.dataGovernance || {};
+    const asksToRemember = [
+      'ricorda',
+      'ricordati',
+      'ricordatelo',
+      'tienilo a mente',
+      'tienilo presente',
+      'per le prossime volte',
+      'per la prossima volta'
+    ].some(term => lower.includes(term));
+
+    if (!asksToRemember) {
+      return null;
+    }
+
+    const sensitive = this.containsSensitivePreference(lower);
+    const storageDisabled = dataGovernance.customerProfileStorage === 'disabled';
+    const sensitiveInferenceDisabled = dataGovernance.allowSensitiveInference === false;
+
+    if (storageDisabled || (sensitive && sensitiveInferenceDisabled)) {
+      return {
+        message: this.privacyMemoryRefusalMessage(lower, storageDisabled, sensitive),
+        agent,
+        toolCalls: [],
+        mode: 'validation'
+      };
+    }
+
+    return null;
+  }
+
+  containsSensitivePreference(lower) {
+    return [
+      'allerg',
+      'intoller',
+      'lattosio',
+      'glutine',
+      'celiach',
+      'diabet',
+      'salute',
+      'medic',
+      'malatt',
+      'gravid',
+      'relig',
+      'halal',
+      'kosher'
+    ].some(term => lower.includes(term));
+  }
+
+  privacyMemoryRefusalMessage(lower, storageDisabled, sensitive) {
+    const scope = storageDisabled
+      ? 'non memorizzero preferenze per le prossime volte'
+      : 'non memorizzero questa informazione come preferenza futura';
+
+    if (lower.includes('lattosio')) {
+      return `Posso tenerne conto per questa conversazione, ma ${scope}. Per opzioni senza lattosio posso consigliarti il cappuccino con bevanda d avena o le proposte indicate come senza lattosio.`;
+    }
+
+    if (sensitive) {
+      return `Posso usarlo solo per aiutarti in questa richiesta, ma ${scope}. Se hai allergie o intolleranze importanti, segnalalo anche al personale prima dell ordine.`;
+    }
+
+    return `Posso aiutarti in questa conversazione, ma ${scope} con le impostazioni privacy attuali.`;
   }
 
   async runResponsesWithTools(message, payload, agent) {
@@ -670,6 +742,8 @@ class AgentOrchestrator {
       'Incrocia sempre tre fonti quando disponibili: catalogo reale, fonti recuperate e profilo/preferenze cliente.',
       'Se suggerisci qualcosa, privilegia articoli compatibili con restrizioni alimentari, preferenze esplicite e interazioni recenti.',
       'Quando una raccomandazione e personalizzata, spiega in poche parole il motivo senza mostrare punteggi tecnici.',
+      'Se il cliente chiede di ricordare preferenze e la policy profilo e disabled, spiega che non puoi memorizzarle per il futuro.',
+      'Se il cliente chiede di ricordare allergie, intolleranze, salute o altri dati sensibili e allowSensitiveInference e false, usa il dato solo per la richiesta corrente e non promettere memoria futura.',
       'Rispondi in italiano con massimo 2 frasi brevi.',
       'Non elencare tutti i dati dei tool: la UI mostra gia card e dettagli visivi.',
       'Non inserire URL, markdown link, markdown immagini, tabelle o liste numerate lunghe.',

@@ -255,6 +255,74 @@ export const ChatProvider: React.FC<{
     return context;
   }, [dataGovernance?.allowSensitiveInference, dataGovernance?.customerProfileStorage]);
 
+  const containsSensitivePreference = useCallback((message: string): boolean => {
+    const lower = String(message || '').toLowerCase();
+    return [
+      'allerg',
+      'intoller',
+      'lattosio',
+      'glutine',
+      'celiach',
+      'diabet',
+      'salute',
+      'medic',
+      'malatt',
+      'gravid',
+      'relig',
+      'halal',
+      'kosher'
+    ].some(term => lower.includes(term));
+  }, []);
+
+  const shouldStoreUserInteraction = useCallback((message: string): boolean => {
+    if (!shouldPersistCustomerProfile) return false;
+    if (dataGovernance?.allowSensitiveInference === false && containsSensitivePreference(message)) {
+      return false;
+    }
+    return true;
+  }, [containsSensitivePreference, dataGovernance?.allowSensitiveInference, shouldPersistCustomerProfile]);
+
+  const createPrivacyGovernanceResponse = useCallback((message: string): string | null => {
+    const lower = String(message || '').toLowerCase();
+    const asksToRemember = [
+      'ricorda',
+      'ricordati',
+      'ricordatelo',
+      'tienilo a mente',
+      'tienilo presente',
+      'per le prossime volte',
+      'per la prossima volta'
+    ].some(term => lower.includes(term));
+
+    if (!asksToRemember) return null;
+
+    const storageDisabled = dataGovernance?.customerProfileStorage === 'disabled';
+    const sensitive = containsSensitivePreference(message);
+    const sensitiveInferenceDisabled = dataGovernance?.allowSensitiveInference === false;
+
+    if (!storageDisabled && !(sensitive && sensitiveInferenceDisabled)) {
+      return null;
+    }
+
+    const scope = storageDisabled
+      ? 'non memorizzero preferenze per le prossime volte'
+      : 'non memorizzero questa informazione come preferenza futura';
+
+    if (lower.includes('lattosio')) {
+      return `Posso tenerne conto per questa conversazione, ma ${scope}. Per opzioni senza lattosio posso consigliarti il cappuccino con bevanda d'avena o le proposte indicate come senza lattosio.`;
+    }
+
+    if (sensitive) {
+      return `Posso usarlo solo per aiutarti in questa richiesta, ma ${scope}. Se hai allergie o intolleranze importanti, segnalalo anche al personale prima dell'ordine.`;
+    }
+
+    return `Posso aiutarti in questa conversazione, ma ${scope} con le impostazioni privacy attuali.`;
+  }, [
+    containsSensitivePreference,
+    dataGovernance?.allowSensitiveInference,
+    dataGovernance?.customerProfileStorage
+  ]);
+
   const trackBusinessEvent = useCallback((
     type: Parameters<typeof businessEventService.track>[0],
     payload: Record<string, any> = {}
@@ -317,7 +385,7 @@ export const ChatProvider: React.FC<{
     const toolNames = (gatewayResponse.toolCalls || []).map(toolCall => toolCall.name);
     const hasKnowledge = toolNames.some(name => ['knowledge_search', 'runtime_knowledge_search'].includes(name));
     const hasCatalog = toolNames.some(name => ['search_menu', 'search_products', 'get_item_detail'].includes(name));
-    const userContext = userService.getUserContext();
+    const userContext = governanceUserContext(userService.getUserContext());
     const trace: NonNullable<Message['metadata']>['trace'] = [];
 
     if (gatewayResponse.agent?.label) {
@@ -352,7 +420,7 @@ export const ChatProvider: React.FC<{
       agent: gatewayResponse.agent,
       trace: trace.slice(0, 4)
     };
-  }, [userService]);
+  }, [governanceUserContext, userService]);
 
   const createRecommendationExplanation = useCallback((
     recommendedItems: any[],
@@ -363,7 +431,7 @@ export const ChatProvider: React.FC<{
         .flatMap(item => item?.personalization?.reasons || [])
         .filter(Boolean)
     ));
-    const userContext = userService.getUserContext();
+    const userContext = governanceUserContext(userService.getUserContext());
     const restrictions = userContext.dietaryRestrictions || [];
     const usedKnowledge = (gatewayResponse.toolCalls || []).some(toolCall =>
       ['knowledge_search', 'runtime_knowledge_search'].includes(toolCall.name)
@@ -382,7 +450,7 @@ export const ChatProvider: React.FC<{
     }
 
     return parts.length > 0 ? parts.join(' ') : undefined;
-  }, [userService]);
+  }, [governanceUserContext, userService]);
 
   const createGatewayUIComponents = useCallback((gatewayResponse: AIGatewayChatResponse): UIComponent[] => {
     const components: UIComponent[] = [];
@@ -699,11 +767,21 @@ export const ChatProvider: React.FC<{
     );
     
     // Aggiungi interazione
-    if (shouldPersistCustomerProfile) {
+    if (shouldStoreUserInteraction(userMessageContent)) {
       userService.addInteraction(userMessageContent);
     }
-    if (shouldPersistCustomerProfile && shouldLearnSensitiveProfile) {
+    if (shouldStoreUserInteraction(userMessageContent) && shouldLearnSensitiveProfile) {
       userService.learnFromInteraction(userMessageContent);
+    }
+
+    const privacyGovernanceResponse = createPrivacyGovernanceResponse(userMessageContent);
+    if (privacyGovernanceResponse) {
+      const assistantMessage = messageService.createAssistantMessage(privacyGovernanceResponse);
+      messageService.addMessage(assistantMessage);
+      setMessages(messageService.getMessages());
+      await trackConversationMessage(assistantMessage, conversationId, userService.getUserContext());
+      setIsTyping(false);
+      return;
     }
     
     try {
@@ -771,10 +849,11 @@ export const ChatProvider: React.FC<{
     userService,
     conversationTracker,
     aiService,
+    createPrivacyGovernanceResponse,
     sendMessageThroughGateway,
     governanceUserContext,
     shouldLearnSensitiveProfile,
-    shouldPersistCustomerProfile,
+    shouldStoreUserInteraction,
     trackBusinessEvent,
     trackConversationMessage
   ]);
