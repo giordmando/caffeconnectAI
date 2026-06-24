@@ -138,7 +138,7 @@ function getReadinessChecks(config: FullConfig): ReadinessCheck[] {
     config.integrations?.posProvider && config.integrations.posProvider !== 'none'
   );
   const hasPrivacyGovernance = Boolean(
-    config.privacy?.enableConsentBanner &&
+    config.privacy?.enabled &&
     config.dataGovernance?.customerProfileStorage &&
     config.dataGovernance?.conversationTranscript &&
     config.dataGovernance?.analyticsEvents &&
