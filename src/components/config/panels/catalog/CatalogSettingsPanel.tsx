@@ -19,7 +19,10 @@ interface CatalogPreviewResult {
   count: number;
   columns: string[];
   missingColumns: string[];
+  blockingIssues: string[];
+  warnings: string[];
   sample: Array<Record<string, any>>;
+  normalizedJson: string;
 }
 
 const EMPTY_PREVIEW: CatalogPreviewResult = {
@@ -28,7 +31,10 @@ const EMPTY_PREVIEW: CatalogPreviewResult = {
   count: 0,
   columns: [],
   missingColumns: [],
-  sample: []
+  blockingIssues: [],
+  warnings: [],
+  sample: [],
+  normalizedJson: ''
 };
 
 export const CatalogSettingsPanel: React.FC<IConfigSection<CatalogConfig>> = ({
@@ -40,6 +46,8 @@ export const CatalogSettingsPanel: React.FC<IConfigSection<CatalogConfig>> = ({
   const [productsSheetUrl, setProductsSheetUrl] = useState(config.productsEndpoint || '');
   const [menuPreview, setMenuPreview] = useState<CatalogPreviewResult>(EMPTY_PREVIEW);
   const [productsPreview, setProductsPreview] = useState<CatalogPreviewResult>(EMPTY_PREVIEW);
+  const [menuImportText, setMenuImportText] = useState('');
+  const [productsImportText, setProductsImportText] = useState('');
 
   const applyRemoteEndpoint = (field: 'menuEndpoint' | 'productsEndpoint', value: string) => {
     const endpoint = normalizeCatalogEndpoint(value);
@@ -53,11 +61,95 @@ export const CatalogSettingsPanel: React.FC<IConfigSection<CatalogConfig>> = ({
     }
   };
 
+  const validateCatalogPayload = (kind: CatalogPreviewKind, text: string): CatalogPreviewResult => {
+    const rawData = parseCatalogPayload(text);
+    const records = extractCatalogRecords(rawData, kind);
+    const columns = records.length > 0 ? Object.keys(records[0]) : [];
+    const missingColumns = getMissingCatalogColumns(records, kind);
+    const normalizedRecords = records.map((record, index) =>
+      kind === 'menu' ? normalizeMenuRecord(record, index) : normalizeProductRecord(record, index)
+    );
+    const blockingIssues: string[] = [];
+    const warnings: string[] = [];
+
+    if (records.length === 0) {
+      blockingIssues.push('Nessuna riga leggibile trovata.');
+    }
+
+    normalizedRecords.forEach((record: any, index) => {
+      const label = record.name || `Riga ${index + 1}`;
+      if (!record.name || /^Voce menu|^Prodotto/.test(record.name)) {
+        blockingIssues.push(`${label}: manca il nome.`);
+      }
+      if (!record.category) {
+        blockingIssues.push(`${label}: manca la categoria.`);
+      }
+      if (!record.price || Number(record.price) <= 0) {
+        blockingIssues.push(`${label}: prezzo mancante o non valido.`);
+      }
+      if (!record.description) {
+        warnings.push(`${label}: descrizione assente.`);
+      }
+      if (!record.imageUrl) {
+        warnings.push(`${label}: immagine assente.`);
+      }
+      if (kind === 'menu' && (!record.allergens || record.allergens.length === 0)) {
+        warnings.push(`${label}: allergeni non valorizzati.`);
+      }
+    });
+
+    const sample = normalizedRecords.slice(0, 3).map((record: any) => {
+      if (kind === 'menu') {
+        return {
+          id: record.id,
+          name: record.name,
+          category: record.category,
+          price: record.price,
+          timeOfDay: record.timeOfDay,
+          allergens: record.allergens
+        };
+      }
+
+      return {
+        id: record.id,
+        name: record.name,
+        category: record.category,
+        price: record.price,
+        inStock: record.inStock
+      };
+    });
+
+    return {
+      status: records.length > 0 && blockingIssues.length === 0 ? 'success' : 'error',
+      message: records.length > 0
+        ? `${records.length} righe leggibili, ${blockingIssues.length} errori bloccanti, ${warnings.length} avvisi.`
+        : 'Nessuna riga leggibile trovata.',
+      count: records.length,
+      columns,
+      missingColumns,
+      blockingIssues,
+      warnings,
+      sample,
+      normalizedJson: JSON.stringify(
+        kind === 'menu' ? { menuItems: normalizedRecords } : { products: normalizedRecords },
+        null,
+        2
+      )
+    };
+  };
+
+  const setPreviewForKind = (kind: CatalogPreviewKind, preview: CatalogPreviewResult) => {
+    if (kind === 'menu') {
+      setMenuPreview(preview);
+    } else {
+      setProductsPreview(preview);
+    }
+  };
+
   const validateSource = async (kind: CatalogPreviewKind, value: string) => {
     const endpoint = normalizeCatalogEndpoint(value);
-    const setPreview = kind === 'menu' ? setMenuPreview : setProductsPreview;
 
-    setPreview({
+    setPreviewForKind(kind, {
       ...EMPTY_PREVIEW,
       status: 'loading',
       message: 'Verifica sorgente in corso...'
@@ -69,44 +161,9 @@ export const CatalogSettingsPanel: React.FC<IConfigSection<CatalogConfig>> = ({
         throw new Error(`Risposta ${response.status}`);
       }
 
-      const rawData = parseCatalogPayload(await response.text());
-      const records = extractCatalogRecords(rawData, kind);
-      const columns = records.length > 0 ? Object.keys(records[0]) : [];
-      const missingColumns = getMissingCatalogColumns(records, kind);
-
-      setPreview({
-        status: records.length > 0 ? 'success' : 'error',
-        message: records.length > 0
-          ? `${records.length} righe leggibili.`
-          : 'Nessuna riga leggibile trovata.',
-        count: records.length,
-        columns,
-        missingColumns,
-        sample: records.slice(0, 3).map((record, index) => {
-          if (kind === 'menu') {
-            const normalized = normalizeMenuRecord(record, index);
-            return {
-              id: normalized.id,
-              name: normalized.name,
-              category: normalized.category,
-              price: normalized.price,
-              timeOfDay: normalized.timeOfDay,
-              allergens: normalized.allergens
-            };
-          }
-
-          const normalized = normalizeProductRecord(record, index);
-          return {
-            id: normalized.id,
-            name: normalized.name,
-            category: normalized.category,
-            price: normalized.price,
-            inStock: normalized.inStock
-          };
-        })
-      });
+      setPreviewForKind(kind, validateCatalogPayload(kind, await response.text()));
     } catch (error) {
-      setPreview({
+      setPreviewForKind(kind, {
         ...EMPTY_PREVIEW,
         status: 'error',
         message: error instanceof Error
@@ -116,7 +173,50 @@ export const CatalogSettingsPanel: React.FC<IConfigSection<CatalogConfig>> = ({
     }
   };
 
-  const renderPreview = (preview: CatalogPreviewResult) => {
+  const validateInlineImport = (kind: CatalogPreviewKind, value: string) => {
+    if (!value.trim()) {
+      setPreviewForKind(kind, {
+        ...EMPTY_PREVIEW,
+        status: 'error',
+        message: 'Incolla un JSON o CSV prima di validare.'
+      });
+      return;
+    }
+
+    try {
+      setPreviewForKind(kind, validateCatalogPayload(kind, value));
+    } catch (error) {
+      setPreviewForKind(kind, {
+        ...EMPTY_PREVIEW,
+        status: 'error',
+        message: error instanceof Error ? `Import non valido: ${error.message}` : 'Import non valido.'
+      });
+    }
+  };
+
+  const handleFileImport = async (kind: CatalogPreviewKind, file?: File) => {
+    if (!file) return;
+    const text = await file.text();
+    if (kind === 'menu') {
+      setMenuImportText(text);
+    } else {
+      setProductsImportText(text);
+    }
+    validateInlineImport(kind, text);
+  };
+
+  const downloadNormalizedJson = (kind: CatalogPreviewKind, preview: CatalogPreviewResult) => {
+    if (!preview.normalizedJson) return;
+    const blob = new Blob([preview.normalizedJson], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = kind === 'menu' ? 'cafeconnect-menu-normalized.json' : 'cafeconnect-products-normalized.json';
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const renderPreview = (kind: CatalogPreviewKind, preview: CatalogPreviewResult) => {
     if (preview.status === 'idle') return null;
 
     return (
@@ -128,12 +228,31 @@ export const CatalogSettingsPanel: React.FC<IConfigSection<CatalogConfig>> = ({
         {preview.missingColumns.length > 0 && (
           <p>Colonne consigliate mancanti: {preview.missingColumns.join(', ')}</p>
         )}
+        {preview.blockingIssues.length > 0 && (
+          <ul className="catalog-preview-issues">
+            {preview.blockingIssues.slice(0, 6).map((issue, index) => (
+              <li key={index}>{issue}</li>
+            ))}
+          </ul>
+        )}
+        {preview.warnings.length > 0 && (
+          <p>Avvisi: {preview.warnings.slice(0, 4).join(' · ')}</p>
+        )}
         {preview.sample.length > 0 && (
           <div className="catalog-preview-sample">
             {preview.sample.map((record, index) => (
               <pre key={index}>{JSON.stringify(record, null, 2)}</pre>
             ))}
           </div>
+        )}
+        {preview.normalizedJson && preview.blockingIssues.length === 0 && (
+          <button
+            type="button"
+            className="catalog-verify-btn"
+            onClick={() => downloadNormalizedJson(kind, preview)}
+          >
+            Scarica JSON normalizzato
+          </button>
         )}
       </div>
     );
@@ -199,7 +318,7 @@ export const CatalogSettingsPanel: React.FC<IConfigSection<CatalogConfig>> = ({
             >
               Verifica sorgente
             </button>
-            {renderPreview(menuPreview)}
+            {renderPreview('menu', menuPreview)}
           </div>
 
           <div className="form-group">
@@ -227,7 +346,66 @@ export const CatalogSettingsPanel: React.FC<IConfigSection<CatalogConfig>> = ({
             >
               Verifica sorgente
             </button>
-            {renderPreview(productsPreview)}
+            {renderPreview('products', productsPreview)}
+          </div>
+        </div>
+      </div>
+
+      <div className="catalog-onboarding-card">
+        <div>
+          <h4>Import diretto catalogo</h4>
+          <p className="form-text">
+            Incolla o carica un file CSV/JSON per validare subito campi, prezzi, immagini e allergeni. Dopo il controllo puoi scaricare il JSON normalizzato e pubblicarlo come endpoint.
+          </p>
+        </div>
+
+        <div className="catalog-onboarding-grid">
+          <div className="form-group">
+            <label htmlFor="menu-import-text">Import menu CSV/JSON</label>
+            <textarea
+              id="menu-import-text"
+              value={menuImportText}
+              onChange={(e) => setMenuImportText(e.target.value)}
+              placeholder="Incolla qui menuItems JSON o CSV con colonne id,name,category,price,description..."
+              rows={6}
+            />
+            <input
+              type="file"
+              accept=".csv,.json,text/csv,application/json"
+              onChange={(e) => handleFileImport('menu', e.target.files?.[0])}
+            />
+            <button
+              type="button"
+              className="catalog-verify-btn"
+              onClick={() => validateInlineImport('menu', menuImportText)}
+            >
+              Valida import menu
+            </button>
+            {renderPreview('menu', menuPreview)}
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="products-import-text">Import prodotti CSV/JSON</label>
+            <textarea
+              id="products-import-text"
+              value={productsImportText}
+              onChange={(e) => setProductsImportText(e.target.value)}
+              placeholder="Incolla qui products JSON o CSV con colonne id,name,category,price,description..."
+              rows={6}
+            />
+            <input
+              type="file"
+              accept=".csv,.json,text/csv,application/json"
+              onChange={(e) => handleFileImport('products', e.target.files?.[0])}
+            />
+            <button
+              type="button"
+              className="catalog-verify-btn"
+              onClick={() => validateInlineImport('products', productsImportText)}
+            >
+              Valida import prodotti
+            </button>
+            {renderPreview('products', productsPreview)}
           </div>
         </div>
       </div>

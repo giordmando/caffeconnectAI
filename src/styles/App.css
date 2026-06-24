@@ -1734,6 +1734,15 @@ input:focus, select:focus, textarea:focus {
   margin-top: 6px;
 }
 
+.catalog-preview-issues {
+  margin: 8px 0 0 18px;
+  padding: 0;
+}
+
+.catalog-preview-issues li {
+  margin-bottom: 4px;
+}
+
 .catalog-preview-sample {
   display: grid;
   gap: 8px;
@@ -1749,6 +1758,23 @@ input:focus, select:focus, textarea:focus {
   overflow-x: auto;
   padding: 8px;
   white-space: pre-wrap;
+}
+
+.catalog-onboarding-card textarea {
+  min-height: 128px;
+  resize: vertical;
+}
+
+.catalog-onboarding-card input[type="file"] {
+  background-color: white;
+  border: 1px dashed var(--primary-light);
+  border-radius: 6px;
+  color: var(--text-color);
+  cursor: pointer;
+  font-size: 13px;
+  margin-top: 8px;
+  padding: 10px;
+  width: 100%;
 }
 
 /* Stili specifici per i pannelli di configurazione dentro ConfigPanelOrchestrator */
