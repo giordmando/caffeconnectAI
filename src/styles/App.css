@@ -235,12 +235,30 @@ input:focus, select:focus, textarea:focus {
   margin: 4px 0 0;
 }
 
+.chat-header-badges {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
 .provider-badge {
   background-color: rgba(255, 255, 255, 0.2);
   padding: 8px 12px;
   border-radius: 999px;
   font-size: 13px;
   font-weight: 700;
+}
+
+.privacy-mode-badge {
+  background-color: rgba(255, 255, 255, 0.92);
+  color: var(--primary-color);
+  padding: 7px 11px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
 }
 
 .chat-layout {
@@ -1813,6 +1831,8 @@ input:focus, select:focus, textarea:focus {
   .chat-layout { flex-direction: column; }
   .chat-sidebar { width: 100%; border-left: none; border-top: 1px solid var(--light-gray); max-height: 250px; }
   .chat-container { min-height: calc(100vh - 100px); /* Adatta in base al tuo header/footer effettivo */ }
+  .chat-header { align-items: flex-start; gap: 14px; }
+  .chat-header-badges { justify-content: flex-start; }
   .app-header { flex-direction: column; gap: 12px; text-align: center; }
   .header-actions { flex-wrap: wrap; justify-content: center; gap: 8px; }
   .app-footer { flex-direction: column; gap: 12px; text-align: center; }

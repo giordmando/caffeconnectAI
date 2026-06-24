@@ -9,6 +9,19 @@ import { useServices } from '../contexts/ServiceProvider';
 
 const consentService = new SimpleConsentService();
 
+function getPrivacyBadgeLabel(customerProfileStorage?: string): string {
+  switch (customerProfileStorage) {
+    case 'disabled':
+      return 'Privacy: sessione';
+    case 'local-only':
+      return 'Privacy: local-first';
+    case 'gateway-profile':
+      return 'Privacy: profilo autorizzato';
+    default:
+      return 'Privacy: governata';
+  }
+}
+
 const ChatInterface: React.FC = () => {
   const {
     messages,
@@ -30,6 +43,7 @@ const ChatInterface: React.FC = () => {
   const { appConfig } = useServices();
   const chatTitle = appConfig?.business?.name || 'CafeConnect AI';
   const showTechnicalTrace = Boolean(appConfig?.ui?.showAgentTrace);
+  const privacyBadgeLabel = getPrivacyBadgeLabel(appConfig?.dataGovernance?.customerProfileStorage);
 
   return (
     <div className="chat-container">
@@ -38,7 +52,10 @@ const ChatInterface: React.FC = () => {
           <h2>{chatTitle}</h2>
           <p>Assistente ordini e consigli</p>
         </div>
-        <div className="provider-badge">AI concierge</div>
+        <div className="chat-header-badges" aria-label="Stato assistente e privacy">
+          <div className="provider-badge">AI concierge</div>
+          <div className="privacy-mode-badge">{privacyBadgeLabel}</div>
+        </div>
       </div>
 
       <div className="chat-layout">

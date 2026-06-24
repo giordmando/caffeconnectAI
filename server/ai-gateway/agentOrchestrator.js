@@ -53,7 +53,12 @@ class AgentOrchestrator {
       'per la prossima volta'
     ].some(term => lower.includes(term));
 
-    if (!asksToRemember) {
+    const localNonSensitivePreference =
+      dataGovernance.customerProfileStorage === 'local-only' &&
+      this.containsNonSensitivePreference(lower) &&
+      !this.containsSensitivePreference(lower);
+
+    if (!asksToRemember && !localNonSensitivePreference) {
       return null;
     }
 
@@ -70,7 +75,7 @@ class AgentOrchestrator {
       };
     }
 
-    if (dataGovernance.customerProfileStorage === 'local-only' && this.containsNonSensitivePreference(lower)) {
+    if (localNonSensitivePreference) {
       return {
         message: this.localPreferenceMemoryMessage(lower),
         agent,
