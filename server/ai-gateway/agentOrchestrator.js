@@ -70,6 +70,15 @@ class AgentOrchestrator {
       };
     }
 
+    if (dataGovernance.customerProfileStorage === 'local-only' && this.containsNonSensitivePreference(lower)) {
+      return {
+        message: this.localPreferenceMemoryMessage(lower),
+        agent,
+        toolCalls: [],
+        mode: 'validation'
+      };
+    }
+
     return null;
   }
 
@@ -105,6 +114,33 @@ class AgentOrchestrator {
     }
 
     return `Posso aiutarti in questa conversazione, ma ${scope} con le impostazioni privacy attuali.`;
+  }
+
+  containsNonSensitivePreference(lower) {
+    return [
+      'preferisco',
+      'mi piace',
+      'prendo spesso',
+      'spesso prendo',
+      'di solito prendo',
+      'adoro'
+    ].some(term => lower.includes(term));
+  }
+
+  localPreferenceMemoryMessage(lower) {
+    if (lower.includes('vegetal') && lower.includes('filtro')) {
+      return 'Perfetto, lo terrò presente su questo dispositivo: preferisci bevande vegetali e caffè filtro. Posso consigliarti l Etiopia Yirgacheffe Specialty oppure una bevanda con latte d avena.';
+    }
+
+    if (lower.includes('vegetal')) {
+      return 'Perfetto, terrò conto su questo dispositivo che preferisci bevande vegetali. Posso proporti opzioni con latte d avena o alternative senza lattosio.';
+    }
+
+    if (lower.includes('filtro')) {
+      return 'Perfetto, terrò conto su questo dispositivo che preferisci caffè filtro. Ti posso consigliare l Etiopia Yirgacheffe Specialty.';
+    }
+
+    return 'Perfetto, terrò conto di questa preferenza su questo dispositivo e la userò per consigliarti meglio durante l esperienza.';
   }
 
   async runResponsesWithTools(message, payload, agent) {
@@ -359,7 +395,7 @@ class AgentOrchestrator {
     );
     if (hasKnowledge) {
       const query = hasKnowledge.arguments?.query || '';
-      return this.summarizeKnowledgeResult(hasKnowledge.result.results, {}, query, modelText);
+      return this.summarizeKnowledgeResult(hasKnowledge.result.results, {}, query, modelText, toolCalls);
     }
 
     const hasDetail = toolCalls.some(call => call.name === 'get_item_detail' && call.result?.item);
@@ -367,7 +403,7 @@ class AgentOrchestrator {
       return 'Ecco il dettaglio richiesto: puoi consultarlo nella card qui sotto.';
     }
 
-    return this.cleanModelText(modelText);
+    return this.cleanModelText(modelText, toolCalls) || 'Posso consigliarti solo articoli presenti nel catalogo del locale. Vuoi che ti mostri le opzioni disponibili?';
   }
 
   async searchRuntimeKnowledge(query, payload) {
@@ -643,14 +679,14 @@ class AgentOrchestrator {
     return '';
   }
 
-  summarizeKnowledgeResult(results, payload = {}, query = '', modelText = '') {
+  summarizeKnowledgeResult(results, payload = {}, query = '', modelText = '', toolCalls = []) {
     const first = results[0];
     if (!first) {
       return 'Non ho trovato questa informazione nella base conoscenza.';
     }
 
     const text = String(first.content || '').trim();
-    const naturalModelText = this.cleanModelText(modelText);
+    const naturalModelText = this.cleanModelText(modelText, toolCalls);
     if (naturalModelText && !this.looksLikeInternalPlaybook(naturalModelText)) {
       return naturalModelText.length > 260 ? naturalModelText.slice(0, 257).trim() + '...' : naturalModelText;
     }
@@ -712,14 +748,46 @@ class AgentOrchestrator {
       .trim();
   }
 
-  cleanModelText(text) {
-    return String(text || '')
+  catalogNamesFromToolCalls(toolCalls = []) {
+    return toolCalls.flatMap(call => {
+      const result = call.result || {};
+      const items = [
+        ...(Array.isArray(result.items) ? result.items : []),
+        ...(Array.isArray(result.products) ? result.products : []),
+        ...(result.item ? [result.item] : [])
+      ];
+      return items
+        .map(item => String(item.name || '').toLowerCase())
+        .filter(Boolean);
+    });
+  }
+
+  mentionsUnavailableCatalogItem(text, toolCalls = []) {
+    const lower = String(text || '').toLowerCase();
+    const catalogNames = this.catalogNamesFromToolCalls(toolCalls);
+    const riskyCatalogPhrases = [
+      'cookie di avena',
+      'biscotti di avena',
+      'frutti rossi',
+      'muffin',
+      'brownie'
+    ];
+
+    return riskyCatalogPhrases.some(phrase =>
+      lower.includes(phrase) && !catalogNames.some(name => name.includes(phrase))
+    );
+  }
+
+  cleanModelText(text, toolCalls = []) {
+    const cleaned = String(text || '')
       .replace(/\[[^\]]+\]\([^\)]+\)/g, '')
       .replace(/https?:\/\/\S+/g, '')
       .replace(/#{1,6}\s*/g, '')
       .replace(/\*\*/g, '')
       .replace(/\s{2,}/g, ' ')
       .trim();
+
+    return this.mentionsUnavailableCatalogItem(cleaned, toolCalls) ? '' : cleaned;
   }
 
   buildInstructions(payload, agent, context = {}) {
@@ -750,6 +818,10 @@ class AgentOrchestrator {
       'Quando mostri prodotti o menu usa i tool: rispondi con una frase breve e lascia le card alla UI.',
       'Se il cliente chiede dettagli o acquisto di un articolo per nome, usa get_item_detail o cerca prima il prodotto corrispondente.',
       'Non inventare prezzi, disponibilita, allergeni o ingredienti: usa i tool o chiedi conferma.',
+      'Non citare prodotti, dolci, snack o varianti che non compaiono nel catalogo recuperato dai tool.',
+      'Se il catalogo non contiene un articolo, non proporlo: suggerisci solo alternative presenti nelle card o nel catalogo.',
+      'Se il cliente chiede una prenotazione e non esiste bookingUrl configurato, non dire che puoi prenotare: indica il contatto telefonico o suggerisci contatto umano.',
+      'Se il cliente chiede un pagamento e non esiste paymentUrl configurato, non promettere pagamento online: prepara solo riepilogo ordine e conferma.',
       'Se il cliente vuole ordinare, prepara una bozza e chiedi conferma prima dell invio.',
       business.name ? 'Locale attivo: ' + business.name + '.' : '',
       business.type ? 'Tipo locale: ' + business.type + '.' : '',
