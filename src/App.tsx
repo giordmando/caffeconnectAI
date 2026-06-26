@@ -7,7 +7,23 @@ import { CartButton } from './components/cart/CartButton';
 import { ConfigPanelOrchestrator } from './components/config/ConfigPanelOrchestrator';
 import { BusinessDashboard } from './components/BusinessDashboard';
 import { AdminControlPlane } from './components/AdminControlPlane';
+import { CustomerOrdersModal } from './components/customer/CustomerOrdersModal';
 import { businessEventService } from './services/analytics/BusinessEventService';
+
+type AppMode = 'customer' | 'merchant';
+
+function getAppMode(): AppMode {
+  const env = typeof process !== 'undefined'
+    ? process.env as Record<string, string | undefined>
+    : {};
+  const envMode = env.REACT_APP_APP_MODE;
+  const queryMode = typeof window !== 'undefined'
+    ? new URLSearchParams(window.location.search).get('mode')
+    : null;
+  const mode = queryMode || envMode;
+
+  return mode === 'customer' ? 'customer' : 'merchant';
+}
 
 /**
  * Componente principale dell'applicazione
@@ -20,8 +36,11 @@ function App() {
   const [dashboardInitialSection, setDashboardInitialSection] = useState<'overview' | 'orders'>('overview');
   const [isAdminControlOpen, setIsAdminControlOpen] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [isCustomerOrdersOpen, setIsCustomerOrdersOpen] = useState(false);
 
   const { currentAiProvider, reloadServices, appConfig, isInitialized, initializationError } = useServices();
+  const appMode = getAppMode();
+  const isCustomerMode = appMode === 'customer';
   const functionRegistry = useService('functionRegistry'); // configManager è già in appConfig
 
   // Stato locale per le funzioni disponibili, aggiornato dopo l'inizializzazione
@@ -84,33 +103,46 @@ function App() {
         </div>
 
         <div className="header-actions">
-          <div className="provider-info">
-            <span className="provider-label">AI:</span>
-            <span className="provider-name">{currentAiProvider}</span>
-          </div>
-
-          <button
-            className="dashboard-button"
-            onClick={() => openDashboard('overview')}
-          >
-            Dashboard
-          </button>
+          {!isCustomerMode && (
+            <div className="provider-info">
+              <span className="provider-label">AI:</span>
+              <span className="provider-name">{currentAiProvider}</span>
+            </div>
+          )}
 
           <button
             className="dashboard-button orders-button"
-            onClick={() => openDashboard('orders')}
+            onClick={() => {
+              if (isCustomerMode) {
+                setIsCustomerOrdersOpen(true);
+                return;
+              }
+
+              openDashboard('orders');
+            }}
           >
-            Ordini
+            {isCustomerMode ? 'I miei ordini' : 'Ordini'}
           </button>
 
-          <button
-            className="business-config-button"
-            onClick={() => setIsBusinessPanelOpen(true)}
-          >
-            Impostazioni
-          </button>
+          {!isCustomerMode && (
+            <>
+              <button
+                className="dashboard-button"
+                onClick={() => openDashboard('overview')}
+              >
+                Dashboard
+              </button>
 
-          {isAdminPanelEnabled && (
+              <button
+                className="business-config-button"
+                onClick={() => setIsBusinessPanelOpen(true)}
+              >
+                Impostazioni
+              </button>
+            </>
+          )}
+
+          {!isCustomerMode && isAdminPanelEnabled && (
             <button
               className="business-config-button admin-control-button"
               onClick={() => setIsAdminControlOpen(true)}
@@ -122,6 +154,7 @@ function App() {
       </header>
 
       <main className="app-main">
+        {!isCustomerMode && (
         <section className="demo-cockpit">
           <div>
             <span className="cockpit-eyebrow">
@@ -136,6 +169,7 @@ function App() {
             <span>{tenantPlan} · {tenantEnvironment}</span>
           </div>
         </section>
+        )}
         <CompleteChatInterface
           initialConfig={{
             showSidebar: false,
@@ -155,15 +189,21 @@ function App() {
             isOpen={isCartOpen} 
             onClose={() => setIsCartOpen(false)} 
           />
-      <footer className="app-footer">
-        <div className="functions-info">
-          <span>Funzioni disponibili: {availableFunctions.length}</span>
-          <div className="functions-list">
-            {availableFunctions.map(fn => (
-              <span key={fn} className="function-badge">{fn}</span>
-            ))}
+      <footer className={`app-footer ${isCustomerMode ? 'customer-footer' : ''}`}>
+        {!isCustomerMode ? (
+          <div className="functions-info">
+            <span>Funzioni disponibili: {availableFunctions.length}</span>
+            <div className="functions-list">
+              {availableFunctions.map(fn => (
+                <span key={fn} className="function-badge">{fn}</span>
+              ))}
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="customer-footer-note">
+            <span>Assistente AI per consigli, ordini e informazioni sul locale.</span>
+          </div>
+        )}
         <div className="app-info">
           <p>{appConfig.business.name} &copy; {new Date().getFullYear()}</p>
         </div>
@@ -184,6 +224,12 @@ function App() {
             onClose={() => setIsDashboardOpen(false)}
             initialSection={dashboardInitialSection}
           />
+        </div>
+      )}
+
+      {isCustomerOrdersOpen && (
+        <div className="modal-overlay">
+          <CustomerOrdersModal onClose={() => setIsCustomerOrdersOpen(false)} />
         </div>
       )}
 

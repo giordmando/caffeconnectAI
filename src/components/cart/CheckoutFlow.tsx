@@ -5,6 +5,7 @@ import { orderOrchestrator } from '../../services/order/OrderOrchestrator';
 import { formatPrice } from '../../utils/formatters';
 import { configManager } from '../../config/ConfigManager';
 import { businessEventService } from '../../services/analytics/BusinessEventService';
+import { customerOrderHistoryService } from '../../services/order/CustomerOrderHistoryService';
 
 interface CheckoutFlowProps {
   onBack: () => void;
@@ -49,6 +50,14 @@ export const CheckoutFlow: React.FC<CheckoutFlowProps> = ({ onBack, onComplete }
       );
       
       if (result.success) {
+        customerOrderHistoryService.save(
+          {
+            ...orderRequest,
+            method: selectedMethod as 'whatsapp' | 'email' | 'webhook' | 'ecommerce'
+          },
+          result
+        );
+
         businessEventService.track('order_submitted', {
           orderId: result.orderId,
           method: selectedMethod,
@@ -62,7 +71,7 @@ export const CheckoutFlow: React.FC<CheckoutFlowProps> = ({ onBack, onComplete }
         clear();
         
         // Mostra conferma
-        alert(`Ordine inviato con successo!\n\nID: ${result.orderId}\n\n${result.message || ''}\n\nPuoi controllarlo dal pulsante Ordini nella barra superiore.`);
+        alert(`Ordine inviato con successo!\n\nID: ${result.orderId}\n\n${result.message || ''}\n\nPuoi controllarlo dal pulsante I miei ordini/Ordini nella barra superiore.`);
         
         // Chiudi checkout
         onComplete();

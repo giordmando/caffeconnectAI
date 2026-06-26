@@ -1940,6 +1940,156 @@ input:focus, select:focus, textarea:focus {
 .functions-info { display: flex; flex-direction: column; gap: 8px; }
 .functions-list { display: flex; flex-wrap: wrap; gap: 6px; }
 .function-badge { background-color: var(--light-gray); border-radius: 12px; padding: 2px 8px; font-size: 12px; color: var(--dark-gray); }
+.customer-footer {
+  justify-content: center;
+}
+.customer-footer-note {
+  color: var(--dark-gray);
+  font-size: 13px;
+}
+
+.customer-orders-modal {
+  background-color: white;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 40px);
+  max-width: 720px;
+  overflow: hidden;
+  width: 100%;
+}
+
+.customer-orders-modal .config-header {
+  align-items: center;
+  background-color: var(--primary-color);
+  border-top-left-radius: 12px;
+  border-top-right-radius: 12px;
+  color: white;
+  display: flex;
+  flex-shrink: 0;
+  justify-content: space-between;
+  padding: 16px 24px;
+}
+
+.customer-orders-modal .config-header h2 {
+  font-size: 1.4rem;
+  margin: 0;
+}
+
+.customer-orders-modal .config-header p {
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 13px;
+  margin: 3px 0 0;
+}
+
+.customer-orders-modal .close-btn {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 28px;
+  line-height: 1;
+  opacity: 0.85;
+  padding: 0;
+}
+
+.customer-orders-content {
+  background-color: #f8fafc;
+  overflow-y: auto;
+  padding: 20px;
+}
+
+.customer-order-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  list-style: none;
+}
+
+.customer-order-list > li {
+  background-color: white;
+  border: 1px solid var(--light-gray);
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.customer-order-main,
+.customer-order-footer,
+.customer-order-items li {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.customer-order-main {
+  border-bottom: 1px solid #edf2f7;
+  padding-bottom: 12px;
+}
+
+.customer-order-main div {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.customer-order-main strong,
+.customer-order-footer strong {
+  color: var(--primary-color);
+}
+
+.customer-order-main small,
+.customer-order-footer span {
+  color: var(--dark-gray);
+  font-size: 13px;
+}
+
+.customer-order-items {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  list-style: none;
+  padding: 12px 0;
+}
+
+.customer-order-items li span {
+  color: var(--text-color);
+  font-size: 14px;
+}
+
+.customer-order-items li strong {
+  color: var(--primary-color);
+  white-space: nowrap;
+}
+
+.customer-order-footer {
+  border-top: 1px solid #edf2f7;
+  padding-top: 12px;
+}
+
+.customer-orders-clear {
+  margin-top: 14px;
+  width: 100%;
+}
+
+.customer-orders-empty {
+  background: white;
+  border: 1px solid var(--light-gray);
+  border-radius: 8px;
+  padding: 28px;
+  text-align: center;
+}
+
+.customer-orders-empty h3 {
+  color: var(--primary-color);
+  margin-bottom: 8px;
+}
+
+.customer-orders-empty p {
+  color: var(--dark-gray);
+}
 
 /* Stili per l'area di controllo fissa della chat */
 .chat-controls-fixed {
