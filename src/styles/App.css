@@ -1261,6 +1261,75 @@ input:focus, select:focus, textarea:focus {
   padding-bottom: 0;
 }
 
+.dashboard-order-cards li {
+  align-items: stretch;
+  background-color: #ffffff;
+  border: 1px solid #edf2f7;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+}
+
+.dashboard-order-summary {
+  align-items: center;
+  background: transparent;
+  color: var(--text-color);
+  display: grid;
+  gap: 12px;
+  grid-template-columns: 86px minmax(0, 1fr) 84px 48px;
+  padding: 12px;
+  text-align: left;
+  width: 100%;
+}
+
+.dashboard-order-summary:hover {
+  background-color: #f8fafc;
+}
+
+.dashboard-order-detail {
+  border-top: 1px solid #edf2f7;
+  padding: 12px;
+}
+
+.order-detail-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.order-detail-meta span {
+  background-color: #edf2f7;
+  border-radius: 999px;
+  color: var(--primary-color);
+  font-size: 12px;
+  font-weight: 700;
+  padding: 5px 8px;
+}
+
+.order-detail-items {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+}
+
+.order-detail-items li {
+  align-items: center;
+  border-bottom: 1px solid #edf2f7;
+  display: flex;
+  justify-content: space-between;
+  padding: 0 0 8px;
+}
+
+.order-detail-items li:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
 .order-status {
   border-radius: 999px;
   font-size: 12px;

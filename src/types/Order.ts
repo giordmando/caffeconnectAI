@@ -11,6 +11,7 @@ export interface CartItem {
   export interface OrderRequest {
     id: string;
     businessId: string;
+    merchantId?: string;
     userId: string;
     items: CartItem[];
     subtotal: number;

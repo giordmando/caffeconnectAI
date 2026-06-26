@@ -35,7 +35,9 @@ export class OrderOrchestrator {
     userInfo?: { name?: string; phone?: string; notes?: string }
   ): Promise<OrderRequest> {
     const businessConfig = configManager.getSection('business');
+    const tenantConfig = configManager.getSection('tenant');
     const userContext = userContextService.getUserContext();
+    const merchantId = tenantConfig?.merchantId || businessConfig.name;
     
     const subtotal = items.reduce(
       (sum, item) => sum + (item.price * item.quantity), 
@@ -44,7 +46,8 @@ export class OrderOrchestrator {
     
     return {
       id: `ORD-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
-      businessId: businessConfig.name, // In futuro sarà un ID vero
+      businessId: merchantId,
+      merchantId,
       userId: userContext.userId,
       items,
       subtotal,

@@ -228,6 +228,27 @@ class AgentOrchestrator {
       });
     }
 
+    if (this.isBreakfastLactoseFreeIntent(lower)) {
+      const args = {
+        query: 'breakfast lactose-free',
+        originalQuery: message,
+        dietaryPreference: 'lactose-free',
+        timeOfDay: 'morning',
+        limit: 4
+      };
+      const result = await this.toolRegistry.execute('search_menu', args, payload);
+      toolCalls.push({ name: 'search_menu', arguments: args, result });
+
+      return {
+        message: result.items.length
+          ? 'Per una colazione senza lattosio ti mostro le opzioni compatibili. Puoi aggiungerle al carrello dalla card.'
+          : 'Non trovo opzioni colazione senza lattosio nel catalogo collegato. Posso passarti al locale per una conferma sicura.',
+        agent,
+        toolCalls,
+        mode: 'demo'
+      };
+    }
+
     if (this.isKnowledgeQuestion(lower) && !this.isRecommendationIntent(lower)) {
       const runtimeResult = retrievedKnowledge.source === 'runtime'
         ? retrievedKnowledge
@@ -341,6 +362,13 @@ class AgentOrchestrator {
     return ['dettaglio', 'dettagli', 'vedere', 'vedi', 'visualizzare', 'acquistare', 'comprare'].some(term => lower.includes(term));
   }
 
+  isBreakfastLactoseFreeIntent(lower) {
+    return (
+      ['colazione', 'mattina', 'cappuccino', 'cornetto', 'breakfast'].some(term => lower.includes(term)) &&
+      ['lattosio', 'senza lattosio', 'intoller', 'lactose'].some(term => lower.includes(term))
+    );
+  }
+
   async resolveDetailRequest(message, payload) {
     const query = String(message || '')
       .replace(/\b(voglio|vorrei|vedere|vedi|visualizzare|il|la|lo|i|gli|le|dettaglio|dettagli|di|del|della|acquistare|comprare)\b/gi, ' ')
@@ -371,7 +399,9 @@ class AgentOrchestrator {
     }
 
     if (timeOfDay === 'morning') {
-      return 'Per colazione ti propongo alcune opzioni adatte al mattino. Le trovi nelle card qui sotto.' + reasonSuffix;
+      return lower.includes('lattosio')
+        ? 'Per colazione senza lattosio ti mostro le opzioni compatibili. Le trovi nelle card qui sotto.' + reasonSuffix
+        : 'Per colazione ti propongo alcune opzioni adatte al mattino. Le trovi nelle card qui sotto.' + reasonSuffix;
     }
 
     if (timeOfDay === 'evening') {
@@ -835,6 +865,9 @@ class AgentOrchestrator {
       'Se il cliente chiede una prenotazione e non esiste bookingUrl configurato, non dire che puoi prenotare: indica il contatto telefonico o suggerisci contatto umano.',
       'Se il cliente chiede un pagamento e non esiste paymentUrl configurato, non promettere pagamento online: prepara solo riepilogo ordine e conferma.',
       'Se il cliente vuole ordinare, prepara una bozza e chiedi conferma prima dell invio.',
+      'Mantieni il goal della conversazione: se il cliente chiede colazione senza lattosio, non proporre pranzo, bowl, insalate o altri pasti finche non cambia esplicitamente richiesta.',
+      'Per colazione senza lattosio privilegia cappuccino con bevanda d avena se presente nel catalogo. Evita cornetti o prodotti con burro/latte se il cliente dichiara intolleranza al lattosio.',
+      'Se il cliente dice "si procedi", "prepara ordine" o "voglio ordinare" dopo una proposta, non ricominciare: conferma l articolo proposto e porta al carrello/checkout.',
       business.name ? 'Locale attivo: ' + business.name + '.' : '',
       business.type ? 'Tipo locale: ' + business.type + '.' : '',
       tenant.merchantId ? 'Merchant ID: ' + tenant.merchantId + '.' : '',

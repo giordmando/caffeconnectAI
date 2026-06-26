@@ -60,8 +60,8 @@ function getRequestMerchantId(req, url, body) {
     body?.event?.payload?.merchantId ||
     body?.events?.[0]?.merchantId ||
     body?.events?.[0]?.payload?.merchantId ||
-    body?.order?.businessId ||
     body?.order?.merchantId ||
+    body?.order?.businessId ||
     config.defaultMerchantId
   );
 }

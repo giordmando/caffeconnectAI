@@ -48,6 +48,17 @@ export interface GatewayOrderRecord {
   subtotal: number;
   itemCount: number;
   customerName?: string;
+  customerPhone?: string;
+  customerNotes?: string;
+  items?: Array<{
+    id: string;
+    name: string;
+    type: string;
+    quantity: number;
+    price: number;
+    notes?: string;
+    options?: Record<string, string>;
+  }>;
   error?: string;
 }
 

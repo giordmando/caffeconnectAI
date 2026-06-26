@@ -15,6 +15,7 @@ function safeString(value) {
 function createOrderRecord(rawRecord = {}) {
   const order = rawRecord.order && typeof rawRecord.order === 'object' ? rawRecord.order : {};
   const items = Array.isArray(order.items) ? order.items : [];
+  const userInfo = order.userInfo && typeof order.userInfo === 'object' ? order.userInfo : {};
   const timestamp = safeNumber(rawRecord.timestamp, Date.now());
 
   return {
@@ -26,7 +27,18 @@ function createOrderRecord(rawRecord = {}) {
     createdAt: new Date(timestamp).toISOString(),
     subtotal: safeNumber(rawRecord.subtotal || order.subtotal),
     itemCount: safeNumber(rawRecord.itemCount, items.reduce((sum, item) => sum + safeNumber(item.quantity, 1), 0)),
-    customerName: safeString(rawRecord.customerName || (order.userInfo && order.userInfo.name)),
+    customerName: safeString(rawRecord.customerName || userInfo.name),
+    customerPhone: safeString(rawRecord.customerPhone || userInfo.phone),
+    customerNotes: safeString(rawRecord.customerNotes || userInfo.notes),
+    items: items.map(item => ({
+      id: safeString(item.id),
+      name: safeString(item.name),
+      type: safeString(item.type),
+      quantity: safeNumber(item.quantity, 1),
+      price: safeNumber(item.price),
+      notes: safeString(item.notes),
+      options: item.options && typeof item.options === 'object' ? item.options : {}
+    })),
     error: safeString(rawRecord.error)
   };
 }

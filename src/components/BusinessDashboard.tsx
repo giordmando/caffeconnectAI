@@ -123,6 +123,7 @@ export const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ onClose, i
   const [events, setEvents] = useState<BusinessEvent[]>([]);
   const [remoteSummary, setRemoteSummary] = useState<BusinessEventSummary | null>(null);
   const [remoteOrders, setRemoteOrders] = useState<GatewayOrderRecord[]>([]);
+  const [expandedOrderIds, setExpandedOrderIds] = useState<string[]>([]);
   const [customerProfile, setCustomerProfile] = useState<UserContext>(() => userContextService.getUserContext());
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastRefreshAt, setLastRefreshAt] = useState<number | null>(null);
@@ -171,6 +172,14 @@ export const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ onClose, i
     userContextService.resetContext();
     refreshCustomerProfile();
   }, [refreshCustomerProfile]);
+
+  const toggleExpandedOrder = useCallback((orderId: string) => {
+    setExpandedOrderIds(currentIds =>
+      currentIds.includes(orderId)
+        ? currentIds.filter(id => id !== orderId)
+        : [...currentIds, orderId]
+    );
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -567,21 +576,61 @@ export const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ onClose, i
         <section id="dashboard-orders-panel" className="dashboard-panel dashboard-orders-panel">
           <h3>Ordini inviati</h3>
           {remoteOrders.length > 0 ? (
-            <ul className="dashboard-order-list">
-              {remoteOrders.map(order => (
-                <li key={order.id}>
-                  <span className={`order-status order-status-${order.status}`}>
-                    {order.status === 'submitted' ? 'Inviato' : 'Fallito'}
-                  </span>
-                  <span className="order-main">
-                    <strong>{order.orderId}</strong>
-                    <small>{order.customerName || 'Cliente non indicato'} / {order.itemCount} articoli</small>
-                    {order.error && <small>{order.error}</small>}
-                  </span>
-                  <span className="order-value">{formatCurrency(order.subtotal)}</span>
-                  <time>{formatEventTime(order.timestamp)}</time>
-                </li>
-              ))}
+            <ul className="dashboard-order-list dashboard-order-cards">
+              {remoteOrders.map(order => {
+                const expanded = expandedOrderIds.includes(order.id);
+                const orderItems = order.items || [];
+                return (
+                  <li key={order.id}>
+                    <button
+                      type="button"
+                      className="dashboard-order-summary"
+                      onClick={() => toggleExpandedOrder(order.id)}
+                    >
+                      <span className={`order-status order-status-${order.status}`}>
+                        {order.status === 'submitted' ? 'Inviato' : 'Fallito'}
+                      </span>
+                      <span className="order-main">
+                        <strong>{order.orderId}</strong>
+                        <small>
+                          {order.customerName || 'Cliente non indicato'}
+                          {order.customerPhone ? ` / ${order.customerPhone}` : ''}
+                        </small>
+                        {order.error && <small>{order.error}</small>}
+                      </span>
+                      <span className="order-value">{formatCurrency(order.subtotal)}</span>
+                      <time>{formatEventTime(order.timestamp)}</time>
+                    </button>
+
+                    {expanded && (
+                      <div className="dashboard-order-detail">
+                        <div className="order-detail-meta">
+                          <span>{order.itemCount} articoli</span>
+                          <span>Metodo: {order.method || 'webhook'}</span>
+                          <span>{new Date(order.timestamp).toLocaleString('it-IT')}</span>
+                        </div>
+                        {order.customerNotes && (
+                          <p className="dashboard-muted">Note cliente: {order.customerNotes}</p>
+                        )}
+                        {orderItems.length > 0 ? (
+                          <ul className="order-detail-items">
+                            {orderItems.map(item => (
+                              <li key={`${order.id}-${item.type}-${item.id}`}>
+                                <span>{item.quantity}x {item.name}</span>
+                                <strong>{formatCurrency(Number(item.price || 0) * Number(item.quantity || 1))}</strong>
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <p className="dashboard-muted">
+                            Questo ordine e stato salvato prima del dettaglio righe prodotto. I nuovi ordini mostreranno il contenuto.
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
             </ul>
           ) : (
             <p className="dashboard-muted">
