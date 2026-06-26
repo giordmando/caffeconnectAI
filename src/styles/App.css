@@ -201,6 +201,10 @@ input:focus, select:focus, textarea:focus {
   background-color: var(--primary-light);
 }
 
+.orders-button {
+  background-color: #1a202c;
+}
+
 /* Chat Interface (mantieni i tuoi stili esistenti) */
 .chat-container {
   background-color: white;
@@ -1232,6 +1236,7 @@ input:focus, select:focus, textarea:focus {
 
 .dashboard-orders-panel {
   margin-bottom: 12px;
+  scroll-margin-top: 16px;
 }
 
 .dashboard-order-list {

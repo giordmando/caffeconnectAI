@@ -14,6 +14,7 @@ import { UserContext } from '../types/UserContext';
 
 interface BusinessDashboardProps {
   onClose: () => void;
+  initialSection?: 'overview' | 'orders';
 }
 
 interface StoredConversation {
@@ -113,7 +114,7 @@ function formatPreferenceLabel(rating: number): string {
   return 'da evitare';
 }
 
-export const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ onClose }) => {
+export const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ onClose, initialSection = 'overview' }) => {
   const { appConfig, catalogService } = useServices();
   const { items, itemCount, subtotal } = useCart();
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
@@ -187,6 +188,18 @@ export const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ onClose })
       window.clearInterval(intervalId);
     };
   }, [refreshAnalytics]);
+
+  useEffect(() => {
+    if (initialSection !== 'orders') return;
+
+    const timeoutId = window.setTimeout(() => {
+      document
+        .getElementById('dashboard-orders-panel')
+        ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 150);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [initialSection, remoteOrders.length]);
 
   const dashboard = useMemo(() => {
     const userMessages = conversations.flatMap(conversation =>
@@ -551,8 +564,8 @@ export const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ onClose })
           </div>
         </section>
 
-        <section className="dashboard-panel dashboard-orders-panel">
-          <h3>Storico ordini gateway</h3>
+        <section id="dashboard-orders-panel" className="dashboard-panel dashboard-orders-panel">
+          <h3>Ordini inviati</h3>
           {remoteOrders.length > 0 ? (
             <ul className="dashboard-order-list">
               {remoteOrders.map(order => (

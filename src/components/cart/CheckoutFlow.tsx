@@ -62,7 +62,7 @@ export const CheckoutFlow: React.FC<CheckoutFlowProps> = ({ onBack, onComplete }
         clear();
         
         // Mostra conferma
-        alert(`Ordine inviato con successo!\n\nID: ${result.orderId}\n\n${result.message || ''}`);
+        alert(`Ordine inviato con successo!\n\nID: ${result.orderId}\n\n${result.message || ''}\n\nPuoi controllarlo dal pulsante Ordini nella barra superiore.`);
         
         // Chiudi checkout
         onComplete();

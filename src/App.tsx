@@ -17,6 +17,7 @@ function App() {
   // Stati dell'applicazione
   const [isBusinessPanelOpen, setIsBusinessPanelOpen] = useState(false);
   const [isDashboardOpen, setIsDashboardOpen] = useState(false);
+  const [dashboardInitialSection, setDashboardInitialSection] = useState<'overview' | 'orders'>('overview');
   const [isAdminControlOpen, setIsAdminControlOpen] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
 
@@ -61,6 +62,11 @@ function App() {
     }
   };
 
+  const openDashboard = (section: 'overview' | 'orders' = 'overview') => {
+    setDashboardInitialSection(section);
+    setIsDashboardOpen(true);
+  };
+
   // Se i servizi non sono ancora inizializzati o c'è un errore critico durante l'init,
   // AppInitializer (usato in index.tsx) dovrebbe gestire la visualizzazione del caricamento/errore.
   // Qui potremmo aggiungere un ulteriore controllo se App viene renderizzato prima che AppInitializer abbia finito.
@@ -85,9 +91,16 @@ function App() {
 
           <button
             className="dashboard-button"
-            onClick={() => setIsDashboardOpen(true)}
+            onClick={() => openDashboard('overview')}
           >
             Dashboard
+          </button>
+
+          <button
+            className="dashboard-button orders-button"
+            onClick={() => openDashboard('orders')}
+          >
+            Ordini
           </button>
 
           <button
@@ -167,7 +180,10 @@ function App() {
 
       {isDashboardOpen && (
         <div className="modal-overlay">
-          <BusinessDashboard onClose={() => setIsDashboardOpen(false)} />
+          <BusinessDashboard
+            onClose={() => setIsDashboardOpen(false)}
+            initialSection={dashboardInitialSection}
+          />
         </div>
       )}
 
