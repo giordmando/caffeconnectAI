@@ -212,7 +212,8 @@ export const ChatProvider: React.FC<{
       handleSendMessage();
     }
   }, []);
-  
+  
+
   const shouldUseAIGateway = useCallback((): boolean => {
     return process.env.REACT_APP_ENABLE_AI_GATEWAY !== 'false';
   }, []);
@@ -662,7 +663,14 @@ export const ChatProvider: React.FC<{
           result: { item: hasNamedItem }
         }]
       };
-      agentStateManager.updateProposals(conversationId, proposalsFromItems([hasNamedItem], products.includes(hasNamedItem) ? 'product' : 'menuItem'), 'confirm_proposal');
+      agentStateManager.updateProposals(
+        conversationId,
+        proposalsFromItems(
+          [hasNamedItem],
+          'inStock' in hasNamedItem && 'details' in hasNamedItem ? 'product' : 'menuItem'
+        ),
+        'confirm_proposal'
+      );
       const assistantMessage = messageService.createAssistantMessage(gatewayLikeResponse.message);
       messageService.addMessage(assistantMessage);
       setMessages(messageService.getMessages());
