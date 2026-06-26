@@ -4,6 +4,7 @@ import { AppConfig } from '../../../../config/interfaces/IAppConfig';
 
 type BusinessConfig = AppConfig['business'];
 const GATEWAY_URL = process.env.REACT_APP_AI_GATEWAY_URL || 'http://localhost:8787';
+const DEFAULT_MERCHANT_ID = process.env.REACT_APP_MERCHANT_ID || 'cafeconnect-roastery';
 
 export const ContactInfoPanel: React.FC<IConfigSection<BusinessConfig>> = ({
   config,
@@ -32,10 +33,15 @@ export const ContactInfoPanel: React.FC<IConfigSection<BusinessConfig>> = ({
     });
 
     try {
+      const merchantId = DEFAULT_MERCHANT_ID;
       const response = await fetch(`${GATEWAY_URL}/v1/orders`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Merchant-Id': merchantId
+        },
         body: JSON.stringify({
+          merchantId,
           webhookUrl,
           business: {
             name: config.name,
@@ -45,7 +51,8 @@ export const ContactInfoPanel: React.FC<IConfigSection<BusinessConfig>> = ({
           },
           order: {
             id: `ORD-TEST-${Date.now()}`,
-            businessId: config.name,
+            businessId: merchantId,
+            merchantId,
             userId: 'webhook-test',
             method: 'webhook',
             items: [
