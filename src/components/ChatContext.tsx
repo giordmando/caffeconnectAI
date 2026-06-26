@@ -15,6 +15,8 @@ import { ConversationManagerService, IConversationManagerService } from '../serv
 import { ComponentManager } from '../services/ui/compstore/ComponentManager';
 import { AIGatewayClient, AIGatewayChatResponse } from '../services/ai/gateway/AIGatewayClient';
 import { businessEventService } from '../services/analytics/BusinessEventService';
+import { agentStateManager } from '../services/agent/AgentStateManager';
+import type { AgentConversationState, AgentProposal } from '../services/agent/AgentStateManager';
 
 // Interfaccia del contesto semplificata
 export interface ChatContextType {
@@ -135,13 +137,8 @@ export const ChatProvider: React.FC<{
   const [inputValue, setInputValue] = useState<string>('');
   const [isTyping, setIsTyping] = useState<boolean>(false);
   const [availableActions, setAvailableActions] = useState<any[]>([]);
-  
+
   const messagesEndRef = useRef<HTMLDivElement>(null!);
-  const orderIntentRef = useRef<{
-    kind: 'breakfast-lactose-free';
-    candidateIds: string[];
-    updatedAt: number;
-  } | null>(null);
   
   // Sincronizza stati con i servizi
   useEffect(() => {
@@ -529,19 +526,76 @@ export const ChatProvider: React.FC<{
       .replace(/[\u0300-\u036f]/g, '')
   ), []);
 
-  const isBreakfastLactoseFreeIntent = useCallback((message: string): boolean => {
-    const lower = normalizeSearchText(message);
-    const wantsBreakfast = /\b(colazione|mattina|cappuccino|cornetto|breakfast)\b/.test(lower);
-    const mentionsLactose = /\b(lattosio|latte|intoller|senza lattosio|lactose)\b/.test(lower);
-    return wantsBreakfast && mentionsLactose;
+  const itemMatchesAgentState = useCallback((item: any, state: AgentConversationState): boolean => {
+    const text = normalizeSearchText([
+      item?.name,
+      item?.description,
+      item?.category,
+      item?.subcategory,
+      ...(item?.preferences || []),
+      ...(item?.dietaryInfo || []),
+      ...(item?.timeOfDay || [])
+    ].filter(Boolean).join(' '));
+    const allergens = (item?.allergens || []).map((value: string) => normalizeSearchText(value));
+    const dietary = (item?.dietaryInfo || []).map((value: string) => normalizeSearchText(value));
+
+    const mealMatches = state.mealSlot === 'all'
+      || (state.mealSlot === 'breakfast' && ['breakfast', 'morning', 'colazione', 'mattina', 'cappuccino', 'cornetto'].some(term => text.includes(term)))
+      || (state.mealSlot === 'lunch' && ['lunch', 'pranzo', 'bowl', 'toast', 'insalata', 'salad'].some(term => text.includes(term)))
+      || (state.mealSlot === 'aperitivo' && ['aperitivo', 'evening', 'sera'].some(term => text.includes(term)));
+
+    if (!mealMatches) return false;
+
+    return state.constraints.every(constraint => {
+      if (constraint === 'lactose-free') {
+        return dietary.includes('lactose-free')
+          || text.includes('senza lattosio')
+          || (text.includes('avena') && !allergens.some((allergen: string) => ['latte', 'lattosio', 'milk'].includes(allergen)));
+      }
+      if (constraint === 'gluten-free') {
+        return dietary.includes('gluten-free') || text.includes('senza glutine');
+      }
+      if (constraint === 'vegan') {
+        return dietary.includes('vegan') || text.includes('vegano') || text.includes('vegan');
+      }
+      if (constraint === 'vegetarian') {
+        return dietary.includes('vegetarian') || dietary.includes('vegan') || text.includes('vegetar');
+      }
+      return true;
+    });
   }, [normalizeSearchText]);
 
-  const isOrderContinuation = useCallback((message: string): boolean => {
-    const lower = normalizeSearchText(message);
-    return /\b(si|sì|procedi|prepara|ordine|ordina|ordinare|aggiungi|carrello|voglio ordinare|posso ordinare)\b/.test(lower);
-  }, [normalizeSearchText]);
+  const proposalsFromItems = useCallback((items: any[], type: AgentProposal['type']): AgentProposal[] => (
+    items
+      .filter(item => item?.id && item?.name)
+      .map(item => ({
+        id: item.id,
+        name: item.name,
+        type,
+        price: item.price
+      }))
+  ), []);
 
-  const handleBreakfastLactoseFreeFlow = useCallback(async (
+  const localizeAgentCopy = useCallback((state: AgentConversationState, key: 'showMenu' | 'showProducts' | 'addedToCart' | 'noCompatible', itemName?: string): string => {
+    const english = state.language === 'en';
+    const copies = {
+      showMenu: english
+        ? 'I found compatible options. You can open a card or add one to the cart.'
+        : 'Ho trovato opzioni compatibili. Puoi aprire una card o aggiungerne una al carrello.',
+      showProducts: english
+        ? 'I found suitable products. You can open a card to see details.'
+        : 'Ho trovato prodotti coerenti. Puoi aprire una card per vedere i dettagli.',
+      addedToCart: english
+        ? `I added ${itemName || 'the selected item'} to your cart. Open the cart to confirm pickup and contact details.`
+        : `Ho aggiunto al carrello ${itemName || 'la proposta selezionata'}. Apri il carrello per confermare ritiro e dati di contatto.`,
+      noCompatible: english
+        ? 'I cannot find compatible items in the connected catalog. I can hand this over to the cafe for a safe confirmation.'
+        : 'Non trovo articoli compatibili nel catalogo collegato. Posso passare la richiesta al locale per una conferma sicura.'
+    };
+    return copies[key];
+  }, []);
+
+  const handleStatefulCatalogFlow = useCallback(async (
     message: string,
     conversationId: string
   ): Promise<boolean> => {
@@ -549,87 +603,131 @@ export const ChatProvider: React.FC<{
       return false;
     }
 
-    const lower = normalizeSearchText(message);
-    const activeIntent = orderIntentRef.current?.kind === 'breakfast-lactose-free'
-      && Date.now() - orderIntentRef.current.updatedAt < 10 * 60 * 1000;
-    const startsIntent = isBreakfastLactoseFreeIntent(message);
+    const { state, signals } = agentStateManager.analyzeMessage(conversationId, message);
+    const shouldHandle = signals.wantsCatalog
+      || signals.wantsProducts
+      || signals.wantsDetails
+      || signals.wantsOrder
+      || (signals.isConfirmation && state.proposedItems.length > 0);
 
-    if (!startsIntent && !activeIntent) {
+    if (!shouldHandle || state.goal === 'ask_info') {
       return false;
     }
 
-    const menuItems = shouldShareRuntimeCatalog('menu')
-      ? await catalogService.getAllMenuItems()
-      : [];
-    const breakfastItems = menuItems.filter((item: any) => {
-      const text = normalizeSearchText([
-        item?.name,
-        item?.description,
-        item?.category,
-        item?.subcategory,
-        ...(item?.preferences || []),
-        ...(item?.dietaryInfo || []),
-        ...(item?.timeOfDay || [])
-      ].filter(Boolean).join(' '));
-      return text.includes('morning') || text.includes('breakfast') || text.includes('colazione') || text.includes('cappuccino');
-    });
-    const safeItems = breakfastItems.filter((item: any) => {
-      const dietary = (item?.dietaryInfo || []).map((value: string) => normalizeSearchText(value));
-      const allergens = (item?.allergens || []).map((value: string) => normalizeSearchText(value));
-      const text = normalizeSearchText([item?.name, item?.description, ...(item?.preferences || [])].filter(Boolean).join(' '));
-      return dietary.includes('lactose-free') || text.includes('senza lattosio') || (
-        text.includes('avena') && !allergens.some((allergen: string) => ['latte', 'lattosio'].includes(allergen))
-      );
-    });
-    const visibleItems = safeItems.length > 0 ? safeItems : breakfastItems.slice(0, 1);
-    const firstSafeItem = visibleItems[0];
+    const [menuItems, products] = await Promise.all([
+      shouldShareRuntimeCatalog('menu') ? catalogService.getAllMenuItems() : Promise.resolve([]),
+      shouldShareRuntimeCatalog('products') ? catalogService.getProducts() : Promise.resolve([])
+    ]);
+    const allItems = [...menuItems, ...products];
 
-    if (!firstSafeItem) {
-      return false;
-    }
-
-    orderIntentRef.current = {
-      kind: 'breakfast-lactose-free',
-      candidateIds: visibleItems.map((item: any) => item.id),
-      updatedAt: Date.now()
-    };
-
-    if (activeIntent && isOrderContinuation(message) && !/\b(vedere|vedi|mostra|prodotti|proposte|quali)\b/.test(lower)) {
-      addItem(firstSafeItem, 'menuItem');
+    if (signals.isConfirmation && state.proposedItems.length > 0 && !signals.wantsDetails && !signals.wantsProducts) {
+      const selectedProposal = state.proposedItems[0];
+      const selected = allItems.find((item: any) => item?.id === selectedProposal.id);
+      if (!selected) return false;
+      addItem(selected, selectedProposal.type);
+      agentStateManager.setNextAction(conversationId, 'checkout_details');
       const assistantMessage = messageService.createAssistantMessage(
-        `Ho aggiunto al carrello ${firstSafeItem.name}, che risulta senza lattosio. Apri il carrello per confermare ritiro e dati di contatto.`
+        localizeAgentCopy(state, 'addedToCart', selected.name)
       );
       messageService.addMessage(assistantMessage);
       setMessages(messageService.getMessages());
       await trackConversationMessage(assistantMessage, conversationId, userService.getUserContext());
       trackBusinessEvent('add_to_cart', {
-        id: firstSafeItem.id,
-        name: firstSafeItem.name,
-        type: 'menuItem',
+        id: selected.id,
+        name: selected.name,
+        type: selectedProposal.type,
         quantity: 1,
-        price: firstSafeItem.price,
-        reason: 'breakfast_lactose_free_flow'
+        price: selected.price,
+        reason: 'agent_state_confirmation'
       });
       setAvailableActions([]);
       return true;
     }
 
+    const lower = normalizeSearchText(message);
+    const hasNamedItem = allItems.find((item: any) => {
+      const name = normalizeSearchText(item?.name || '');
+      return name && (lower.includes(name) || name.split(/\s+/).filter(Boolean).every(part => lower.includes(part)));
+    });
+
+    if (signals.wantsDetails && hasNamedItem) {
+      const gatewayLikeResponse: AIGatewayChatResponse = {
+        mode: 'validation',
+        message: state.language === 'en'
+          ? `Here are the details for ${hasNamedItem.name}.`
+          : `Ecco il dettaglio di ${hasNamedItem.name}.`,
+        toolCalls: [{
+          name: 'get_item_detail',
+          arguments: { id: hasNamedItem.id },
+          result: { item: hasNamedItem }
+        }]
+      };
+      agentStateManager.updateProposals(conversationId, proposalsFromItems([hasNamedItem], products.includes(hasNamedItem) ? 'product' : 'menuItem'), 'confirm_proposal');
+      const assistantMessage = messageService.createAssistantMessage(gatewayLikeResponse.message);
+      messageService.addMessage(assistantMessage);
+      setMessages(messageService.getMessages());
+      await trackConversationMessage(assistantMessage, conversationId, userService.getUserContext());
+      uiComponentService.addComponents(createGatewayUIComponents(gatewayLikeResponse));
+      setAvailableActions([]);
+      return true;
+    }
+
+    if (state.goal === 'browse_products') {
+      const productResults = products.slice(0, config.maxRecommendations || 4);
+      if (productResults.length === 0) return false;
+      const gatewayLikeResponse: AIGatewayChatResponse = {
+        mode: 'validation',
+        message: localizeAgentCopy(state, 'showProducts'),
+        toolCalls: [{
+          name: 'search_products',
+          arguments: { query: message, originalQuery: message },
+          result: { products: productResults }
+        }]
+      };
+      agentStateManager.updateProposals(conversationId, proposalsFromItems(productResults, 'product'), 'choose_item');
+      const assistantMessage = messageService.createAssistantMessage(gatewayLikeResponse.message);
+      messageService.addMessage(assistantMessage);
+      setMessages(messageService.getMessages());
+      await trackConversationMessage(assistantMessage, conversationId, userService.getUserContext());
+      uiComponentService.addComponents(createGatewayUIComponents(gatewayLikeResponse));
+      setAvailableActions(createGatewayActions(gatewayLikeResponse));
+      return true;
+    }
+
+    const compatibleMenu = menuItems
+      .filter((item: any) => itemMatchesAgentState(item, state))
+      .slice(0, config.maxRecommendations || 4);
+
+    if (compatibleMenu.length === 0) {
+      if (state.constraints.length === 0 && state.mealSlot === 'all') return false;
+      const assistantMessage = messageService.createAssistantMessage(localizeAgentCopy(state, 'noCompatible'));
+      messageService.addMessage(assistantMessage);
+      setMessages(messageService.getMessages());
+      await trackConversationMessage(assistantMessage, conversationId, userService.getUserContext());
+      return true;
+    }
+
     const gatewayLikeResponse: AIGatewayChatResponse = {
       mode: 'validation',
-      message: visibleItems.length > 1
-        ? 'Per una colazione senza lattosio ti mostro le opzioni compatibili. Puoi aggiungerle al carrello dalla card.'
-        : `${firstSafeItem.name} è l'opzione più sicura per una colazione senza lattosio. Puoi aggiungerla al carrello dalla card.`,
+      message: localizeAgentCopy(state, 'showMenu'),
       toolCalls: [{
         name: 'search_menu',
         arguments: {
-          query: 'breakfast lactose-free',
+          query: message,
           originalQuery: message,
-          dietaryPreference: 'lactose-free',
-          timeOfDay: 'morning'
+          dietaryPreference: state.constraints[0] || '',
+          timeOfDay: state.mealSlot === 'breakfast'
+            ? 'morning'
+            : state.mealSlot === 'lunch'
+              ? 'afternoon'
+              : state.mealSlot === 'aperitivo'
+                ? 'evening'
+                : 'all'
         },
-        result: { items: visibleItems }
+        result: { items: compatibleMenu }
       }]
     };
+    agentStateManager.updateProposals(conversationId, proposalsFromItems(compatibleMenu, 'menuItem'), signals.wantsOrder ? 'confirm_proposal' : 'choose_item');
     const assistantMessage = messageService.createAssistantMessage(gatewayLikeResponse.message);
     messageService.addMessage(assistantMessage);
     setMessages(messageService.getMessages());
@@ -640,13 +738,15 @@ export const ChatProvider: React.FC<{
   }, [
     addItem,
     catalogService,
+    config.maxRecommendations,
     createGatewayActions,
     createGatewayUIComponents,
-    isBreakfastLactoseFreeIntent,
-    isOrderContinuation,
+    itemMatchesAgentState,
     isProductionTenant,
+    localizeAgentCopy,
     messageService,
     normalizeSearchText,
+    proposalsFromItems,
     shouldShareRuntimeCatalog,
     trackBusinessEvent,
     trackConversationMessage,
@@ -658,122 +758,8 @@ export const ChatProvider: React.FC<{
     message: string,
     conversationId: string
   ): Promise<boolean> => {
-    if (isProductionTenant()) {
-      return false;
-    }
-
-    if (await handleBreakfastLactoseFreeFlow(message, conversationId)) {
-      return true;
-    }
-
-    const lower = normalizeSearchText(message);
-    const wantsProducts = /\b(prodotti|prodotto|shop|acquistare|comprare|confezioni|biscotti|tazza|caffe in grani|decaffeinato|sencha)\b/.test(lower);
-    const wantsMenu = /\b(menu|pranzo|colazione|aperitivo|cena|mangiare|bere|consigli|consiglia|avete)\b/.test(lower);
-    const wantsDetail = /\b(dettaglio|dettagli|vedere|mostra|aprire|scheda)\b/.test(lower);
-
-    if (!wantsProducts && !wantsMenu && !wantsDetail) {
-      return false;
-    }
-
-    const [menuItems, products] = await Promise.all([
-      shouldShareRuntimeCatalog('menu') ? catalogService.getAllMenuItems() : Promise.resolve([]),
-      shouldShareRuntimeCatalog('products') ? catalogService.getProducts() : Promise.resolve([])
-    ]);
-    const allItems = [...products, ...menuItems];
-
-    if (wantsDetail) {
-      const selected = allItems.find((item: any) => {
-        const name = normalizeSearchText(item?.name || '');
-        return name && (lower.includes(name) || name.split(/\s+/).filter(Boolean).every(part => lower.includes(part)));
-      });
-
-      if (selected) {
-        const gatewayLikeResponse: AIGatewayChatResponse = {
-          mode: 'validation',
-          message: `Ecco il dettaglio di ${selected.name}. Puoi aggiungerlo al carrello dalla card.`,
-          toolCalls: [{
-            name: 'get_item_detail',
-            arguments: { id: selected.id },
-            result: { item: selected }
-          }]
-        };
-        const assistantMessage = messageService.createAssistantMessage(gatewayLikeResponse.message);
-        messageService.addMessage(assistantMessage);
-        setMessages(messageService.getMessages());
-        await trackConversationMessage(assistantMessage, conversationId, userService.getUserContext());
-        uiComponentService.addComponents(createGatewayUIComponents(gatewayLikeResponse));
-        setAvailableActions([]);
-        return true;
-      }
-    }
-
-    if (wantsProducts) {
-      const gatewayLikeResponse: AIGatewayChatResponse = {
-        mode: 'validation',
-        message: 'Ho trovato alcuni prodotti interessanti: li trovi nelle card qui sotto.',
-        toolCalls: [{
-          name: 'search_products',
-          arguments: { query: message },
-          result: { products: products.slice(0, config.maxRecommendations || 4) }
-        }]
-      };
-      const assistantMessage = messageService.createAssistantMessage(gatewayLikeResponse.message);
-      messageService.addMessage(assistantMessage);
-      setMessages(messageService.getMessages());
-      await trackConversationMessage(assistantMessage, conversationId, userService.getUserContext());
-      uiComponentService.addComponents(createGatewayUIComponents(gatewayLikeResponse));
-      setAvailableActions(createGatewayActions(gatewayLikeResponse));
-      return true;
-    }
-
-    const lunchTerms = /\b(pranzo|mangiare|lunch)\b/.test(lower);
-    const menuResults = menuItems
-      .filter((item: any) => {
-        if (!lunchTerms) return true;
-        const text = normalizeSearchText([
-          item?.name,
-          item?.category,
-          item?.subcategory,
-          ...(item?.preferences || [])
-        ].filter(Boolean).join(' '));
-        return /\b(lunch|food|bowl|toast|sandwich|salad|pranzo)\b/.test(text);
-      })
-      .slice(0, config.maxRecommendations || 4);
-
-    if (menuResults.length > 0) {
-      const gatewayLikeResponse: AIGatewayChatResponse = {
-        mode: 'validation',
-        message: lunchTerms
-          ? 'Per pranzo ti propongo queste opzioni. Puoi aprire una card per personalizzarla.'
-          : 'Ecco alcune proposte disponibili. Puoi aprire una card per vedere i dettagli.',
-        toolCalls: [{
-          name: 'search_menu',
-          arguments: { query: lunchTerms ? 'lunch' : message },
-          result: { items: menuResults }
-        }]
-      };
-      const assistantMessage = messageService.createAssistantMessage(gatewayLikeResponse.message);
-      messageService.addMessage(assistantMessage);
-      setMessages(messageService.getMessages());
-      await trackConversationMessage(assistantMessage, conversationId, userService.getUserContext());
-      uiComponentService.addComponents(createGatewayUIComponents(gatewayLikeResponse));
-      setAvailableActions(createGatewayActions(gatewayLikeResponse));
-      return true;
-    }
-
-    return false;
-  }, [
-    catalogService,
-    config.maxRecommendations,
-    createGatewayActions,
-    createGatewayUIComponents,
-    messageService,
-    normalizeSearchText,
-    uiComponentService,
-    userService,
-    isProductionTenant,
-    shouldShareRuntimeCatalog
-  ]);
+    return handleStatefulCatalogFlow(message, conversationId);
+  }, [handleStatefulCatalogFlow]);
 
   const sendMessageThroughGateway = useCallback(async (
     message: string,
@@ -919,7 +905,7 @@ export const ChatProvider: React.FC<{
     }
     
     try {
-      if (await handleBreakfastLactoseFreeFlow(userMessageContent, conversationId)) {
+      if (await handleStatefulCatalogFlow(userMessageContent, conversationId)) {
         setIsTyping(false);
         return;
       }
@@ -989,7 +975,7 @@ export const ChatProvider: React.FC<{
     conversationTracker,
     aiService,
     createPrivacyGovernanceResponse,
-    handleBreakfastLactoseFreeFlow,
+    handleStatefulCatalogFlow,
     sendMessageThroughGateway,
     governanceUserContext,
     shouldLearnSensitiveProfile,

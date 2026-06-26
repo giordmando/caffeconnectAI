@@ -7,16 +7,20 @@
 }
 
 const { routeAgent } = require('./agentRouter');
+const { AgentStateManager } = require('./agentStateManager');
 
 class AgentOrchestrator {
   constructor({ openaiClient, toolRegistry, config }) {
     this.openaiClient = openaiClient;
     this.toolRegistry = toolRegistry;
     this.config = config;
+    this.agentStateManager = new AgentStateManager();
   }
 
   async runChat(payload) {
     const message = String(payload.message || '').trim();
+    const conversationId = String(payload.conversationId || 'anonymous');
+    const stateAnalysis = this.agentStateManager.analyzeMessage(conversationId, message);
     const agent = routeAgent(message, payload);
 
     if (!message) {
@@ -34,10 +38,10 @@ class AgentOrchestrator {
     }
 
     if (this.config.demoMode || !this.openaiClient.isConfigured()) {
-      return this.runDemoMode(message, payload, agent);
+      return this.runDemoMode(message, payload, agent, stateAnalysis);
     }
 
-    return this.runResponsesWithTools(message, payload, agent);
+    return this.runResponsesWithTools(message, payload, agent, stateAnalysis);
   }
 
   handlePrivacyGovernedMemoryRequest(message, payload = {}, agent) {
@@ -148,13 +152,14 @@ class AgentOrchestrator {
     return 'Perfetto, terrò conto di questa preferenza su questo dispositivo e la userò per consigliarti meglio durante l esperienza.';
   }
 
-  async runResponsesWithTools(message, payload, agent) {
+  async runResponsesWithTools(message, payload, agent, stateAnalysis) {
     const retrievedKnowledge = await this.retrieveKnowledgeContext(message, payload);
     const customerProfile = this.buildCustomerProfile(payload);
     const allowedTools = Array.isArray(agent.tools) && agent.tools.length > 0 ? agent.tools : null;
     const instructions = this.buildInstructions(payload, agent, {
       retrievedKnowledge,
-      customerProfile
+      customerProfile,
+      agentState: stateAnalysis?.state
     });
     let response = await this.openaiClient.createResponse({
       instructions,
@@ -215,10 +220,13 @@ class AgentOrchestrator {
     };
   }
 
-  async runDemoMode(message, payload = {}, agent) {
+  async runDemoMode(message, payload = {}, agent, stateAnalysis) {
     const lower = message.toLowerCase();
     const toolCalls = [];
     const retrievedKnowledge = await this.retrieveKnowledgeContext(message, payload);
+    const conversationId = String(payload.conversationId || 'anonymous');
+    const state = stateAnalysis?.state || this.agentStateManager.getState(conversationId);
+    const signals = stateAnalysis?.signals || {};
 
     if (retrievedKnowledge.results.length > 0 && (this.isKnowledgeQuestion(lower) || agent.id === 'triage')) {
       toolCalls.push({
@@ -226,27 +234,6 @@ class AgentOrchestrator {
         arguments: { query: message, limit: 4, preflight: true },
         result: retrievedKnowledge
       });
-    }
-
-    if (this.isBreakfastLactoseFreeIntent(lower)) {
-      const args = {
-        query: 'breakfast lactose-free',
-        originalQuery: message,
-        dietaryPreference: 'lactose-free',
-        timeOfDay: 'morning',
-        limit: 4
-      };
-      const result = await this.toolRegistry.execute('search_menu', args, payload);
-      toolCalls.push({ name: 'search_menu', arguments: args, result });
-
-      return {
-        message: result.items.length
-          ? 'Per una colazione senza lattosio ti mostro le opzioni compatibili. Puoi aggiungerle al carrello dalla card.'
-          : 'Non trovo opzioni colazione senza lattosio nel catalogo collegato. Posso passarti al locale per una conferma sicura.',
-        agent,
-        toolCalls,
-        mode: 'demo'
-      };
     }
 
     if (this.isKnowledgeQuestion(lower) && !this.isRecommendationIntent(lower)) {
@@ -306,6 +293,18 @@ class AgentOrchestrator {
       const args = { query: '', limit: 4 };
       const result = await this.toolRegistry.execute('search_products', args, payload);
       toolCalls.push({ name: 'search_products', arguments: args, result });
+      if (result.products?.length) {
+        this.agentStateManager.updateProposals(
+          conversationId,
+          result.products.map(product => ({
+            id: product.id,
+            name: product.name,
+            type: 'product',
+            price: product.price
+          })),
+          signals.wantsOrder ? 'confirm_proposal' : 'choose_item'
+        );
+      }
       const productMessage = result.products.length
         ? this.summarizePersonalizedSelection(result.products, 'prodotti')
         : result.source === 'missing-production-catalog'
@@ -320,13 +319,7 @@ class AgentOrchestrator {
       };
     }
 
-    const timeOfDay = lower.includes('colazione')
-      ? 'morning'
-      : lower.includes('pranzo')
-        ? 'afternoon'
-        : lower.includes('aperitivo') || lower.includes('sera')
-          ? 'evening'
-          : 'all';
+    const timeOfDay = this.timeOfDayFromState(state);
 
     const queryByTime = {
       morning: 'breakfast',
@@ -336,14 +329,26 @@ class AgentOrchestrator {
     const args = {
       query: timeOfDay === 'all' ? message : queryByTime[timeOfDay] || '',
       originalQuery: message,
-      dietaryPreference: this.extractDietaryPreference(lower),
+      dietaryPreference: state.constraints?.[0] || this.extractDietaryPreference(lower),
       timeOfDay,
       limit: 4
     };
     const result = await this.toolRegistry.execute('search_menu', args, payload);
     toolCalls.push({ name: 'search_menu', arguments: args, result });
+    if (result.items?.length) {
+      this.agentStateManager.updateProposals(
+        conversationId,
+        result.items.map(item => ({
+          id: item.id,
+          name: item.name,
+          type: 'menuItem',
+          price: item.price
+        })),
+        signals.wantsOrder ? 'confirm_proposal' : 'choose_item'
+      );
+    }
     const menuMessage = result.items.length
-      ? this.summarizeMenuSuggestion(timeOfDay, lower, result.items)
+      ? this.summarizeMenuSuggestion(timeOfDay, lower, result.items, state)
       : result.source === 'missing-production-catalog'
         ? 'Non trovo un menu collegato per questo merchant. Configura una fonte menu reale per attivare consigli affidabili.'
         : args.dietaryPreference
@@ -362,11 +367,11 @@ class AgentOrchestrator {
     return ['dettaglio', 'dettagli', 'vedere', 'vedi', 'visualizzare', 'acquistare', 'comprare'].some(term => lower.includes(term));
   }
 
-  isBreakfastLactoseFreeIntent(lower) {
-    return (
-      ['colazione', 'mattina', 'cappuccino', 'cornetto', 'breakfast'].some(term => lower.includes(term)) &&
-      ['lattosio', 'senza lattosio', 'intoller', 'lactose'].some(term => lower.includes(term))
-    );
+  timeOfDayFromState(state = {}) {
+    if (state.mealSlot === 'breakfast') return 'morning';
+    if (state.mealSlot === 'lunch') return 'afternoon';
+    if (state.mealSlot === 'aperitivo') return 'evening';
+    return 'all';
   }
 
   async resolveDetailRequest(message, payload) {
@@ -388,27 +393,43 @@ class AgentOrchestrator {
     return { item: null, type: 'product' };
   }
 
-  summarizeMenuSuggestion(timeOfDay, lower, items = []) {
+  summarizeMenuSuggestion(timeOfDay, lower, items = [], state = {}) {
     const personalReason = this.bestPersonalizationReason(items);
     const reasonSuffix = personalReason ? ` Ho dato priorita a opzioni ${personalReason}.` : '';
+    const english = state.language === 'en';
+    const constraints = Array.isArray(state.constraints) ? state.constraints : [];
+    const hasConstraints = constraints.length > 0;
 
     if (timeOfDay === 'afternoon') {
+      if (english) {
+        return 'For lunch, I found compatible savory options. You can open a card or add one to the cart.' + reasonSuffix;
+      }
       return lower.includes('ho chiesto') || lower.startsWith('ma ')
         ? 'Hai ragione: per pranzo ti propongo opzioni salate e complete. Puoi scegliere una bowl o un toast e aggiungerli al carrello.' + reasonSuffix
         : 'Per pranzo ti propongo opzioni salate e complete. Le trovi nelle card qui sotto.' + reasonSuffix;
     }
 
     if (timeOfDay === 'morning') {
-      return lower.includes('lattosio')
-        ? 'Per colazione senza lattosio ti mostro le opzioni compatibili. Le trovi nelle card qui sotto.' + reasonSuffix
+      if (english) {
+        return hasConstraints
+          ? 'For breakfast, I found options compatible with your preferences. You can open a card or add one to the cart.' + reasonSuffix
+          : 'For breakfast, I found suitable morning options. You can open a card or add one to the cart.' + reasonSuffix;
+      }
+      return hasConstraints
+        ? 'Per colazione ti mostro opzioni compatibili con le tue preferenze. Le trovi nelle card qui sotto.' + reasonSuffix
         : 'Per colazione ti propongo alcune opzioni adatte al mattino. Le trovi nelle card qui sotto.' + reasonSuffix;
     }
 
     if (timeOfDay === 'evening') {
+      if (english) {
+        return 'For aperitivo, I found suitable evening options. You can open a card or add one to the cart.' + reasonSuffix;
+      }
       return 'Per aperitivo ti propongo alcune opzioni pensate per la sera. Le trovi nelle card qui sotto.' + reasonSuffix;
     }
 
-    return 'Ti propongo alcune opzioni dal menu: le trovi nelle card qui sotto.' + reasonSuffix;
+    return english
+      ? 'I found some menu options. You can open a card or add one to the cart.' + reasonSuffix
+      : 'Ti propongo alcune opzioni dal menu: le trovi nelle card qui sotto.' + reasonSuffix;
   }
 
   summarizeToolBackedResponse(modelText, toolCalls) {
@@ -542,6 +563,23 @@ class AgentOrchestrator {
         return `${index + 1}. ${result.title || 'Fonte'}:${source} ${content}`;
       })
     ].join('\n');
+  }
+
+  formatAgentState(state = {}) {
+    if (!state || state.goal === 'unknown') return '';
+    const proposed = Array.isArray(state.proposedItems) && state.proposedItems.length > 0
+      ? state.proposedItems.slice(0, 5).map(item => item.name).filter(Boolean).join(', ')
+      : '';
+
+    return [
+      'Stato conversazionale corrente da preservare finche il cliente non lo cambia:',
+      state.language ? `- Lingua: ${state.language}` : '',
+      state.goal ? `- Goal: ${state.goal}` : '',
+      state.mealSlot && state.mealSlot !== 'all' ? `- Fascia/occasione: ${state.mealSlot}` : '',
+      Array.isArray(state.constraints) && state.constraints.length ? `- Vincoli/preferenze: ${state.constraints.join(', ')}` : '',
+      state.nextExpectedAction ? `- Prossima azione attesa: ${state.nextExpectedAction}` : '',
+      proposed ? `- Proposte attive: ${proposed}` : ''
+    ].filter(Boolean).join('\n');
   }
 
   bestPersonalizationReason(items = []) {
@@ -760,10 +798,6 @@ class AgentOrchestrator {
     const lowerContent = String(content || '').toLowerCase();
     const lowerQuery = String(query || '').toLowerCase();
 
-    if (lowerQuery.includes('lattosio') && lowerQuery.includes('colazione')) {
-      return 'Per una colazione senza lattosio ti consiglio il cappuccino con bevanda d avena. Eviterei i prodotti con burro o latte e, se hai un intolleranza importante, meglio segnalarlo al banco prima dell ordine.';
-    }
-
     if (lowerQuery.includes('pranzo') || lowerContent.includes('a pranzo')) {
       return 'Per un pranzo leggero ti consiglierei la Bowl pollo e cereali oppure l Insalata quinoa avocado. Se preferisci qualcosa di vegetale e senza lattosio, il Toast hummus e verdure e una buona alternativa.';
     }
@@ -840,6 +874,7 @@ class AgentOrchestrator {
     const runtimeKnowledge = this.formatRuntimeKnowledge(payload);
     const customerProfile = this.formatCustomerProfile(context.customerProfile);
     const retrievedKnowledge = this.formatRetrievedKnowledge(context.retrievedKnowledge);
+    const agentState = this.formatAgentState(context.agentState);
 
     return [
       'Sei CafeConnect AI, un assistente commerciale per bar, cafe e piccoli locali.',
@@ -855,6 +890,7 @@ class AgentOrchestrator {
       'Se il cliente chiede di ricordare preferenze e la policy profilo e disabled, spiega che non puoi memorizzarle per il futuro.',
       'Se il cliente chiede di ricordare allergie, intolleranze, salute o altri dati sensibili e allowSensitiveInference e false, usa il dato solo per la richiesta corrente e non promettere memoria futura.',
       'Rispondi in italiano con massimo 2 frasi brevi.',
+      'Se il cliente scrive in inglese, rispondi in inglese mantenendo le stesse regole operative.',
       'Non elencare tutti i dati dei tool: la UI mostra gia card e dettagli visivi.',
       'Non inserire URL, markdown link, markdown immagini, tabelle o liste numerate lunghe.',
       'Quando mostri prodotti o menu usa i tool: rispondi con una frase breve e lascia le card alla UI.',
@@ -865,9 +901,9 @@ class AgentOrchestrator {
       'Se il cliente chiede una prenotazione e non esiste bookingUrl configurato, non dire che puoi prenotare: indica il contatto telefonico o suggerisci contatto umano.',
       'Se il cliente chiede un pagamento e non esiste paymentUrl configurato, non promettere pagamento online: prepara solo riepilogo ordine e conferma.',
       'Se il cliente vuole ordinare, prepara una bozza e chiedi conferma prima dell invio.',
-      'Mantieni il goal della conversazione: se il cliente chiede colazione senza lattosio, non proporre pranzo, bowl, insalate o altri pasti finche non cambia esplicitamente richiesta.',
-      'Per colazione senza lattosio privilegia cappuccino con bevanda d avena se presente nel catalogo. Evita cornetti o prodotti con burro/latte se il cliente dichiara intolleranza al lattosio.',
-      'Se il cliente dice "si procedi", "prepara ordine" o "voglio ordinare" dopo una proposta, non ricominciare: conferma l articolo proposto e porta al carrello/checkout.',
+      'Usa lo stato conversazionale per mantenere goal, vincoli, lingua, proposte attive e prossima azione attesa.',
+      'Se nextExpectedAction e confirm_proposal e il cliente conferma, non ricominciare: continua sulla proposta attiva e guida verso carrello o checkout.',
+      'Preserva fascia pasto, vincoli alimentari e preferenze esplicite finche il cliente non li cambia.',
       business.name ? 'Locale attivo: ' + business.name + '.' : '',
       business.type ? 'Tipo locale: ' + business.type + '.' : '',
       tenant.merchantId ? 'Merchant ID: ' + tenant.merchantId + '.' : '',
@@ -882,6 +918,7 @@ class AgentOrchestrator {
       integrations.crmProvider && integrations.crmProvider !== 'none' ? 'CRM collegato: ' + integrations.crmProvider + '.' : '',
       customerProfile,
       retrievedKnowledge,
+      agentState,
       runtimeKnowledge
     ].filter(Boolean).join('\n');
   }
