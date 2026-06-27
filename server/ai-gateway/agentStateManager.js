@@ -94,6 +94,36 @@ class AgentStateManager {
     return updated;
   }
 
+  mergePlan(conversationId, plan = {}) {
+    const state = this.getState(conversationId);
+    const nextConstraints = Array.isArray(plan.constraints)
+      ? this.mergeConstraints(state.constraints, plan.constraints)
+      : state.constraints;
+    const nextProposals = Array.isArray(plan.proposedItems) && plan.proposedItems.length > 0
+      ? plan.proposedItems
+      : state.proposedItems;
+    const updated = {
+      ...state,
+      language: ['it', 'en'].includes(plan.language) ? plan.language : state.language,
+      goal: plan.goal || state.goal,
+      mealSlot: plan.mealSlot || state.mealSlot,
+      constraints: nextConstraints,
+      proposedItems: nextProposals,
+      nextExpectedAction: plan.nextExpectedAction || state.nextExpectedAction,
+      plan: {
+        intent: plan.intent || '',
+        customerNeed: plan.customerNeed || '',
+        toolPlan: Array.isArray(plan.toolPlan) ? plan.toolPlan : [],
+        responseStrategy: plan.responseStrategy || '',
+        missingInformation: Array.isArray(plan.missingInformation) ? plan.missingInformation : []
+      },
+      updatedAt: Date.now()
+    };
+
+    this.states.set(conversationId, updated);
+    return updated;
+  }
+
   setNextAction(conversationId, nextExpectedAction) {
     const state = this.getState(conversationId);
     const updated = { ...state, nextExpectedAction, updatedAt: Date.now() };

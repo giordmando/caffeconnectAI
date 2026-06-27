@@ -11,13 +11,13 @@ function readJson(relativePath, fallback) {
 }
 
 function loadLocalMenuItems() {
-  const data = readJson('src/api/mockData/menuItems.json', { menuItems: [] });
+  const data = readJson('public/demo-data/cafeconnect-menu-normalized.json', { menuItems: [] });
   return Array.isArray(data.menuItems) ? data.menuItems : [];
 }
 
 function loadLocalProducts() {
-  const data = readJson('src/api/mockData/products.json', []);
-  return Array.isArray(data) ? data : [];
+  const data = readJson('public/demo-data/cafeconnect-products-normalized.json', { products: [] });
+  return Array.isArray(data.products) ? data.products : [];
 }
 
 function isDemoContext(context = {}) {
@@ -68,9 +68,16 @@ function normalizeDietaryTerm(value) {
 function allergenMatchesRestriction(allergen, restriction) {
   const normalizedRestriction = normalizeDietaryTerm(restriction);
   const normalizedAllergen = normalizeDietaryTerm(allergen);
+  const rawAllergen = normalize(allergen);
 
-  if (normalizedRestriction === 'gluten-free' && normalizedAllergen === 'gluten-free') return true;
-  if (normalizedRestriction === 'lactose-free' && normalizedAllergen === 'lactose-free') return true;
+  if (normalizedRestriction === 'gluten-free') {
+    return ['gluten', 'glutine', 'wheat', 'frumento'].some(term => rawAllergen.includes(term));
+  }
+
+  if (normalizedRestriction === 'lactose-free') {
+    return ['lactose', 'lattosio', 'milk', 'latte', 'burro', 'butter', 'cream', 'panna'].some(term => rawAllergen.includes(term));
+  }
+
   return normalizedAllergen === normalizedRestriction;
 }
 
@@ -108,6 +115,10 @@ function itemText(item) {
 
 function matchesQuery(entry, query) {
   if (!query) return true;
+  const terms = query
+    .split(/\s+/)
+    .map(term => term.trim())
+    .filter(term => term.length > 2);
   const searchableFields = [
     entry.name,
     entry.description,
@@ -120,7 +131,8 @@ function matchesQuery(entry, query) {
     ...(entry.timeOfDay || [])
   ];
 
-  return searchableFields.some(field => normalize(field).includes(query));
+  const haystack = searchableFields.map(normalize).join(' ');
+  return haystack.includes(query) || terms.some(term => haystack.includes(term));
 }
 
 function findByIdOrName(collection, value) {
@@ -247,6 +259,10 @@ function isCompatibleWithRestrictions(item, restrictions = []) {
 
     if (normalizedRestriction === 'vegan' || normalizedRestriction === 'vegetarian') {
       return (item.dietaryInfo || []).some(info => dietaryInfoMatchesRestriction(info, normalizedRestriction));
+    }
+
+    if ((item.dietaryInfo || []).some(info => dietaryInfoMatchesRestriction(info, normalizedRestriction))) {
+      return true;
     }
 
     return !(item.allergens || []).some(allergen => allergenMatchesRestriction(allergen, normalizedRestriction));

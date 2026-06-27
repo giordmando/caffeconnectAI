@@ -225,12 +225,11 @@ export const ChatProvider: React.FC<{
   }, [appConfig?.tenant]);
 
   const shouldShareRuntimeCatalog = useCallback((type: 'menu' | 'products'): boolean => {
-    if (!isProductionTenant()) return true;
     if (appConfig?.catalog?.enableLocalData) return false;
     return type === 'menu'
       ? Boolean(appConfig?.catalog?.menuEndpoint)
       : Boolean(appConfig?.catalog?.productsEndpoint);
-  }, [appConfig?.catalog, isProductionTenant]);
+  }, [appConfig?.catalog]);
 
   const dataGovernance = appConfig?.dataGovernance;
   const shouldPersistCustomerProfile = dataGovernance?.customerProfileStorage !== 'disabled';
@@ -805,6 +804,19 @@ export const ChatProvider: React.FC<{
         }
       });
 
+      (gatewayResponse.cartOperations || []).forEach(operation => {
+        if (operation.action !== 'add' || !operation.item) return;
+        addItem(operation.item, operation.itemType);
+        trackBusinessEvent('add_to_cart', {
+          id: operation.item.id,
+          name: operation.item.name,
+          type: operation.itemType,
+          quantity: operation.quantity || 1,
+          price: operation.item.price,
+          reason: 'ai_gateway_cart_operation'
+        });
+      });
+
       const messageMetadata = createGatewayMessageMetadata(gatewayResponse);
       const assistantMessage = messageService.createAssistantMessage(
         gatewayResponse.message,
@@ -841,6 +853,7 @@ export const ChatProvider: React.FC<{
     }
   }, [
     aiGatewayClient,
+    addItem,
     appConfig,
     config.enableDynamicComponents,
     createGatewayActions,
@@ -913,11 +926,6 @@ export const ChatProvider: React.FC<{
     }
     
     try {
-      if (await handleStatefulCatalogFlow(userMessageContent, conversationId)) {
-        setIsTyping(false);
-        return;
-      }
-
       // Prepara contesto per AI
       const userCtx = userService.getUserContext();
       const aiContextForAnalytics = conversationTracker 

@@ -49,6 +49,12 @@ export interface AIGatewayChatResponse {
     arguments: unknown;
     result: unknown;
   }>;
+  cartOperations?: Array<{
+    action: 'add';
+    item: any;
+    itemType: 'menuItem' | 'product';
+    quantity?: number;
+  }>;
 }
 
 export class AIGatewayClient {

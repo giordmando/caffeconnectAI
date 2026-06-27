@@ -37,11 +37,109 @@ class AgentOrchestrator {
       return privacyGovernedResponse;
     }
 
+    const plannedStateAnalysis = await this.planConversationTurn(message, payload, stateAnalysis);
+
     if (this.config.demoMode || !this.openaiClient.isConfigured()) {
-      return this.runDemoMode(message, payload, agent, stateAnalysis);
+      return this.runDemoMode(message, payload, agent, plannedStateAnalysis);
     }
 
-    return this.runResponsesWithTools(message, payload, agent, stateAnalysis);
+    return this.runResponsesWithTools(message, payload, agent, plannedStateAnalysis);
+  }
+
+  async planConversationTurn(message, payload = {}, stateAnalysis) {
+    if (!this.openaiClient.isConfigured()) {
+      return stateAnalysis;
+    }
+
+    const conversationId = String(payload.conversationId || 'anonymous');
+    const state = stateAnalysis?.state || this.agentStateManager.getState(conversationId);
+    const catalogSummary = await this.collectCatalogSummary(payload);
+    const plannerInstructions = [
+      'Sei il planner agentico di CafeConnect AI.',
+      'Devi aggiornare lo stato conversazionale, non rispondere al cliente.',
+      'Produci solo JSON valido, senza markdown.',
+      'Mantieni goal, vincoli e proposte precedenti se il cliente non li cambia.',
+      'Se il cliente chiede di aggiungere un articolo per nome, imposta goal order e nextExpectedAction checkout_details.',
+      'Se il cliente chiede opzioni da mangiare, evita bevande e pianifica search_menu con category food quando possibile.',
+      'Se il cliente chiede allergeni o compatibilita, pianifica dettaglio o ricerca con dietaryPreference.',
+      'Schema JSON: {"language":"it|en","goal":"unknown|browse_menu|browse_products|order|ask_info","mealSlot":"all|breakfast|lunch|aperitivo","constraints":["lactose-free|gluten-free|vegan|vegetarian"],"intent":"string","customerNeed":"string","nextExpectedAction":"none|show_options|choose_item|confirm_proposal|checkout_details|ask_clarification","toolPlan":[{"tool":"search_menu|search_products|get_item_detail|create_order_draft|knowledge_search","args":{}}],"responseStrategy":"string","missingInformation":[]}'
+    ].join('\n');
+
+    try {
+      const response = await this.openaiClient.createResponse({
+        instructions: plannerInstructions,
+        input: JSON.stringify({
+          message,
+          previousState: state,
+          customerProfile: this.buildCustomerProfile(payload),
+          catalogSummary
+        }),
+        metadata: {
+          product: 'cafeconnect-ai',
+          conversation_id: conversationId,
+          agent_phase: 'planner'
+        }
+      });
+      const text = this.openaiClient.extractText(response);
+      const plan = safeJsonParse(this.extractJsonObject(text), {});
+      const plannedState = this.agentStateManager.mergePlan(conversationId, plan);
+      return {
+        state: plannedState,
+        signals: stateAnalysis?.signals || {}
+      };
+    } catch (error) {
+      console.warn('[ai-gateway] planner failed, using deterministic state:', error.message);
+      return stateAnalysis;
+    }
+  }
+
+  extractJsonObject(text) {
+    const raw = String(text || '').trim();
+    const start = raw.indexOf('{');
+    const end = raw.lastIndexOf('}');
+    if (start === -1 || end === -1 || end <= start) return raw;
+    return raw.slice(start, end + 1);
+  }
+
+  formatCatalogSummary(catalog = {}) {
+    const menuItems = Array.isArray(catalog.menuItems) ? catalog.menuItems : [];
+    const products = Array.isArray(catalog.products) ? catalog.products : [];
+    const summarize = item => ({
+      id: item.id,
+      name: item.name,
+      category: item.category,
+      subcategory: item.subcategory,
+      timeOfDay: item.timeOfDay,
+      dietaryInfo: item.dietaryInfo,
+      allergens: item.allergens
+    });
+
+    return {
+      menuItems: menuItems.slice(0, 40).map(summarize),
+      products: products.slice(0, 40).map(summarize)
+    };
+  }
+
+  async collectCatalogSummary(payload = {}) {
+    const runtimeSummary = this.formatCatalogSummary(payload.catalog || {});
+    if (runtimeSummary.menuItems.length > 0 || runtimeSummary.products.length > 0) {
+      return runtimeSummary;
+    }
+
+    try {
+      const [menuResult, productResult] = await Promise.all([
+        this.toolRegistry.execute('search_menu', { query: '', timeOfDay: 'all', limit: 40 }, payload),
+        this.toolRegistry.execute('search_products', { query: '', limit: 40 }, payload)
+      ]);
+
+      return this.formatCatalogSummary({
+        menuItems: menuResult.items || [],
+        products: productResult.products || []
+      });
+    } catch (error) {
+      console.warn('[ai-gateway] unable to collect catalog summary for planner:', error.message);
+      return runtimeSummary;
+    }
   }
 
   handlePrivacyGovernedMemoryRequest(message, payload = {}, agent) {
@@ -228,6 +326,11 @@ class AgentOrchestrator {
     const state = stateAnalysis?.state || this.agentStateManager.getState(conversationId);
     const signals = stateAnalysis?.signals || {};
 
+    const plannedResponse = await this.runPlannedToolFlow(message, payload, agent, state, signals);
+    if (plannedResponse) {
+      return plannedResponse;
+    }
+
     if (retrievedKnowledge.results.length > 0 && (this.isKnowledgeQuestion(lower) || agent.id === 'triage')) {
       toolCalls.push({
         name: retrievedKnowledge.source === 'runtime' ? 'runtime_knowledge_search' : 'knowledge_search',
@@ -361,6 +464,170 @@ class AgentOrchestrator {
       toolCalls,
       mode: 'demo'
     };
+  }
+
+  async runPlannedToolFlow(message, payload, agent, state = {}, signals = {}) {
+    const toolPlan = Array.isArray(state.plan?.toolPlan) ? state.plan.toolPlan : [];
+    const conversationId = String(payload.conversationId || 'anonymous');
+    const executablePlan = toolPlan.filter(step => step && step.tool).slice(0, 3);
+    const toolCalls = [];
+
+    for (const step of executablePlan) {
+      const toolName = step.tool;
+      if (!['search_menu', 'search_products', 'get_item_detail', 'create_order_draft', 'knowledge_search'].includes(toolName)) {
+        continue;
+      }
+
+      const args = this.enrichPlannedToolArgs(toolName, step.args || {}, message, state);
+      try {
+        const result = await this.toolRegistry.execute(toolName, args, payload);
+        toolCalls.push({ name: toolName, arguments: args, result });
+      } catch (error) {
+        console.warn('[ai-gateway] planned tool failed:', toolName, error.message);
+      }
+    }
+
+    if (toolCalls.length === 0) {
+      return null;
+    }
+
+    const catalogItems = this.itemsFromToolCalls(toolCalls);
+    if (catalogItems.length > 0) {
+      this.agentStateManager.updateProposals(
+        conversationId,
+        catalogItems.map(({ item, type }) => ({
+          id: item.id,
+          name: item.name,
+          type,
+          price: item.price
+        })),
+        state.goal === 'order' ? 'confirm_proposal' : 'choose_item'
+      );
+    }
+
+    const cartCandidate = this.selectCartCandidate(message, state, catalogItems);
+    if (cartCandidate && state.goal === 'order' && ['checkout_details', 'confirm_proposal'].includes(state.nextExpectedAction)) {
+      this.agentStateManager.setNextAction(conversationId, 'checkout_details');
+      return {
+        message: state.language === 'en'
+          ? `I added ${cartCandidate.item.name} to your cart. Would you like anything to eat with it?`
+          : `Ho aggiunto al carrello ${cartCandidate.item.name}. Vuoi aggiungere anche qualcosa da mangiare?`,
+        agent,
+        toolCalls,
+        cartOperations: [{
+          action: 'add',
+          item: cartCandidate.item,
+          itemType: cartCandidate.type,
+          quantity: 1
+        }],
+        mode: 'demo'
+      };
+    }
+
+    const firstMenuCall = toolCalls.find(call => call.name === 'search_menu' && call.result?.items?.length > 0);
+    if (firstMenuCall) {
+      return {
+        message: this.planBackedCatalogMessage(state, firstMenuCall.result.items),
+        agent,
+        toolCalls,
+        mode: 'demo'
+      };
+    }
+
+    const firstProductCall = toolCalls.find(call => call.name === 'search_products' && call.result?.products?.length > 0);
+    if (firstProductCall) {
+      return {
+        message: this.planBackedProductMessage(state, firstProductCall.result.products),
+        agent,
+        toolCalls,
+        mode: 'demo'
+      };
+    }
+
+    const detailCall = toolCalls.find(call => call.name === 'get_item_detail' && call.result?.item);
+    if (detailCall) {
+      return {
+        message: state.language === 'en'
+          ? `Here are the details for ${detailCall.result.item.name}.`
+          : `Ecco il dettaglio di ${detailCall.result.item.name}.`,
+        agent,
+        toolCalls,
+        mode: 'demo'
+      };
+    }
+
+    return null;
+  }
+
+  enrichPlannedToolArgs(toolName, args = {}, message, state = {}) {
+    const nextArgs = { ...args };
+    if (toolName === 'search_menu') {
+      nextArgs.originalQuery = nextArgs.originalQuery || message;
+      nextArgs.query = nextArgs.query || this.queryFromState(state, message);
+      nextArgs.timeOfDay = nextArgs.timeOfDay || this.timeOfDayFromState(state);
+      nextArgs.dietaryPreference = nextArgs.dietaryPreference || state.constraints?.[0] || '';
+      nextArgs.limit = nextArgs.limit || 6;
+    }
+    if (toolName === 'search_products') {
+      nextArgs.originalQuery = nextArgs.originalQuery || message;
+      nextArgs.query = nextArgs.query || message;
+      nextArgs.dietaryPreference = nextArgs.dietaryPreference || state.constraints?.[0] || '';
+      nextArgs.limit = nextArgs.limit || 6;
+    }
+    return nextArgs;
+  }
+
+  queryFromState(state = {}, message = '') {
+    if (state.mealSlot === 'breakfast') return 'breakfast';
+    if (state.mealSlot === 'lunch') return 'lunch';
+    if (state.mealSlot === 'aperitivo') return 'aperitivo';
+    return message;
+  }
+
+  itemsFromToolCalls(toolCalls = []) {
+    return toolCalls.flatMap(call => {
+      if (call.name === 'search_menu') {
+        return (call.result?.items || []).map(item => ({ item, type: 'menuItem' }));
+      }
+      if (call.name === 'search_products') {
+        return (call.result?.products || []).map(item => ({ item, type: 'product' }));
+      }
+      if (call.name === 'get_item_detail' && call.result?.item) {
+        return [{ item: call.result.item, type: call.arguments?.type || 'menuItem' }];
+      }
+      return [];
+    });
+  }
+
+  selectCartCandidate(message, state = {}, catalogItems = []) {
+    const normalizedMessage = String(message || '').toLowerCase();
+    const candidates = catalogItems.length > 0
+      ? catalogItems
+      : (state.proposedItems || []).map(item => ({ item, type: item.type }));
+
+    return candidates.find(({ item }) => {
+      const name = String(item.name || '').toLowerCase();
+      return name && (normalizedMessage.includes(name) || name.split(/\s+/).some(part => part.length > 4 && normalizedMessage.includes(part)));
+    }) || candidates[0] || null;
+  }
+
+  planBackedCatalogMessage(state = {}, items = []) {
+    const hasFood = items.some(item => String(item.category || '').toLowerCase() === 'food');
+    if (state.language === 'en') {
+      return hasFood
+        ? 'I found food options compatible with your request. Open a card to choose one or tell me which one to add.'
+        : 'I found compatible menu options. Open a card to choose one or tell me which one to add.';
+    }
+    return hasFood
+      ? 'Ho trovato opzioni da mangiare compatibili con la richiesta. Apri una card oppure dimmi quale vuoi aggiungere.'
+      : 'Ho trovato opzioni di menu compatibili. Apri una card oppure dimmi quale vuoi aggiungere.';
+  }
+
+  planBackedProductMessage(state = {}, products = []) {
+    if (state.language === 'en') {
+      return 'I found compatible products. Open a card for details or tell me which one to add.';
+    }
+    return 'Ho trovato prodotti compatibili. Apri una card per i dettagli oppure dimmi quale vuoi aggiungere.';
   }
 
   isDetailRequest(lower) {

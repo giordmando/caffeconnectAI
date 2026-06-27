@@ -2,7 +2,6 @@ import { MenuItem } from '../../types/MenuItem';
 import { Product } from '../../types/Product';
 import { configManager } from '../../config/ConfigManager';
 import { getTimeOfDay } from '../../utils/timeContext';
-import { mockApiGetMenuItems, mockApiGetProducts } from '../../api/mockApi';
 import { ICatalogService } from './interfaces/ICatalogService';
 import {
   extractCatalogRecords,
@@ -135,7 +134,7 @@ export class CatalogService implements ICatalogService{
   }
   
   /**
-   * Aggiorna il menu da API o dati mock
+   * Aggiorna il menu da API o catalogo demo dichiarato.
    */
   private async refreshMenu(): Promise<void> {
     try {
@@ -148,8 +147,7 @@ export class CatalogService implements ICatalogService{
         this.menuItems = [];
         console.warn('Production tenant without remote menu endpoint: local demo menu disabled');
       } else {
-        // Usa dati mock
-        this.menuItems = await mockApiGetMenuItems();
+        this.menuItems = await this.loadDemoMenuItems();
       }
       
       this.lastMenuRefresh = Date.now();
@@ -157,15 +155,15 @@ export class CatalogService implements ICatalogService{
     } catch (error) {
       console.error('Error refreshing menu:', error);
       if (this.menuItems.length === 0 && !this.isProductionTenant()) {
-        this.menuItems = await mockApiGetMenuItems();
+        this.menuItems = await this.loadDemoMenuItems();
         this.lastMenuRefresh = Date.now();
-        console.warn('Menu fallback loaded from local mock data');
+        console.warn('Menu fallback loaded from demo catalog data');
       }
     }
   }
   
   /**
-   * Aggiorna i prodotti da API o dati mock
+   * Aggiorna i prodotti da API o catalogo demo dichiarato.
    */
   private async refreshProducts(): Promise<void> {
     try {
@@ -178,8 +176,7 @@ export class CatalogService implements ICatalogService{
         this.products = [];
         console.warn('Production tenant without remote products endpoint: local demo products disabled');
       } else {
-        // Usa dati mock
-        this.products = await mockApiGetProducts();
+        this.products = await this.loadDemoProducts();
       }
       
       this.lastProductsRefresh = Date.now();
@@ -187,11 +184,23 @@ export class CatalogService implements ICatalogService{
     } catch (error) {
       console.error('Error refreshing products:', error);
       if (this.products.length === 0 && !this.isProductionTenant()) {
-        this.products = await mockApiGetProducts();
+        this.products = await this.loadDemoProducts();
         this.lastProductsRefresh = Date.now();
-        console.warn('Products fallback loaded from local mock data');
+        console.warn('Products fallback loaded from demo catalog data');
       }
     }
+  }
+
+  private async loadDemoMenuItems(): Promise<MenuItem[]> {
+    const rawData = await this.fetchRemoteCatalogData('/demo-data/cafeconnect-menu-normalized.json');
+    const records = extractCatalogRecords(rawData, 'menu');
+    return records.map((record, index) => normalizeMenuRecord(record, index));
+  }
+
+  private async loadDemoProducts(): Promise<Product[]> {
+    const rawData = await this.fetchRemoteCatalogData('/demo-data/cafeconnect-products-normalized.json');
+    const records = extractCatalogRecords(rawData, 'products');
+    return records.map((record, index) => normalizeProductRecord(record, index));
   }
 
   private async loadRemoteMenuItems(endpoint: string): Promise<MenuItem[]> {
