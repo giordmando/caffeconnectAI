@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { mockApiGetProducts } from '../../api/mockApi';
 import { useCart } from '../../hooks/useCart';
 import { formatPrice } from '../../utils/formatters';
+import { catalogService } from '../../services/catalog/CatalogService';
 
 interface ProductRecommendation {
   id: string;
@@ -31,7 +31,7 @@ export const ProductCarousel: React.FC<ProductCarouselProps> = ({
     const fetchProducts = async () => {
       try {
         setLoading(true);
-        const allProducts = await mockApiGetProducts();
+        const allProducts = await catalogService.getProducts();
         const recommendedProducts = recommendations
           .map(rec => {
             const product = rec.item || allProducts.find(candidate => candidate.id === rec.id);
