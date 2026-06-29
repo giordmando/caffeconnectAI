@@ -38,6 +38,15 @@ class AgentOrchestrator {
     }
 
     const plannedStateAnalysis = await this.planConversationTurn(message, payload, stateAnalysis);
+    const plannedState = plannedStateAnalysis?.state || stateAnalysis.state;
+    const plannedSignals = plannedStateAnalysis?.signals || stateAnalysis.signals || {};
+    const plannedResponse = await this.runPlannedToolFlow(message, payload, agent, plannedState, plannedSignals);
+    if (plannedResponse) {
+      return {
+        ...plannedResponse,
+        mode: this.openaiClient.isConfigured() && !this.config.demoMode ? 'openai-responses' : plannedResponse.mode
+      };
+    }
 
     if (this.config.demoMode || !this.openaiClient.isConfigured()) {
       return this.runDemoMode(message, payload, agent, plannedStateAnalysis);
@@ -62,6 +71,9 @@ class AgentOrchestrator {
       'Se il cliente chiede di aggiungere un articolo per nome, imposta goal order e nextExpectedAction checkout_details.',
       'Se il cliente chiede opzioni da mangiare, evita bevande e pianifica search_menu con category food quando possibile.',
       'Se il cliente chiede allergeni o compatibilita, pianifica dettaglio o ricerca con dietaryPreference.',
+      'Se il cliente dichiara allergia, intolleranza o rischio grave, non proporre mai articoli con allergeni incompatibili.',
+      'Se un articolo e stato dichiarato incompatibile, non riproporlo come opzione ordinabile nella stessa conversazione.',
+      'Quando il cliente conferma dopo una proposta valida, pianifica carrello/ordine invece di fare una nuova raccomandazione generica.',
       'Schema JSON: {"language":"it|en","goal":"unknown|browse_menu|browse_products|order|ask_info","mealSlot":"all|breakfast|lunch|aperitivo","constraints":["lactose-free|gluten-free|vegan|vegetarian"],"intent":"string","customerNeed":"string","nextExpectedAction":"none|show_options|choose_item|confirm_proposal|checkout_details|ask_clarification","toolPlan":[{"tool":"search_menu|search_products|get_item_detail|create_order_draft|knowledge_search","args":{}}],"responseStrategy":"string","missingInformation":[]}'
     ].join('\n');
 
@@ -325,11 +337,6 @@ class AgentOrchestrator {
     const conversationId = String(payload.conversationId || 'anonymous');
     const state = stateAnalysis?.state || this.agentStateManager.getState(conversationId);
     const signals = stateAnalysis?.signals || {};
-
-    const plannedResponse = await this.runPlannedToolFlow(message, payload, agent, state, signals);
-    if (plannedResponse) {
-      return plannedResponse;
-    }
 
     if (retrievedKnowledge.results.length > 0 && (this.isKnowledgeQuestion(lower) || agent.id === 'triage')) {
       toolCalls.push({
