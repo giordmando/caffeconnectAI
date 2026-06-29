@@ -487,10 +487,6 @@ class AgentOrchestrator {
       }
     }
 
-    if (toolCalls.length === 0) {
-      return null;
-    }
-
     const catalogItems = this.itemsFromToolCalls(toolCalls);
     if (catalogItems.length > 0) {
       this.agentStateManager.updateProposals(
@@ -505,23 +501,28 @@ class AgentOrchestrator {
       );
     }
 
-    const cartCandidate = this.selectCartCandidate(message, state, catalogItems);
-    if (cartCandidate && state.goal === 'order' && ['checkout_details', 'confirm_proposal'].includes(state.nextExpectedAction)) {
+    const cartCandidates = await this.resolveCartCandidates(message, payload, state, catalogItems);
+    if (cartCandidates.length > 0 && state.goal === 'order' && ['checkout_details', 'confirm_proposal'].includes(state.nextExpectedAction)) {
       this.agentStateManager.setNextAction(conversationId, 'checkout_details');
+      const itemNames = cartCandidates.map(candidate => candidate.item.name).join(' e ');
       return {
         message: state.language === 'en'
-          ? `I added ${cartCandidate.item.name} to your cart. Would you like anything to eat with it?`
-          : `Ho aggiunto al carrello ${cartCandidate.item.name}. Vuoi aggiungere anche qualcosa da mangiare?`,
+          ? `I added ${itemNames} to your cart. You can open the cart to confirm pickup and contact details.`
+          : `Ho aggiunto al carrello ${itemNames}. Apri il carrello per confermare ritiro e dati di contatto.`,
         agent,
         toolCalls,
-        cartOperations: [{
+        cartOperations: cartCandidates.map(candidate => ({
           action: 'add',
-          item: cartCandidate.item,
-          itemType: cartCandidate.type,
+          item: candidate.item,
+          itemType: candidate.type,
           quantity: 1
-        }],
+        })),
         mode: 'demo'
       };
+    }
+
+    if (toolCalls.length === 0) {
+      return null;
     }
 
     const firstMenuCall = toolCalls.find(call => call.name === 'search_menu' && call.result?.items?.length > 0);
@@ -599,16 +600,96 @@ class AgentOrchestrator {
     });
   }
 
-  selectCartCandidate(message, state = {}, catalogItems = []) {
-    const normalizedMessage = String(message || '').toLowerCase();
-    const candidates = catalogItems.length > 0
-      ? catalogItems
-      : (state.proposedItems || []).map(item => ({ item, type: item.type }));
+  async resolveCartCandidates(message, payload, state = {}, catalogItems = []) {
+    const [menuResult, productResult] = await Promise.all([
+      this.toolRegistry.execute('search_menu', { query: '', timeOfDay: 'all', limit: 80 }, payload).catch(() => ({ items: [] })),
+      this.toolRegistry.execute('search_products', { query: '', limit: 80 }, payload).catch(() => ({ products: [] }))
+    ]);
+    const candidates = [
+      ...catalogItems,
+      ...(menuResult.items || []).map(item => ({ item, type: 'menuItem' })),
+      ...(productResult.products || []).map(item => ({ item, type: 'product' })),
+      ...(state.proposedItems || []).map(item => ({ item, type: item.type || 'menuItem' }))
+    ].filter(candidate => candidate.item?.id && candidate.item?.name);
+    const uniqueCandidates = Array.from(
+      new Map(candidates.map(candidate => [`${candidate.type}:${candidate.item.id}`, candidate])).values()
+    );
+    const normalizedMessage = this.normalizeLoose(message);
+    const requestedParts = this.extractRequestedItemPhrases(normalizedMessage);
+    const matches = requestedParts
+      .map(part => this.bestCatalogMatch(part, uniqueCandidates, state))
+      .filter(Boolean);
+    const uniqueMatches = Array.from(
+      new Map(matches.map(candidate => [`${candidate.type}:${candidate.item.id}`, candidate])).values()
+    );
 
-    return candidates.find(({ item }) => {
-      const name = String(item.name || '').toLowerCase();
-      return name && (normalizedMessage.includes(name) || name.split(/\s+/).some(part => part.length > 4 && normalizedMessage.includes(part)));
-    }) || candidates[0] || null;
+    if (uniqueMatches.length > 0) {
+      return uniqueMatches;
+    }
+
+    if (state.goal === 'order' && Array.isArray(state.proposedItems) && state.proposedItems.length > 0) {
+      return state.proposedItems
+        .map(proposal => uniqueCandidates.find(candidate => candidate.item.id === proposal.id && candidate.type === proposal.type))
+        .filter(Boolean)
+        .slice(0, 2);
+    }
+
+    return [];
+  }
+
+  normalizeLoose(value) {
+    return String(value || '')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^\w\s]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  extractRequestedItemPhrases(normalizedMessage) {
+    const cleaned = normalizedMessage
+      .replace(/\b(aggiungi|aggiungere|metti|mettere|carrello|nel|nel carrello|li puoi|puoi|vorrei|voglio|prendo|prendere|fammi|vedere|anche|menu)\b/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    return cleaned
+      .split(/\s+(?:e|con|piu|,)\s+/)
+      .map(part => part.trim())
+      .filter(part => part.length > 2);
+  }
+
+  bestCatalogMatch(phrase, candidates = [], state = {}) {
+    const phraseTokens = phrase.split(/\s+/).filter(token => token.length > 2);
+    if (phraseTokens.length === 0) return null;
+
+    const scored = candidates.map(candidate => {
+      const haystack = this.normalizeLoose([
+        candidate.item.name,
+        candidate.item.description,
+        candidate.item.category,
+        candidate.item.subcategory,
+        ...(candidate.item.ingredients || []),
+        ...(candidate.item.preferences || []),
+        ...(candidate.item.dietaryInfo || [])
+      ].filter(Boolean).join(' '));
+      const name = this.normalizeLoose(candidate.item.name);
+      let score = 0;
+      if (name.includes(phrase)) score += 100;
+      if (phrase.includes(name)) score += 100;
+      phraseTokens.forEach(token => {
+        if (name.includes(token)) score += 35;
+        else if (haystack.includes(token)) score += 12;
+      });
+      if (state.constraints?.includes('lactose-free') && (candidate.item.allergens || []).some(allergen =>
+        ['latte', 'lattosio', 'milk', 'burro', 'panna'].includes(this.normalizeLoose(allergen))
+      )) {
+        const hasPlantVariant = haystack.includes('avena') || haystack.includes('vegetal') || haystack.includes('senza lattosio');
+        score += hasPlantVariant && (phrase.includes('avena') || phrase.includes('vegetal')) ? 40 : -80;
+      }
+      return { candidate, score };
+    }).sort((a, b) => b.score - a.score);
+
+    return scored[0]?.score > 20 ? scored[0].candidate : null;
   }
 
   planBackedCatalogMessage(state = {}, items = []) {
