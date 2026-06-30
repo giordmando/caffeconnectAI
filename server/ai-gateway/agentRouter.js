@@ -91,32 +91,32 @@ function activeAgentIds(payload = {}) {
   return active.length > 0 ? active : Object.keys(agents);
 }
 
-function routeAgent(message, payload = {}) {
-  const lower = String(message || '').toLowerCase();
+function getAgentById(agentId, payload = {}) {
   const agents = configuredAgents(payload);
   const enabledIds = activeAgentIds(payload);
-
-  const ranked = enabledIds
-    .map(id => agents[id] || agents.triage)
-    .map(agent => {
-      const score = agent.terms.reduce((sum, term) => sum + (lower.includes(term) ? 1 : 0), 0);
-      return {
-        ...agent,
-        confidence: agent.id === 'triage' ? 0.45 : Math.min(0.95, 0.55 + score * 0.12),
-        score
-      };
-    })
-    .sort((a, b) => b.score - a.score || b.confidence - a.confidence);
-
-  const selected = ranked.find(agent => agent.score > 0) || (agents[enabledIds[0]] || agents.triage);
+  const selectedId = enabledIds.includes(agentId) ? agentId : 'triage';
+  const selected = agents[selectedId] || agents.triage;
 
   return {
     id: selected.id,
     label: selected.label,
-    confidence: selected.score > 0 ? selected.confidence : 0.45,
+    confidence: selected.id === agentId ? 0.9 : 0.45,
     instruction: selected.instruction,
     tools: selected.tools || []
   };
 }
 
-module.exports = { AGENTS, configuredAgents, routeAgent };
+function routeAgent(_message, payload = {}) {
+  const agents = configuredAgents(payload);
+  const enabledIds = activeAgentIds(payload);
+  const selected = agents[enabledIds[0]] || agents.triage;
+  return {
+    id: selected.id,
+    label: selected.label,
+    confidence: selected.id === 'triage' ? 0.45 : 0.7,
+    instruction: selected.instruction,
+    tools: selected.tools || []
+  };
+}
+
+module.exports = { AGENTS, configuredAgents, getAgentById, routeAgent };

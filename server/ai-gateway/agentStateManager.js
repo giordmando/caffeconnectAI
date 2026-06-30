@@ -1,67 +1,56 @@
 const STATE_TTL_MS = 30 * 60 * 1000;
 
-const SEMANTIC_MARKERS = {
-  languageEn: [
-    ' i ',
-    ' do ',
-    ' can ',
-    ' want ',
-    ' would ',
-    ' please ',
-    ' breakfast',
-    ' lunch',
-    ' order',
-    ' show',
-    ' dairy',
-    ' gluten',
-    ' vegan'
-  ],
-  confirm: ['si', 'ok', 'va bene', 'vai', 'procedi', 'confermo', 'prepara', 'yes', 'yeah', 'yep', 'go ahead', 'proceed', 'confirm'],
-  order: ['ordine', 'ordina', 'ordinare', 'carrello', 'checkout', 'ritiro', 'acquist', 'comprare', 'order', 'cart', 'buy', 'pickup'],
-  show: ['mostra', 'fammi vedere', 'vedere', 'quali', 'opzioni', 'proposte', 'proponi', 'suggerisci', 'qualcosa', 'avete', 'hai qualcosa', 'consigli', 'consiglia', 'fit', 'healthy', 'salutare', 'leggero', 'proteico', 'bilanciato', 'show', 'options', 'recommend', 'suggest', 'do you have'],
-  details: ['dettaglio', 'dettagli', 'scheda', 'ingredient', 'allergen', 'detail', 'details'],
-  products: ['prodotti', 'prodotto', 'shop', 'confezione', 'tazza', 'biscotti', 'caffe in grani', 'products', 'beans', 'gift'],
-  info: ['wifi', 'wi-fi', 'prenot', 'orari', 'aperto', 'chiuso', 'telefono', 'contatto', 'policy', 'privacy', 'booking', 'reservation', 'opening'],
-  alternatives: ['altro', 'alternativa', 'alternative', 'oppure', 'else'],
-  meal: {
-    breakfast: ['colazione', 'mattina', 'cappuccino', 'cornetto', 'breakfast', 'morning', 'pastry'],
-    lunch: ['pranzo', 'bowl', 'toast', 'insalata', 'lunch'],
-    aperitivo: ['aperitivo', 'sera', 'after work', 'evening']
-  },
-  constraints: {
-    'lactose-free': ['senza lattosio', 'lattosio', 'intoller', 'latte vegetale', 'bevanda vegetale', 'lactose', 'dairy free', 'non dairy'],
-    'gluten-free': ['senza glutine', 'glutine', 'celiach', 'gluten free', 'gluten'],
-    vegan: ['vegano', 'vegana', 'vegan'],
-    vegetarian: ['vegetariano', 'vegetariana', 'vegetarian']
+const DEFAULT_STATE = {
+  language: 'it',
+  agentId: 'triage',
+  goal: 'unknown',
+  mealSlot: 'all',
+  constraints: [],
+  proposedItems: [],
+  nextExpectedAction: 'none',
+  plan: {
+    agentId: 'triage',
+    customerNeed: '',
+    toolPlan: [],
+    responseStrategy: '',
+    missingInformation: []
   }
 };
+
+const ALLOWED_LANGUAGES = new Set(['it', 'en']);
+const ALLOWED_AGENTS = new Set(['triage', 'menu_advisor', 'sales', 'order', 'knowledge', 'analytics']);
+const ALLOWED_GOALS = new Set(['unknown', 'browse_menu', 'browse_products', 'order', 'ask_info']);
+const ALLOWED_MEAL_SLOTS = new Set(['all', 'breakfast', 'lunch', 'aperitivo']);
+const ALLOWED_ACTIONS = new Set([
+  'none',
+  'show_options',
+  'choose_item',
+  'confirm_proposal',
+  'checkout_details',
+  'ask_clarification'
+]);
+const ALLOWED_CONSTRAINTS = new Set(['lactose-free', 'gluten-free', 'vegan', 'vegetarian']);
+const ALLOWED_TOOLS = new Set([
+  'search_menu',
+  'search_products',
+  'get_item_detail',
+  'create_order_draft',
+  'knowledge_search'
+]);
 
 class AgentStateManager {
   constructor() {
     this.states = new Map();
   }
 
-  analyzeMessage(conversationId, message) {
-    const normalized = this.normalize(message);
-    const previous = this.getState(conversationId);
-    const language = this.detectLanguage(normalized, previous.language);
-    const constraints = this.mergeConstraints(previous.constraints, this.detectConstraints(normalized));
-    const mealSlot = this.detectMealSlot(normalized) || previous.mealSlot;
-    const signals = this.detectSignals(normalized, previous);
-    const goal = this.resolveGoal(signals, previous.goal);
-    const nextExpectedAction = this.resolveNextAction(signals, goal, previous);
-    const state = {
-      ...previous,
-      language,
-      goal,
-      mealSlot,
-      constraints,
-      nextExpectedAction,
-      updatedAt: Date.now()
-    };
+  beginTurn(conversationId) {
+    const state = this.getState(conversationId);
+    this.states.set(conversationId, { ...state, updatedAt: Date.now() });
+    return { state: this.getState(conversationId), signals: {} };
+  }
 
-    this.states.set(conversationId, state);
-    return { state, signals };
+  analyzeMessage(conversationId) {
+    return this.beginTurn(conversationId);
   }
 
   getState(conversationId) {
@@ -72,12 +61,9 @@ class AgentStateManager {
 
     return {
       conversationId,
-      language: 'it',
-      goal: 'unknown',
-      mealSlot: 'all',
-      constraints: [],
+      ...DEFAULT_STATE,
       proposedItems: [],
-      nextExpectedAction: 'none',
+      plan: { ...DEFAULT_STATE.plan, toolPlan: [], missingInformation: [] },
       updatedAt: Date.now()
     };
   }
@@ -86,8 +72,8 @@ class AgentStateManager {
     const state = this.getState(conversationId);
     const updated = {
       ...state,
-      proposedItems: proposals.slice(0, 8),
-      nextExpectedAction,
+      proposedItems: this.sanitizeProposals(proposals).slice(0, 8),
+      nextExpectedAction: this.allowed(nextExpectedAction, ALLOWED_ACTIONS, state.nextExpectedAction),
       updatedAt: Date.now()
     };
     this.states.set(conversationId, updated);
@@ -96,33 +82,39 @@ class AgentStateManager {
 
   mergePlan(conversationId, plan = {}) {
     const state = this.getState(conversationId);
-    const plannedToolPlan = Array.isArray(plan.toolPlan) ? plan.toolPlan : [];
-    const plannedGoal = plan.goal || state.goal;
+    const plannedToolPlan = this.sanitizeToolPlan(plan.toolPlan);
+    const plannedGoal = this.allowed(plan.goal, ALLOWED_GOALS, state.goal);
     const preserveMenuContext = (
       state.goal === 'browse_menu' &&
       ['ask_info', 'unknown'].includes(plannedGoal) &&
       plannedToolPlan.length === 0
     );
-    const nextConstraints = Array.isArray(plan.constraints)
-      ? this.mergeConstraints(state.constraints, plan.constraints)
-      : state.constraints;
     const nextProposals = Array.isArray(plan.proposedItems) && plan.proposedItems.length > 0
-      ? plan.proposedItems
+      ? this.sanitizeProposals(plan.proposedItems)
       : state.proposedItems;
+    const agentId = this.allowed(plan.agentId, ALLOWED_AGENTS, state.agentId || 'triage');
+
     const updated = {
       ...state,
-      language: ['it', 'en'].includes(plan.language) ? plan.language : state.language,
+      language: this.allowed(plan.language, ALLOWED_LANGUAGES, state.language),
+      agentId,
       goal: preserveMenuContext ? state.goal : plannedGoal,
-      mealSlot: plan.mealSlot || state.mealSlot,
-      constraints: nextConstraints,
+      mealSlot: this.allowed(plan.mealSlot, ALLOWED_MEAL_SLOTS, state.mealSlot),
+      constraints: Array.isArray(plan.constraints)
+        ? this.mergeConstraints(state.constraints, plan.constraints)
+        : state.constraints,
       proposedItems: nextProposals,
-      nextExpectedAction: preserveMenuContext ? 'choose_item' : (plan.nextExpectedAction || state.nextExpectedAction),
+      nextExpectedAction: preserveMenuContext
+        ? 'choose_item'
+        : this.allowed(plan.nextExpectedAction, ALLOWED_ACTIONS, state.nextExpectedAction),
       plan: {
-        intent: plan.intent || '',
-        customerNeed: plan.customerNeed || '',
+        agentId,
+        customerNeed: this.cleanText(plan.customerNeed),
         toolPlan: plannedToolPlan,
-        responseStrategy: plan.responseStrategy || '',
-        missingInformation: Array.isArray(plan.missingInformation) ? plan.missingInformation : []
+        responseStrategy: this.cleanText(plan.responseStrategy),
+        missingInformation: Array.isArray(plan.missingInformation)
+          ? plan.missingInformation.map(item => this.cleanText(item)).filter(Boolean).slice(0, 5)
+          : []
       },
       updatedAt: Date.now()
     };
@@ -133,87 +125,54 @@ class AgentStateManager {
 
   setNextAction(conversationId, nextExpectedAction) {
     const state = this.getState(conversationId);
-    const updated = { ...state, nextExpectedAction, updatedAt: Date.now() };
+    const updated = {
+      ...state,
+      nextExpectedAction: this.allowed(nextExpectedAction, ALLOWED_ACTIONS, state.nextExpectedAction),
+      updatedAt: Date.now()
+    };
     this.states.set(conversationId, updated);
     return updated;
   }
 
-  normalize(value) {
-    return ` ${String(value || '')
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .replace(/[^\w\s'-]/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim()} `;
-  }
-
-  includesAny(text, terms = []) {
-    return terms.some(term => {
-      const normalizedTerm = this.normalize(term).trim();
-      return text.includes(` ${normalizedTerm} `) || text.includes(normalizedTerm);
-    });
-  }
-
-  detectLanguage(normalized, fallback) {
-    return this.includesAny(normalized, SEMANTIC_MARKERS.languageEn) ? 'en' : fallback;
-  }
-
-  detectMealSlot(normalized) {
-    if (this.includesAny(normalized, SEMANTIC_MARKERS.meal.breakfast)) return 'breakfast';
-    if (this.includesAny(normalized, SEMANTIC_MARKERS.meal.lunch)) return 'lunch';
-    if (this.includesAny(normalized, SEMANTIC_MARKERS.meal.aperitivo)) return 'aperitivo';
-    return null;
-  }
-
-  detectConstraints(normalized) {
-    return Object.entries(SEMANTIC_MARKERS.constraints)
-      .filter(([, markers]) => this.includesAny(normalized, markers))
-      .map(([constraint]) => constraint);
-  }
-
   mergeConstraints(previous = [], next = []) {
-    return Array.from(new Set([...previous, ...next]));
+    return Array.from(new Set([
+      ...previous,
+      ...next
+        .map(value => this.cleanText(value))
+        .filter(value => ALLOWED_CONSTRAINTS.has(value))
+    ]));
   }
 
-  detectSignals(normalized, previous) {
-    const isConfirmation = this.includesAny(normalized, SEMANTIC_MARKERS.confirm)
-      && ['confirm_proposal', 'checkout_details'].includes(previous.nextExpectedAction);
-    const wantsOrder = this.includesAny(normalized, SEMANTIC_MARKERS.order) || isConfirmation;
-    const wantsProducts = this.includesAny(normalized, SEMANTIC_MARKERS.products);
-    const wantsDetails = this.includesAny(normalized, SEMANTIC_MARKERS.details);
-    const wantsInfo = this.includesAny(normalized, SEMANTIC_MARKERS.info);
-    const wantsCatalog = this.includesAny(normalized, SEMANTIC_MARKERS.show)
-      || Boolean(this.detectMealSlot(normalized))
-      || this.detectConstraints(normalized).length > 0
-      || (previous.goal === 'browse_menu' && this.includesAny(normalized, SEMANTIC_MARKERS.alternatives));
-
-    return {
-      isConfirmation,
-      wantsCatalog,
-      wantsProducts,
-      wantsOrder,
-      wantsDetails,
-      wantsInfo,
-      asksForAlternatives: this.includesAny(normalized, SEMANTIC_MARKERS.alternatives)
-    };
+  sanitizeToolPlan(toolPlan = []) {
+    if (!Array.isArray(toolPlan)) return [];
+    return toolPlan
+      .filter(step => step && ALLOWED_TOOLS.has(step.tool))
+      .map(step => ({
+        tool: step.tool,
+        args: step.args && typeof step.args === 'object' ? step.args : {}
+      }))
+      .slice(0, 5);
   }
 
-  resolveGoal(signals, previousGoal) {
-    if (signals.wantsOrder) return 'order';
-    if (signals.wantsProducts) return 'browse_products';
-    if (signals.wantsCatalog || signals.wantsDetails) return 'browse_menu';
-    if (signals.wantsInfo) return 'ask_info';
-    return previousGoal;
+  sanitizeProposals(proposals = []) {
+    if (!Array.isArray(proposals)) return [];
+    return proposals
+      .filter(item => item && item.id && item.name)
+      .map(item => ({
+        id: this.cleanText(item.id),
+        name: this.cleanText(item.name),
+        type: this.cleanText(item.type || 'menuItem') || 'menuItem',
+        price: item.price
+      }));
   }
 
-  resolveNextAction(signals, goal, previous) {
-    if (signals.isConfirmation && previous.proposedItems.length > 0) return 'checkout_details';
-    if (signals.wantsDetails) return 'show_options';
-    if (goal === 'order' && previous.proposedItems.length > 0) return 'confirm_proposal';
-    if (goal === 'browse_menu' || goal === 'browse_products') return 'choose_item';
-    if (goal === 'ask_info') return 'none';
-    return previous.nextExpectedAction;
+  allowed(value, allowedValues, fallback) {
+    const normalized = this.cleanText(value);
+    return allowedValues.has(normalized) ? normalized : fallback;
+  }
+
+  cleanText(value) {
+    return String(value || '').trim();
   }
 }
 

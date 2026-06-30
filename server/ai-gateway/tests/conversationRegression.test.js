@@ -42,13 +42,33 @@ class FakeOpenAIClient {
   }
 
   planFor(message, previousState) {
+    if (message.includes('cosa avete per colazione')) {
+      return {
+        language: 'it',
+        agentId: 'menu_advisor',
+        goal: 'browse_menu',
+        mealSlot: 'breakfast',
+        constraints: previousState.constraints || [],
+        customerNeed: 'opzioni per colazione',
+        nextExpectedAction: 'choose_item',
+        toolPlan: [
+          {
+            tool: 'search_menu',
+            args: { query: 'breakfast', timeOfDay: 'morning', limit: 6 }
+          }
+        ],
+        responseStrategy: 'Mostra opzioni colazione concrete dal catalogo.',
+        missingInformation: []
+      };
+    }
+
     if (message.includes('senza lattosio') && message.includes('colazione')) {
       return {
         language: 'it',
+        agentId: 'menu_advisor',
         goal: 'browse_menu',
         mealSlot: 'breakfast',
         constraints: ['lactose-free'],
-        intent: 'breakfast_lactose_free_recommendation',
         customerNeed: 'colazione senza lattosio',
         nextExpectedAction: 'choose_item',
         toolPlan: [
@@ -70,10 +90,10 @@ class FakeOpenAIClient {
     if (message.includes('mangiare') || message.includes('qualcosa da mangiare')) {
       return {
         language: 'it',
+        agentId: 'menu_advisor',
         goal: 'browse_menu',
         mealSlot: previousState.mealSlot || 'breakfast',
-        constraints: previousState.constraints || ['lactose-free'],
-        intent: 'food_lactose_free_options',
+        constraints: previousState.constraints || [],
         customerNeed: 'opzioni da mangiare senza lattosio',
         nextExpectedAction: 'choose_item',
         toolPlan: [
@@ -95,10 +115,10 @@ class FakeOpenAIClient {
     if (message.includes('sono fit') || message === 'si grazie') {
       return {
         language: 'it',
+        agentId: 'triage',
         goal: 'ask_info',
         mealSlot: previousState.mealSlot || 'all',
         constraints: previousState.constraints || [],
-        intent: 'planner_drift',
         customerNeed: '',
         nextExpectedAction: 'none',
         toolPlan: [],
@@ -110,10 +130,10 @@ class FakeOpenAIClient {
     if (message.includes('fit') || message.includes('non so cosa posso mangiare')) {
       return {
         language: 'it',
+        agentId: 'menu_advisor',
         goal: 'browse_menu',
         mealSlot: previousState.mealSlot || 'breakfast',
         constraints: previousState.constraints || [],
-        intent: 'continue_breakfast_menu',
         customerNeed: 'continuare a vedere opzioni coerenti per colazione',
         nextExpectedAction: 'choose_item',
         toolPlan: [
@@ -135,14 +155,15 @@ class FakeOpenAIClient {
       message.includes('cappuccino') ||
       message.includes('toast') ||
       message.includes('procedi') ||
-      message.includes('aggiungi')
+      message.includes('aggiungi') ||
+      (message.includes('ok') && previousState.proposedItems?.length > 0)
     ) {
       return {
         language: 'it',
+        agentId: 'order',
         goal: 'order',
         mealSlot: previousState.mealSlot || 'breakfast',
         constraints: previousState.constraints || ['lactose-free'],
-        intent: 'add_items_to_cart',
         customerNeed: 'aggiungere articoli al carrello',
         nextExpectedAction: 'checkout_details',
         toolPlan: [],
@@ -153,10 +174,10 @@ class FakeOpenAIClient {
 
     return {
       language: 'it',
+      agentId: previousState.agentId || 'triage',
       goal: previousState.goal || 'unknown',
       mealSlot: previousState.mealSlot || 'all',
       constraints: previousState.constraints || [],
-      intent: 'fallback',
       customerNeed: '',
       nextExpectedAction: previousState.nextExpectedAction || 'none',
       toolPlan: [],
@@ -303,12 +324,46 @@ async function testBreakfastContextDoesNotResetOnGenericConfirmation() {
   );
 }
 
+async function testFitProposalConfirmationDoesNotReset() {
+  const orchestrator = createOrchestrator();
+  const conversationId = 'fit-confirmation';
+
+  await orchestrator.runChat({
+    ...demoPayload(conversationId),
+    message: 'buongiorno, cosa avete da mangiare?'
+  });
+
+  const fitResponse = await orchestrator.runChat({
+    ...demoPayload(conversationId),
+    message: 'vorrei qualcosa di fit e poco calorico'
+  });
+
+  const confirmResponse = await orchestrator.runChat({
+    ...demoPayload(conversationId),
+    message: 'ok!'
+  });
+
+  assert(
+    fitResponse.toolCalls.some(call => call.name === 'search_menu'),
+    'fit request should search menu through the central planner'
+  );
+  assert(
+    confirmResponse.cartOperations?.length > 0,
+    'short confirmation should continue active proposal and add to cart'
+  );
+  assert(
+    !/ciao|come posso aiutarti|dare un.occhiata al nostro menu/i.test(confirmResponse.message),
+    'confirmation must not reset to a greeting or generic menu prompt'
+  );
+}
+
 async function run() {
   const tests = [
     testBreakfastLactoseFreeSearch,
     testMultiItemCartOperation,
     testProceedUsesPreviousProposal,
-    testBreakfastContextDoesNotResetOnGenericConfirmation
+    testBreakfastContextDoesNotResetOnGenericConfirmation,
+    testFitProposalConfirmationDoesNotReset
   ];
 
   for (const test of tests) {

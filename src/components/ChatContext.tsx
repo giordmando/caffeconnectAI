@@ -844,11 +844,18 @@ export const ChatProvider: React.FC<{
       });
       return true;
     } catch (error) {
-      console.warn('[ChatContext] AI Gateway unavailable, falling back to current provider:', error);
-      const handledLocally = await handleLocalCatalogFallback(message, conversationId);
-      if (handledLocally) {
+      console.warn('[ChatContext] AI Gateway unavailable:', error);
+      if (isProductionTenant() || shouldUseAIGateway()) {
+        const assistantMessage = messageService.createAssistantMessage(
+          'Ho un problema temporaneo nel collegamento con l assistente AI. Riprova tra poco: preferisco non darti una risposta parziale o fuori contesto.'
+        );
+        messageService.addMessage(assistantMessage);
+        setMessages(messageService.getMessages());
+        await trackConversationMessage(assistantMessage, conversationId, userService.getUserContext());
         return true;
       }
+      const handledLocally = await handleLocalCatalogFallback(message, conversationId);
+      if (handledLocally) return true;
       return false;
     }
   }, [
@@ -865,6 +872,7 @@ export const ChatProvider: React.FC<{
     catalogService,
     userService,
     handleLocalCatalogFallback,
+    isProductionTenant,
     shouldShareRuntimeCatalog,
     governanceUserContext,
     trackBusinessEvent,

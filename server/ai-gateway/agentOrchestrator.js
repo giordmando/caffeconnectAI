@@ -6,7 +6,7 @@
   }
 }
 
-const { routeAgent } = require('./agentRouter');
+const { configuredAgents, getAgentById, routeAgent } = require('./agentRouter');
 const { AgentStateManager } = require('./agentStateManager');
 
 class AgentOrchestrator {
@@ -20,19 +20,19 @@ class AgentOrchestrator {
   async runChat(payload) {
     const message = String(payload.message || '').trim();
     const conversationId = String(payload.conversationId || 'anonymous');
-    const stateAnalysis = this.agentStateManager.analyzeMessage(conversationId, message);
-    const agent = routeAgent(message, payload);
+    const stateAnalysis = this.agentStateManager.beginTurn(conversationId);
+    const initialAgent = getAgentById(stateAnalysis.state.agentId || 'triage', payload);
 
     if (!message) {
       return {
         message: 'Scrivi un messaggio per iniziare.',
-        agent,
+        agent: initialAgent,
         toolCalls: [],
         mode: 'validation'
       };
     }
 
-    const privacyGovernedResponse = this.handlePrivacyGovernedMemoryRequest(message, payload, agent);
+    const privacyGovernedResponse = this.handlePrivacyGovernedMemoryRequest(message, payload, initialAgent);
     if (privacyGovernedResponse) {
       return privacyGovernedResponse;
     }
@@ -40,7 +40,8 @@ class AgentOrchestrator {
     const plannedStateAnalysis = await this.planConversationTurn(message, payload, stateAnalysis);
     const plannedState = plannedStateAnalysis?.state || stateAnalysis.state;
     const plannedSignals = plannedStateAnalysis?.signals || stateAnalysis.signals || {};
-    const plannedResponse = await this.runPlannedToolFlow(message, payload, agent, plannedState, plannedSignals);
+    const plannedAgent = getAgentById(plannedState.agentId || plannedState.plan?.agentId || 'triage', payload);
+    const plannedResponse = await this.runPlannedToolFlow(message, payload, plannedAgent, plannedState, plannedSignals);
     if (plannedResponse) {
       return {
         ...plannedResponse,
@@ -49,10 +50,10 @@ class AgentOrchestrator {
     }
 
     if (this.config.demoMode || !this.openaiClient.isConfigured()) {
-      return this.runDemoMode(message, payload, agent, plannedStateAnalysis);
+      return this.runDemoMode(message, payload, routeAgent(message, payload), plannedStateAnalysis);
     }
 
-    return this.runResponsesWithTools(message, payload, agent, plannedStateAnalysis);
+    return this.runResponsesWithTools(message, payload, plannedAgent, plannedStateAnalysis);
   }
 
   async planConversationTurn(message, payload = {}, stateAnalysis) {
@@ -63,10 +64,13 @@ class AgentOrchestrator {
     const conversationId = String(payload.conversationId || 'anonymous');
     const state = stateAnalysis?.state || this.agentStateManager.getState(conversationId);
     const catalogSummary = await this.collectCatalogSummary(payload);
+    const availableAgents = configuredAgents(payload);
     const plannerInstructions = [
       'Sei il planner agentico di CafeConnect AI.',
       'Devi aggiornare lo stato conversazionale, non rispondere al cliente.',
       'Produci solo JSON valido, senza markdown.',
+      'Tu sei l unico punto decisionale: scegli agentId, goal, stato e toolPlan. Non delegare la comprensione a keyword o intent parser.',
+      'Gli agent sono competenze operative con tool autorizzati: scegli un agentId tra quelli disponibili e pianifica tool compatibili.',
       'Mantieni goal, vincoli e proposte precedenti se il cliente non li cambia.',
       'Se previousState.goal e browse_menu e il cliente fa una domanda breve di follow-up, non ripartire con saluti o ask_info: mantieni browse_menu e pianifica search_menu.',
       'Se il cliente risponde "si", "si grazie" o simili dopo una proposta menu, interpreta come richiesta di vedere/continuare le opzioni, non come nuova conversazione.',
@@ -77,7 +81,7 @@ class AgentOrchestrator {
       'Se il cliente dichiara allergia, intolleranza o rischio grave, non proporre mai articoli con allergeni incompatibili.',
       'Se un articolo e stato dichiarato incompatibile, non riproporlo come opzione ordinabile nella stessa conversazione.',
       'Quando il cliente conferma dopo una proposta valida, pianifica carrello/ordine invece di fare una nuova raccomandazione generica.',
-      'Schema JSON: {"language":"it|en","goal":"unknown|browse_menu|browse_products|order|ask_info","mealSlot":"all|breakfast|lunch|aperitivo","constraints":["lactose-free|gluten-free|vegan|vegetarian"],"intent":"string","customerNeed":"string","nextExpectedAction":"none|show_options|choose_item|confirm_proposal|checkout_details|ask_clarification","toolPlan":[{"tool":"search_menu|search_products|get_item_detail|create_order_draft|knowledge_search","args":{}}],"responseStrategy":"string","missingInformation":[]}'
+      'Schema JSON: {"language":"it|en","agentId":"triage|menu_advisor|sales|order|knowledge|analytics","goal":"unknown|browse_menu|browse_products|order|ask_info","mealSlot":"all|breakfast|lunch|aperitivo","constraints":["lactose-free|gluten-free|vegan|vegetarian"],"customerNeed":"string","nextExpectedAction":"none|show_options|choose_item|confirm_proposal|checkout_details|ask_clarification","toolPlan":[{"tool":"search_menu|search_products|get_item_detail|create_order_draft|knowledge_search","args":{}}],"responseStrategy":"string","missingInformation":[]}'
     ].join('\n');
 
     try {
@@ -86,6 +90,7 @@ class AgentOrchestrator {
         input: JSON.stringify({
           message,
           previousState: state,
+          availableAgents,
           customerProfile: this.buildCustomerProfile(payload),
           catalogSummary
         }),
@@ -495,13 +500,15 @@ class AgentOrchestrator {
         if (
           toolName === 'search_menu' &&
           (!result.items || result.items.length === 0) &&
-          this.timeOfDayFromState(state) !== 'all'
+          (this.timeOfDayFromState(state) !== 'all' || args.query)
         ) {
           const fallbackArgs = {
             ...args,
             query: '',
             originalQuery: message,
-            timeOfDay: this.timeOfDayFromState(state)
+            timeOfDay: this.timeOfDayFromState(state) !== 'all'
+              ? this.timeOfDayFromState(state)
+              : 'all'
           };
           const fallbackResult = await this.toolRegistry.execute('search_menu', fallbackArgs, payload);
           toolCalls.push({ name: 'search_menu', arguments: fallbackArgs, result: fallbackResult });
@@ -551,8 +558,9 @@ class AgentOrchestrator {
 
     const firstMenuCall = toolCalls.find(call => call.name === 'search_menu' && call.result?.items?.length > 0);
     if (firstMenuCall) {
+      const composedMessage = await this.composePlannedResponse(message, payload, agent, state, toolCalls);
       return {
-        message: this.planBackedCatalogMessage(state, firstMenuCall.result.items, message),
+        message: composedMessage || this.planBackedCatalogMessage(state, firstMenuCall.result.items, message),
         agent,
         toolCalls,
         mode: 'demo'
@@ -561,8 +569,9 @@ class AgentOrchestrator {
 
     const firstProductCall = toolCalls.find(call => call.name === 'search_products' && call.result?.products?.length > 0);
     if (firstProductCall) {
+      const composedMessage = await this.composePlannedResponse(message, payload, agent, state, toolCalls);
       return {
-        message: this.planBackedProductMessage(state, firstProductCall.result.products),
+        message: composedMessage || this.planBackedProductMessage(state, firstProductCall.result.products),
         agent,
         toolCalls,
         mode: 'demo'
@@ -571,10 +580,11 @@ class AgentOrchestrator {
 
     const detailCall = toolCalls.find(call => call.name === 'get_item_detail' && call.result?.item);
     if (detailCall) {
+      const composedMessage = await this.composePlannedResponse(message, payload, agent, state, toolCalls);
       return {
-        message: state.language === 'en'
+        message: composedMessage || (state.language === 'en'
           ? `Here are the details for ${detailCall.result.item.name}.`
-          : `Ecco il dettaglio di ${detailCall.result.item.name}.`,
+          : `Ecco il dettaglio di ${detailCall.result.item.name}.`),
         agent,
         toolCalls,
         mode: 'demo'
@@ -582,6 +592,85 @@ class AgentOrchestrator {
     }
 
     return null;
+  }
+
+  async composePlannedResponse(message, payload, agent, state = {}, toolCalls = []) {
+    if (this.config.demoMode || !this.openaiClient.isConfigured() || toolCalls.length === 0) {
+      return '';
+    }
+
+    const customerProfile = this.buildCustomerProfile(payload);
+    const compactToolResults = toolCalls.map(call => ({
+      tool: call.name,
+      arguments: call.arguments,
+      result: this.compactToolResult(call.result)
+    }));
+    const instructions = [
+      'Sei il response composer di CafeConnect AI.',
+      'Scrivi solo la risposta finale al cliente, senza JSON e senza markdown.',
+      'Non salutare e non ricominciare se esiste previousState.goal o previousState.proposedItems.',
+      'Mantieni il riferimento conversazionale: conferme brevi come ok/si grazie/procedi si riferiscono alla proposta attiva.',
+      'Usa esclusivamente i risultati dei tool e lo stato fornito: non inventare prodotti, prezzi, ingredienti o allergeni.',
+      'Se il cliente chiede qualcosa di fit o poco calorico e il catalogo non espone calorie, parla di opzioni leggere nel menu attuale senza dichiarare calorie precise.',
+      'Se ci sono opzioni compatibili, proponi una prossima azione concreta: dettagli, aggiunta al carrello o conferma ordine.',
+      'Rispondi nella lingua dello stato conversazionale. Massimo 2 frasi brevi, tono professionale e naturale.'
+    ].join('\n');
+
+    try {
+      const response = await this.openaiClient.createResponse({
+        instructions,
+        input: JSON.stringify({
+          message,
+          previousState: state,
+          agent,
+          customerProfile,
+          toolResults: compactToolResults
+        }),
+        metadata: {
+          product: 'cafeconnect-ai',
+          conversation_id: String(payload.conversationId || 'anonymous'),
+          agent_phase: 'response_composer'
+        }
+      });
+      const text = this.openaiClient.extractText(response);
+      const maybeJson = safeJsonParse(this.extractJsonObject(text), null);
+      if (maybeJson && typeof maybeJson === 'object' && (maybeJson.goal || maybeJson.toolPlan || maybeJson.agentId)) {
+        return '';
+      }
+      return this.cleanModelText(text, toolCalls);
+    } catch (error) {
+      console.warn('[ai-gateway] response composer failed:', error.message);
+      return '';
+    }
+  }
+
+  compactToolResult(result = {}) {
+    const compactItem = item => ({
+      id: item.id,
+      name: item.name,
+      price: item.price,
+      category: item.category,
+      subcategory: item.subcategory,
+      timeOfDay: item.timeOfDay,
+      dietaryInfo: item.dietaryInfo,
+      allergens: item.allergens,
+      description: item.description
+    });
+
+    return {
+      source: result.source,
+      count: result.count,
+      items: Array.isArray(result.items) ? result.items.slice(0, 6).map(compactItem) : undefined,
+      products: Array.isArray(result.products) ? result.products.slice(0, 6).map(compactItem) : undefined,
+      item: result.item ? compactItem(result.item) : undefined,
+      results: Array.isArray(result.results)
+        ? result.results.slice(0, 4).map(entry => ({
+            title: entry.title,
+            content: String(entry.content || '').slice(0, 700),
+            source: entry.source
+          }))
+        : undefined
+    };
   }
 
   ensureExecutablePlan(toolPlan = [], message = '', state = {}, signals = {}) {
