@@ -92,7 +92,22 @@ class FakeOpenAIClient {
       };
     }
 
-    if (message.includes('fit') || message.includes('non so cosa posso mangiare') || message.includes('si grazie')) {
+    if (message.includes('sono fit') || message === 'si grazie') {
+      return {
+        language: 'it',
+        goal: 'ask_info',
+        mealSlot: previousState.mealSlot || 'all',
+        constraints: previousState.constraints || [],
+        intent: 'planner_drift',
+        customerNeed: '',
+        nextExpectedAction: 'none',
+        toolPlan: [],
+        responseStrategy: 'Planner weak fallback that must not reset the conversation.',
+        missingInformation: []
+      };
+    }
+
+    if (message.includes('fit') || message.includes('non so cosa posso mangiare')) {
       return {
         language: 'it',
         goal: 'browse_menu',
@@ -101,18 +116,16 @@ class FakeOpenAIClient {
         intent: 'continue_breakfast_menu',
         customerNeed: 'continuare a vedere opzioni coerenti per colazione',
         nextExpectedAction: 'choose_item',
-        toolPlan: message.includes('si grazie')
-          ? []
-          : [
-              {
-                tool: 'search_menu',
-                args: {
-                  query: message.includes('fit') ? 'fit healthy' : 'breakfast',
-                  timeOfDay: 'morning',
-                  limit: 6
-                }
-              }
-            ],
+        toolPlan: [
+          {
+            tool: 'search_menu',
+            args: {
+              query: message.includes('fit') ? 'fit healthy' : 'breakfast',
+              timeOfDay: 'morning',
+              limit: 6
+            }
+          }
+        ],
         responseStrategy: 'Mantieni contesto colazione e mostra opzioni concrete.',
         missingInformation: []
       };
@@ -254,6 +267,11 @@ async function testBreakfastContextDoesNotResetOnGenericConfirmation() {
     message: 'non so cosa posso mangiare'
   });
 
+  const fitCheckResponse = await orchestrator.runChat({
+    ...demoPayload(conversationId),
+    message: 'sono fit?'
+  });
+
   const yesResponse = await orchestrator.runChat({
     ...demoPayload(conversationId),
     message: 'si grazie'
@@ -268,8 +286,16 @@ async function testBreakfastContextDoesNotResetOnGenericConfirmation() {
     'generic food uncertainty should keep breakfast/menu context'
   );
   assert(
+    fitCheckResponse.toolCalls.some(call => call.name === 'search_menu'),
+    'fit check should not let planner drift reset active menu context'
+  );
+  assert(
     yesResponse.toolCalls.some(call => call.name === 'search_menu'),
     'generic yes should show menu instead of resetting to order prompt'
+  );
+  assert(
+    /leggere compatibili|opzioni.*compatibili/i.test(fitCheckResponse.message),
+    'fit check should answer with concrete compatible options'
   );
   assert(
     !/cosa posso aiutarti a ordinare/i.test(yesResponse.message),

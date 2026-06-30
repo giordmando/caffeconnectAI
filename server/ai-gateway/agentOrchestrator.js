@@ -68,6 +68,9 @@ class AgentOrchestrator {
       'Devi aggiornare lo stato conversazionale, non rispondere al cliente.',
       'Produci solo JSON valido, senza markdown.',
       'Mantieni goal, vincoli e proposte precedenti se il cliente non li cambia.',
+      'Se previousState.goal e browse_menu e il cliente fa una domanda breve di follow-up, non ripartire con saluti o ask_info: mantieni browse_menu e pianifica search_menu.',
+      'Se il cliente risponde "si", "si grazie" o simili dopo una proposta menu, interpreta come richiesta di vedere/continuare le opzioni, non come nuova conversazione.',
+      'Se il cliente chiede se una proposta e fit/salutare/leggera, mantieni mealSlot e vincoli precedenti e cerca opzioni coerenti; non inventare una linea fit se non e nel catalogo.',
       'Se il cliente chiede di aggiungere un articolo per nome, imposta goal order e nextExpectedAction checkout_details.',
       'Se il cliente chiede opzioni da mangiare, evita bevande e pianifica search_menu con category food quando possibile.',
       'Se il cliente chiede allergeni o compatibilita, pianifica dettaglio o ricerca con dietaryPreference.',
@@ -549,7 +552,7 @@ class AgentOrchestrator {
     const firstMenuCall = toolCalls.find(call => call.name === 'search_menu' && call.result?.items?.length > 0);
     if (firstMenuCall) {
       return {
-        message: this.planBackedCatalogMessage(state, firstMenuCall.result.items),
+        message: this.planBackedCatalogMessage(state, firstMenuCall.result.items, message),
         agent,
         toolCalls,
         mode: 'demo'
@@ -637,8 +640,19 @@ class AgentOrchestrator {
   }
 
   queryFromState(state = {}, message = '') {
-    if (state.mealSlot === 'breakfast') return 'breakfast';
-    if (state.mealSlot === 'lunch') return 'lunch';
+    const normalizedMessage = this.normalizeLoose(message);
+    if (state.mealSlot === 'breakfast') {
+      if (/\b(fit|healthy|salutare|legger|proteic|bilanciat|mangiare|mangio|cibo|food)\b/.test(normalizedMessage)) {
+        return `breakfast ${normalizedMessage}`.trim();
+      }
+      return 'breakfast';
+    }
+    if (state.mealSlot === 'lunch') {
+      if (/\b(fit|healthy|salutare|legger|proteic|bilanciat)\b/.test(normalizedMessage)) {
+        return `lunch ${normalizedMessage}`.trim();
+      }
+      return 'lunch';
+    }
     if (state.mealSlot === 'aperitivo') return 'aperitivo';
     return message;
   }
@@ -750,12 +764,25 @@ class AgentOrchestrator {
     return scored[0]?.score > 20 ? scored[0].candidate : null;
   }
 
-  planBackedCatalogMessage(state = {}, items = []) {
-    const hasFood = items.some(item => String(item.category || '').toLowerCase() === 'food');
+  planBackedCatalogMessage(state = {}, items = [], message = '') {
+    const hasFood = items.some(item => {
+      const category = String(item.category || '').toLowerCase();
+      const subcategory = String(item.subcategory || '').toLowerCase();
+      return !['beverage', 'coffee', 'drink'].includes(category) && !['beverage', 'coffee', 'drink'].includes(subcategory);
+    });
+    const wantsHealthy = /\b(fit|healthy|salutare|legger|proteic|bilanciat)\b/.test(
+      this.normalizeLoose([state.plan?.customerNeed, state.plan?.intent, message].filter(Boolean).join(' '))
+    );
     if (state.language === 'en') {
+      if (wantsHealthy && hasFood) {
+        return 'I found the lighter compatible options from the current menu. Open a card or tell me which one to add.';
+      }
       return hasFood
         ? 'I found food options compatible with your request. Open a card to choose one or tell me which one to add.'
         : 'I found compatible menu options. Open a card to choose one or tell me which one to add.';
+    }
+    if (wantsHealthy && hasFood) {
+      return 'Ho trovato le opzioni piu leggere compatibili nel menu attuale. Apri una card oppure dimmi quale vuoi aggiungere.';
     }
     return hasFood
       ? 'Ho trovato opzioni da mangiare compatibili con la richiesta. Apri una card oppure dimmi quale vuoi aggiungere.'

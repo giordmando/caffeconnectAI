@@ -96,6 +96,13 @@ class AgentStateManager {
 
   mergePlan(conversationId, plan = {}) {
     const state = this.getState(conversationId);
+    const plannedToolPlan = Array.isArray(plan.toolPlan) ? plan.toolPlan : [];
+    const plannedGoal = plan.goal || state.goal;
+    const preserveMenuContext = (
+      state.goal === 'browse_menu' &&
+      ['ask_info', 'unknown'].includes(plannedGoal) &&
+      plannedToolPlan.length === 0
+    );
     const nextConstraints = Array.isArray(plan.constraints)
       ? this.mergeConstraints(state.constraints, plan.constraints)
       : state.constraints;
@@ -105,15 +112,15 @@ class AgentStateManager {
     const updated = {
       ...state,
       language: ['it', 'en'].includes(plan.language) ? plan.language : state.language,
-      goal: plan.goal || state.goal,
+      goal: preserveMenuContext ? state.goal : plannedGoal,
       mealSlot: plan.mealSlot || state.mealSlot,
       constraints: nextConstraints,
       proposedItems: nextProposals,
-      nextExpectedAction: plan.nextExpectedAction || state.nextExpectedAction,
+      nextExpectedAction: preserveMenuContext ? 'choose_item' : (plan.nextExpectedAction || state.nextExpectedAction),
       plan: {
         intent: plan.intent || '',
         customerNeed: plan.customerNeed || '',
-        toolPlan: Array.isArray(plan.toolPlan) ? plan.toolPlan : [],
+        toolPlan: plannedToolPlan,
         responseStrategy: plan.responseStrategy || '',
         missingInformation: Array.isArray(plan.missingInformation) ? plan.missingInformation : []
       },
