@@ -18,7 +18,7 @@ const SEMANTIC_MARKERS = {
   ],
   confirm: ['si', 'ok', 'va bene', 'vai', 'procedi', 'confermo', 'prepara', 'yes', 'yeah', 'yep', 'go ahead', 'proceed', 'confirm'],
   order: ['ordine', 'ordina', 'ordinare', 'carrello', 'checkout', 'ritiro', 'acquist', 'comprare', 'order', 'cart', 'buy', 'pickup'],
-  show: ['mostra', 'fammi vedere', 'vedere', 'quali', 'opzioni', 'proposte', 'proponi', 'suggerisci', 'qualcosa', 'avete', 'hai qualcosa', 'consigli', 'consiglia', 'show', 'options', 'recommend', 'suggest', 'do you have'],
+  show: ['mostra', 'fammi vedere', 'vedere', 'quali', 'opzioni', 'proposte', 'proponi', 'suggerisci', 'qualcosa', 'avete', 'hai qualcosa', 'consigli', 'consiglia', 'fit', 'healthy', 'salutare', 'leggero', 'proteico', 'bilanciato', 'show', 'options', 'recommend', 'suggest', 'do you have'],
   details: ['dettaglio', 'dettagli', 'scheda', 'ingredient', 'allergen', 'detail', 'details'],
   products: ['prodotti', 'prodotto', 'shop', 'confezione', 'tazza', 'biscotti', 'caffe in grani', 'products', 'beans', 'gift'],
   info: ['wifi', 'wi-fi', 'prenot', 'orari', 'aperto', 'chiuso', 'telefono', 'contatto', 'policy', 'privacy', 'booking', 'reservation', 'opening'],
@@ -171,7 +171,7 @@ class AgentStateManager {
 
   detectSignals(normalized, previous) {
     const isConfirmation = this.includesAny(normalized, SEMANTIC_MARKERS.confirm)
-      && ['confirm_proposal', 'choose_item', 'checkout_details'].includes(previous.nextExpectedAction);
+      && ['confirm_proposal', 'checkout_details'].includes(previous.nextExpectedAction);
     const wantsOrder = this.includesAny(normalized, SEMANTIC_MARKERS.order) || isConfirmation;
     const wantsProducts = this.includesAny(normalized, SEMANTIC_MARKERS.products);
     const wantsDetails = this.includesAny(normalized, SEMANTIC_MARKERS.details);

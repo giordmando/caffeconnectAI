@@ -92,6 +92,32 @@ class FakeOpenAIClient {
       };
     }
 
+    if (message.includes('fit') || message.includes('non so cosa posso mangiare') || message.includes('si grazie')) {
+      return {
+        language: 'it',
+        goal: 'browse_menu',
+        mealSlot: previousState.mealSlot || 'breakfast',
+        constraints: previousState.constraints || [],
+        intent: 'continue_breakfast_menu',
+        customerNeed: 'continuare a vedere opzioni coerenti per colazione',
+        nextExpectedAction: 'choose_item',
+        toolPlan: message.includes('si grazie')
+          ? []
+          : [
+              {
+                tool: 'search_menu',
+                args: {
+                  query: message.includes('fit') ? 'fit healthy' : 'breakfast',
+                  timeOfDay: 'morning',
+                  limit: 6
+                }
+              }
+            ],
+        responseStrategy: 'Mantieni contesto colazione e mostra opzioni concrete.',
+        missingInformation: []
+      };
+    }
+
     if (
       message.includes('cappuccino') ||
       message.includes('toast') ||
@@ -209,11 +235,54 @@ async function testProceedUsesPreviousProposal() {
   assert(cartNames.every(name => !/cappuccino/i.test(name)), 'food proposal should not add beverage');
 }
 
+async function testBreakfastContextDoesNotResetOnGenericConfirmation() {
+  const orchestrator = createOrchestrator();
+  const conversationId = 'breakfast-context-fit';
+
+  await orchestrator.runChat({
+    ...demoPayload(conversationId),
+    message: 'Buongiorno cosa avete per colazione?'
+  });
+
+  const fitResponse = await orchestrator.runChat({
+    ...demoPayload(conversationId),
+    message: 'avete anche colazioni fit?'
+  });
+
+  const unsureResponse = await orchestrator.runChat({
+    ...demoPayload(conversationId),
+    message: 'non so cosa posso mangiare'
+  });
+
+  const yesResponse = await orchestrator.runChat({
+    ...demoPayload(conversationId),
+    message: 'si grazie'
+  });
+
+  assert(
+    fitResponse.toolCalls.some(call => call.name === 'search_menu'),
+    'fit follow-up should keep using menu search'
+  );
+  assert(
+    unsureResponse.toolCalls.some(call => call.name === 'search_menu'),
+    'generic food uncertainty should keep breakfast/menu context'
+  );
+  assert(
+    yesResponse.toolCalls.some(call => call.name === 'search_menu'),
+    'generic yes should show menu instead of resetting to order prompt'
+  );
+  assert(
+    !/cosa posso aiutarti a ordinare/i.test(yesResponse.message),
+    'generic yes should not reset the conversation'
+  );
+}
+
 async function run() {
   const tests = [
     testBreakfastLactoseFreeSearch,
     testMultiItemCartOperation,
-    testProceedUsesPreviousProposal
+    testProceedUsesPreviousProposal,
+    testBreakfastContextDoesNotResetOnGenericConfirmation
   ];
 
   for (const test of tests) {

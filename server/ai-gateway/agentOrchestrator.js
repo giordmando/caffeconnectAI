@@ -476,7 +476,7 @@ class AgentOrchestrator {
   async runPlannedToolFlow(message, payload, agent, state = {}, signals = {}) {
     const toolPlan = Array.isArray(state.plan?.toolPlan) ? state.plan.toolPlan : [];
     const conversationId = String(payload.conversationId || 'anonymous');
-    const executablePlan = toolPlan.filter(step => step && step.tool).slice(0, 3);
+    const executablePlan = this.ensureExecutablePlan(toolPlan, message, state, signals);
     const toolCalls = [];
 
     for (const step of executablePlan) {
@@ -489,6 +489,20 @@ class AgentOrchestrator {
       try {
         const result = await this.toolRegistry.execute(toolName, args, payload);
         toolCalls.push({ name: toolName, arguments: args, result });
+        if (
+          toolName === 'search_menu' &&
+          (!result.items || result.items.length === 0) &&
+          this.timeOfDayFromState(state) !== 'all'
+        ) {
+          const fallbackArgs = {
+            ...args,
+            query: '',
+            originalQuery: message,
+            timeOfDay: this.timeOfDayFromState(state)
+          };
+          const fallbackResult = await this.toolRegistry.execute('search_menu', fallbackArgs, payload);
+          toolCalls.push({ name: 'search_menu', arguments: fallbackArgs, result: fallbackResult });
+        }
       } catch (error) {
         console.warn('[ai-gateway] planned tool failed:', toolName, error.message);
       }
@@ -565,6 +579,43 @@ class AgentOrchestrator {
     }
 
     return null;
+  }
+
+  ensureExecutablePlan(toolPlan = [], message = '', state = {}, signals = {}) {
+    const explicitPlan = toolPlan.filter(step => step && step.tool).slice(0, 3);
+    if (explicitPlan.length > 0) {
+      return explicitPlan;
+    }
+
+    if (state.goal === 'browse_products' || signals.wantsProducts) {
+      return [{
+        tool: 'search_products',
+        args: {
+          query: message,
+          dietaryPreference: state.constraints?.[0] || '',
+          limit: 6
+        }
+      }];
+    }
+
+    if (
+      state.goal === 'browse_menu' ||
+      state.nextExpectedAction === 'choose_item' ||
+      signals.wantsCatalog ||
+      state.mealSlot !== 'all'
+    ) {
+      return [{
+        tool: 'search_menu',
+        args: {
+          query: this.queryFromState(state, message),
+          timeOfDay: this.timeOfDayFromState(state),
+          dietaryPreference: state.constraints?.[0] || '',
+          limit: 6
+        }
+      }];
+    }
+
+    return [];
   }
 
   enrichPlannedToolArgs(toolName, args = {}, message, state = {}) {
