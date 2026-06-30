@@ -6,7 +6,7 @@
   }
 }
 
-const { configuredAgents, getAgentById, routeAgent } = require('./agentRouter');
+const { configuredAgents, getAgentById } = require('./agentRouter');
 const { AgentStateManager } = require('./agentStateManager');
 
 class AgentOrchestrator {
@@ -45,12 +45,8 @@ class AgentOrchestrator {
     if (plannedResponse) {
       return {
         ...plannedResponse,
-        mode: this.openaiClient.isConfigured() && !this.config.demoMode ? 'openai-responses' : plannedResponse.mode
+        mode: 'openai-responses'
       };
-    }
-
-    if (this.config.demoMode || !this.openaiClient.isConfigured()) {
-      return this.runDemoMode(message, payload, routeAgent(message, payload), plannedStateAnalysis);
     }
 
     return this.runResponsesWithTools(message, payload, plannedAgent, plannedStateAnalysis);
@@ -338,149 +334,6 @@ class AgentOrchestrator {
     };
   }
 
-  async runDemoMode(message, payload = {}, agent, stateAnalysis) {
-    const lower = message.toLowerCase();
-    const toolCalls = [];
-    const retrievedKnowledge = await this.retrieveKnowledgeContext(message, payload);
-    const conversationId = String(payload.conversationId || 'anonymous');
-    const state = stateAnalysis?.state || this.agentStateManager.getState(conversationId);
-    const signals = stateAnalysis?.signals || {};
-
-    if (retrievedKnowledge.results.length > 0 && (this.isKnowledgeQuestion(lower) || agent.id === 'triage')) {
-      toolCalls.push({
-        name: retrievedKnowledge.source === 'runtime' ? 'runtime_knowledge_search' : 'knowledge_search',
-        arguments: { query: message, limit: 4, preflight: true },
-        result: retrievedKnowledge
-      });
-    }
-
-    if (this.isKnowledgeQuestion(lower) && !this.isRecommendationIntent(lower)) {
-      const runtimeResult = retrievedKnowledge.source === 'runtime'
-        ? retrievedKnowledge
-        : await this.searchRuntimeKnowledge(message, payload);
-      if (runtimeResult.results.length > 0) {
-        if (!toolCalls.some(call => call.name === 'runtime_knowledge_search')) {
-          toolCalls.push({
-            name: 'runtime_knowledge_search',
-            arguments: { query: message },
-            result: runtimeResult
-          });
-        }
-
-        return {
-          message: this.summarizeKnowledgeResult(runtimeResult.results, payload, message),
-          agent,
-          toolCalls,
-          mode: 'demo'
-        };
-      }
-
-      const args = { query: message, limit: 3 };
-      const result = await this.toolRegistry.execute('knowledge_search', args, payload);
-      toolCalls.push({ name: 'knowledge_search', arguments: args, result });
-
-      return {
-          message: result.results.length
-          ? this.summarizeKnowledgeResult(result.results, payload, message)
-          : 'Non ho trovato questa informazione nella base conoscenza. Posso aiutarti con menu, prodotti o ordini.',
-        agent,
-        toolCalls,
-        mode: 'demo'
-      };
-    }
-
-    if (this.isDetailRequest(lower)) {
-      const detailResult = await this.resolveDetailRequest(message, payload);
-      if (detailResult.item) {
-        toolCalls.push({
-          name: 'get_item_detail',
-          arguments: { id: detailResult.item.id, type: detailResult.type },
-          result: { item: detailResult.item, found: true, source: 'catalog' }
-        });
-
-        return {
-          message: `Ecco il dettaglio di ${detailResult.item.name}. Puoi aggiungerlo al carrello dalla card.`,
-          agent,
-          toolCalls,
-          mode: 'demo'
-        };
-      }
-    }
-
-    if (lower.includes('prodot') || lower.includes('comprare') || lower.includes('acquist')) {
-      const args = { query: '', limit: 4 };
-      const result = await this.toolRegistry.execute('search_products', args, payload);
-      toolCalls.push({ name: 'search_products', arguments: args, result });
-      if (result.products?.length) {
-        this.agentStateManager.updateProposals(
-          conversationId,
-          result.products.map(product => ({
-            id: product.id,
-            name: product.name,
-            type: 'product',
-            price: product.price
-          })),
-          signals.wantsOrder ? 'confirm_proposal' : 'choose_item'
-        );
-      }
-      const productMessage = result.products.length
-        ? this.summarizePersonalizedSelection(result.products, 'prodotti')
-        : result.source === 'missing-production-catalog'
-          ? 'Non trovo un catalogo prodotti collegato per questo merchant. Configura una fonte prodotti reale per attivare consigli e acquisto.'
-          : 'Non ho trovato prodotti coerenti con la richiesta, ma posso cercare per categoria.';
-
-      return {
-        message: productMessage,
-        agent,
-        toolCalls,
-        mode: 'demo'
-      };
-    }
-
-    const timeOfDay = this.timeOfDayFromState(state);
-
-    const queryByTime = {
-      morning: 'breakfast',
-      afternoon: 'lunch',
-      evening: 'aperitivo'
-    };
-    const args = {
-      query: timeOfDay === 'all' ? message : queryByTime[timeOfDay] || '',
-      originalQuery: message,
-      dietaryPreference: state.constraints?.[0] || this.extractDietaryPreference(lower),
-      timeOfDay,
-      limit: 4
-    };
-    const result = await this.toolRegistry.execute('search_menu', args, payload);
-    toolCalls.push({ name: 'search_menu', arguments: args, result });
-    if (result.items?.length) {
-      this.agentStateManager.updateProposals(
-        conversationId,
-        result.items.map(item => ({
-          id: item.id,
-          name: item.name,
-          type: 'menuItem',
-          price: item.price
-        })),
-        signals.wantsOrder ? 'confirm_proposal' : 'choose_item'
-      );
-    }
-    const menuMessage = result.items.length
-      ? this.summarizeMenuSuggestion(timeOfDay, lower, result.items, state)
-      : result.source === 'missing-production-catalog'
-        ? 'Non trovo un menu collegato per questo merchant. Configura una fonte menu reale per attivare consigli affidabili.'
-        : args.dietaryPreference
-          ? `Non trovo opzioni ${args.dietaryPreference} compatibili per questa fascia oraria nel catalogo attuale. Posso proporti un alternativa sicura o segnalare la richiesta al locale.`
-          : 'Posso aiutarti con menu, prodotti acquistabili, carrello o ordine WhatsApp.';
-
-    return {
-      message: menuMessage,
-      agent,
-      toolCalls,
-      mode: 'demo'
-    };
-  }
-
   async runPlannedToolFlow(message, payload, agent, state = {}, signals = {}) {
     const toolPlan = Array.isArray(state.plan?.toolPlan) ? state.plan.toolPlan : [];
     const conversationId = String(payload.conversationId || 'anonymous');
@@ -548,7 +401,7 @@ class AgentOrchestrator {
           itemType: candidate.type,
           quantity: 1
         })),
-        mode: 'demo'
+        mode: 'openai-responses'
       };
     }
 
@@ -563,7 +416,7 @@ class AgentOrchestrator {
         message: composedMessage || this.planBackedCatalogMessage(state, firstMenuCall.result.items, message),
         agent,
         toolCalls,
-        mode: 'demo'
+        mode: 'openai-responses'
       };
     }
 
@@ -574,7 +427,7 @@ class AgentOrchestrator {
         message: composedMessage || this.planBackedProductMessage(state, firstProductCall.result.products),
         agent,
         toolCalls,
-        mode: 'demo'
+        mode: 'openai-responses'
       };
     }
 
@@ -587,7 +440,7 @@ class AgentOrchestrator {
           : `Ecco il dettaglio di ${detailCall.result.item.name}.`),
         agent,
         toolCalls,
-        mode: 'demo'
+        mode: 'openai-responses'
       };
     }
 
@@ -595,7 +448,7 @@ class AgentOrchestrator {
   }
 
   async composePlannedResponse(message, payload, agent, state = {}, toolCalls = []) {
-    if (this.config.demoMode || !this.openaiClient.isConfigured() || toolCalls.length === 0) {
+    if (!this.openaiClient.isConfigured() || toolCalls.length === 0) {
       return '';
     }
 
@@ -885,34 +738,11 @@ class AgentOrchestrator {
     return 'Ho trovato prodotti compatibili. Apri una card per i dettagli oppure dimmi quale vuoi aggiungere.';
   }
 
-  isDetailRequest(lower) {
-    return ['dettaglio', 'dettagli', 'vedere', 'vedi', 'visualizzare', 'acquistare', 'comprare'].some(term => lower.includes(term));
-  }
-
   timeOfDayFromState(state = {}) {
     if (state.mealSlot === 'breakfast') return 'morning';
     if (state.mealSlot === 'lunch') return 'afternoon';
     if (state.mealSlot === 'aperitivo') return 'evening';
     return 'all';
-  }
-
-  async resolveDetailRequest(message, payload) {
-    const query = String(message || '')
-      .replace(/\b(voglio|vorrei|vedere|vedi|visualizzare|il|la|lo|i|gli|le|dettaglio|dettagli|di|del|della|acquistare|comprare)\b/gi, ' ')
-      .replace(/\s+/g, ' ')
-      .trim();
-
-    const productSearch = await this.toolRegistry.execute('search_products', { query, limit: 1 }, payload);
-    if (productSearch.products && productSearch.products[0]) {
-      return { item: productSearch.products[0], type: 'product' };
-    }
-
-    const menuSearch = await this.toolRegistry.execute('search_menu', { query, timeOfDay: 'all', limit: 1 }, payload);
-    if (menuSearch.items && menuSearch.items[0]) {
-      return { item: menuSearch.items[0], type: 'menuItem' };
-    }
-
-    return { item: null, type: 'product' };
   }
 
   summarizeMenuSuggestion(timeOfDay, lower, items = [], state = {}) {
@@ -1246,32 +1076,6 @@ class AgentOrchestrator {
         source
       }];
     }).filter(entry => entry.content.trim().length > 0);
-  }
-
-  isKnowledgeQuestion(lower) {
-    return [
-      'orari', 'aperto', 'chiuso', 'storia', 'qualita', 'qualità', 'fornitori',
-      'allergeni', 'intolleranze', 'vegano', 'glutine', 'lattosio',
-      'policy', 'privacy', 'ritiro', 'whatsapp', 'ordine', 'ordini',
-      'offerta', 'offerte', 'promozione', 'promozioni', 'sconto', 'sconti',
-      'wifi', 'wi-fi', 'prenotare', 'prenotazione', 'prenotazioni'
-    ].some(term => lower.includes(term));
-  }
-
-  isRecommendationIntent(lower) {
-    return [
-      'consigli', 'consiglia', 'cosa mi', 'cosa avete', 'menu', 'pranzo',
-      'colazione', 'aperitivo', 'mangiare', 'bere', 'prodotto', 'prodotti',
-      'acquistare', 'comprare', 'vorrei'
-    ].some(term => lower.includes(term));
-  }
-
-  extractDietaryPreference(lower) {
-    if (lower.includes('senza glutine') || lower.includes('gluten')) return 'gluten-free';
-    if (lower.includes('senza lattosio') || lower.includes('lattosio') || lower.includes('lactose')) return 'lactose-free';
-    if (lower.includes('vegano') || lower.includes('vegan')) return 'vegan';
-    if (lower.includes('vegetariano') || lower.includes('vegetarian')) return 'vegetarian';
-    return '';
   }
 
   summarizeKnowledgeResult(results, payload = {}, query = '', modelText = '', toolCalls = []) {

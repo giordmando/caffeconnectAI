@@ -1,9 +1,4 @@
-﻿function readBoolean(value, fallback = false) {
-  if (value === undefined || value === null || value === '') return fallback;
-  return ['1', 'true', 'yes', 'on'].includes(String(value).toLowerCase());
-}
-
-function readList(value) {
+﻿function readList(value) {
   return String(value || '')
     .split(',')
     .map(item => item.trim())
@@ -16,7 +11,6 @@ function createGatewayConfig(env = process.env) {
     openaiApiKey: env.OPENAI_API_KEY || '',
     openaiBaseUrl: env.OPENAI_BASE_URL || 'https://api.openai.com/v1',
     model: env.OPENAI_MODEL || 'gpt-4o-mini',
-    demoMode: readBoolean(env.AI_GATEWAY_DEMO_MODE, !env.OPENAI_API_KEY),
     allowOrigins: readList(env.AI_GATEWAY_ALLOWED_ORIGINS || [
       'http://localhost:3000',
       'http://localhost:8787',

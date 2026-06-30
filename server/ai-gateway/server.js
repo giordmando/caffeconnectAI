@@ -249,7 +249,8 @@ async function handleRequest(req, res) {
       return sendJson(req, res, 200, {
         ok: true,
         service: 'cafeconnect-ai-gateway',
-        mode: config.demoMode || !openaiClient.isConfigured() ? 'demo' : 'openai-responses',
+        mode: openaiClient.isConfigured() ? 'openai-responses' : 'not-configured',
+        aiConfigured: openaiClient.isConfigured(),
         model: config.model,
         storage: storageResolver.describe(),
         defaultMerchantId: config.defaultMerchantId,
@@ -427,6 +428,13 @@ async function handleRequest(req, res) {
     }
 
     if (req.method === 'POST' && url.pathname === '/v1/chat') {
+      if (!openaiClient.isConfigured()) {
+        return sendJson(req, res, 503, {
+          error: 'AI gateway is not configured for production chat',
+          code: 'ai_gateway_not_configured',
+          aiConfigured: false
+        });
+      }
       const body = await readBody(req);
       const result = await orchestrator.runChat(body);
       return sendJson(req, res, 200, result);
@@ -446,6 +454,6 @@ async function handleRequest(req, res) {
 const server = http.createServer(handleRequest);
 server.listen(config.port, () => {
   console.log('[ai-gateway] listening on http://localhost:' + config.port);
-  console.log('[ai-gateway] mode:', config.demoMode || !openaiClient.isConfigured() ? 'demo' : 'openai-responses');
+  console.log('[ai-gateway] mode:', openaiClient.isConfigured() ? 'openai-responses' : 'not-configured');
 });
 

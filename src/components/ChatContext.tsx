@@ -15,8 +15,6 @@ import { ConversationManagerService, IConversationManagerService } from '../serv
 import { ComponentManager } from '../services/ui/compstore/ComponentManager';
 import { AIGatewayClient, AIGatewayChatResponse } from '../services/ai/gateway/AIGatewayClient';
 import { businessEventService } from '../services/analytics/BusinessEventService';
-import { agentStateManager } from '../services/agent/AgentStateManager';
-import type { AgentConversationState, AgentProposal } from '../services/agent/AgentStateManager';
 
 // Interfaccia del contesto semplificata
 export interface ChatContextType {
@@ -519,255 +517,6 @@ export const ChatProvider: React.FC<{
     return components;
   }, [config.maxRecommendations, createRecommendationExplanation]);
 
-  const normalizeSearchText = useCallback((value: string): string => (
-    value
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-  ), []);
-
-  const itemMatchesAgentState = useCallback((item: any, state: AgentConversationState): boolean => {
-    const text = normalizeSearchText([
-      item?.name,
-      item?.description,
-      item?.category,
-      item?.subcategory,
-      ...(item?.preferences || []),
-      ...(item?.dietaryInfo || []),
-      ...(item?.timeOfDay || [])
-    ].filter(Boolean).join(' '));
-    const allergens = (item?.allergens || []).map((value: string) => normalizeSearchText(value));
-    const dietary = (item?.dietaryInfo || []).map((value: string) => normalizeSearchText(value));
-
-    const mealMatches = state.mealSlot === 'all'
-      || (state.mealSlot === 'breakfast' && ['breakfast', 'morning', 'colazione', 'mattina', 'cappuccino', 'cornetto'].some(term => text.includes(term)))
-      || (state.mealSlot === 'lunch' && ['lunch', 'pranzo', 'bowl', 'toast', 'insalata', 'salad'].some(term => text.includes(term)))
-      || (state.mealSlot === 'aperitivo' && ['aperitivo', 'evening', 'sera'].some(term => text.includes(term)));
-
-    if (!mealMatches) return false;
-
-    return state.constraints.every(constraint => {
-      if (constraint === 'lactose-free') {
-        return dietary.includes('lactose-free')
-          || text.includes('senza lattosio')
-          || (text.includes('avena') && !allergens.some((allergen: string) => ['latte', 'lattosio', 'milk'].includes(allergen)));
-      }
-      if (constraint === 'gluten-free') {
-        return dietary.includes('gluten-free') || text.includes('senza glutine');
-      }
-      if (constraint === 'vegan') {
-        return dietary.includes('vegan') || text.includes('vegano') || text.includes('vegan');
-      }
-      if (constraint === 'vegetarian') {
-        return dietary.includes('vegetarian') || dietary.includes('vegan') || text.includes('vegetar');
-      }
-      return true;
-    });
-  }, [normalizeSearchText]);
-
-  const proposalsFromItems = useCallback((items: any[], type: AgentProposal['type']): AgentProposal[] => (
-    items
-      .filter(item => item?.id && item?.name)
-      .map(item => ({
-        id: item.id,
-        name: item.name,
-        type,
-        price: item.price
-      }))
-  ), []);
-
-  const localizeAgentCopy = useCallback((state: AgentConversationState, key: 'showMenu' | 'showProducts' | 'addedToCart' | 'noCompatible', itemName?: string): string => {
-    const english = state.language === 'en';
-    const copies = {
-      showMenu: english
-        ? 'I found compatible options. You can open a card or add one to the cart.'
-        : 'Ho trovato opzioni compatibili. Puoi aprire una card o aggiungerne una al carrello.',
-      showProducts: english
-        ? 'I found suitable products. You can open a card to see details.'
-        : 'Ho trovato prodotti coerenti. Puoi aprire una card per vedere i dettagli.',
-      addedToCart: english
-        ? `I added ${itemName || 'the selected item'} to your cart. Open the cart to confirm pickup and contact details.`
-        : `Ho aggiunto al carrello ${itemName || 'la proposta selezionata'}. Apri il carrello per confermare ritiro e dati di contatto.`,
-      noCompatible: english
-        ? 'I cannot find compatible items in the connected catalog. I can hand this over to the cafe for a safe confirmation.'
-        : 'Non trovo articoli compatibili nel catalogo collegato. Posso passare la richiesta al locale per una conferma sicura.'
-    };
-    return copies[key];
-  }, []);
-
-  const handleStatefulCatalogFlow = useCallback(async (
-    message: string,
-    conversationId: string
-  ): Promise<boolean> => {
-    if (isProductionTenant()) {
-      return false;
-    }
-
-    const { state, signals } = agentStateManager.analyzeMessage(conversationId, message);
-    const shouldHandle = signals.wantsCatalog
-      || signals.wantsProducts
-      || signals.wantsDetails
-      || signals.wantsOrder
-      || (signals.isConfirmation && state.proposedItems.length > 0);
-
-    if (!shouldHandle || state.goal === 'ask_info') {
-      return false;
-    }
-
-    const [menuItems, products] = await Promise.all([
-      shouldShareRuntimeCatalog('menu') ? catalogService.getAllMenuItems() : Promise.resolve([]),
-      shouldShareRuntimeCatalog('products') ? catalogService.getProducts() : Promise.resolve([])
-    ]);
-    const allItems = [...menuItems, ...products];
-
-    if (signals.isConfirmation && state.proposedItems.length > 0 && !signals.wantsDetails && !signals.wantsProducts) {
-      const selectedProposal = state.proposedItems[0];
-      const selected = allItems.find((item: any) => item?.id === selectedProposal.id);
-      if (!selected) return false;
-      addItem(selected, selectedProposal.type);
-      agentStateManager.setNextAction(conversationId, 'checkout_details');
-      const assistantMessage = messageService.createAssistantMessage(
-        localizeAgentCopy(state, 'addedToCart', selected.name)
-      );
-      messageService.addMessage(assistantMessage);
-      setMessages(messageService.getMessages());
-      await trackConversationMessage(assistantMessage, conversationId, userService.getUserContext());
-      trackBusinessEvent('add_to_cart', {
-        id: selected.id,
-        name: selected.name,
-        type: selectedProposal.type,
-        quantity: 1,
-        price: selected.price,
-        reason: 'agent_state_confirmation'
-      });
-      setAvailableActions([]);
-      return true;
-    }
-
-    const lower = normalizeSearchText(message);
-    const hasNamedItem = allItems.find((item: any) => {
-      const name = normalizeSearchText(item?.name || '');
-      return name && (lower.includes(name) || name.split(/\s+/).filter(Boolean).every(part => lower.includes(part)));
-    });
-
-    if (signals.wantsDetails && hasNamedItem) {
-      const gatewayLikeResponse: AIGatewayChatResponse = {
-        mode: 'validation',
-        message: state.language === 'en'
-          ? `Here are the details for ${hasNamedItem.name}.`
-          : `Ecco il dettaglio di ${hasNamedItem.name}.`,
-        toolCalls: [{
-          name: 'get_item_detail',
-          arguments: { id: hasNamedItem.id },
-          result: { item: hasNamedItem }
-        }]
-      };
-      agentStateManager.updateProposals(
-        conversationId,
-        proposalsFromItems(
-          [hasNamedItem],
-          'inStock' in hasNamedItem && 'details' in hasNamedItem ? 'product' : 'menuItem'
-        ),
-        'confirm_proposal'
-      );
-      const assistantMessage = messageService.createAssistantMessage(gatewayLikeResponse.message);
-      messageService.addMessage(assistantMessage);
-      setMessages(messageService.getMessages());
-      await trackConversationMessage(assistantMessage, conversationId, userService.getUserContext());
-      uiComponentService.addComponents(createGatewayUIComponents(gatewayLikeResponse));
-      setAvailableActions([]);
-      return true;
-    }
-
-    if (state.goal === 'browse_products') {
-      const productResults = products.slice(0, config.maxRecommendations || 4);
-      if (productResults.length === 0) return false;
-      const gatewayLikeResponse: AIGatewayChatResponse = {
-        mode: 'validation',
-        message: localizeAgentCopy(state, 'showProducts'),
-        toolCalls: [{
-          name: 'search_products',
-          arguments: { query: message, originalQuery: message },
-          result: { products: productResults }
-        }]
-      };
-      agentStateManager.updateProposals(conversationId, proposalsFromItems(productResults, 'product'), 'choose_item');
-      const assistantMessage = messageService.createAssistantMessage(gatewayLikeResponse.message);
-      messageService.addMessage(assistantMessage);
-      setMessages(messageService.getMessages());
-      await trackConversationMessage(assistantMessage, conversationId, userService.getUserContext());
-      uiComponentService.addComponents(createGatewayUIComponents(gatewayLikeResponse));
-      setAvailableActions(createGatewayActions(gatewayLikeResponse));
-      return true;
-    }
-
-    const compatibleMenu = menuItems
-      .filter((item: any) => itemMatchesAgentState(item, state))
-      .slice(0, config.maxRecommendations || 4);
-
-    if (compatibleMenu.length === 0) {
-      if (state.constraints.length === 0 && state.mealSlot === 'all') return false;
-      const assistantMessage = messageService.createAssistantMessage(localizeAgentCopy(state, 'noCompatible'));
-      messageService.addMessage(assistantMessage);
-      setMessages(messageService.getMessages());
-      await trackConversationMessage(assistantMessage, conversationId, userService.getUserContext());
-      return true;
-    }
-
-    const gatewayLikeResponse: AIGatewayChatResponse = {
-      mode: 'validation',
-      message: localizeAgentCopy(state, 'showMenu'),
-      toolCalls: [{
-        name: 'search_menu',
-        arguments: {
-          query: message,
-          originalQuery: message,
-          dietaryPreference: state.constraints[0] || '',
-          timeOfDay: state.mealSlot === 'breakfast'
-            ? 'morning'
-            : state.mealSlot === 'lunch'
-              ? 'afternoon'
-              : state.mealSlot === 'aperitivo'
-                ? 'evening'
-                : 'all'
-        },
-        result: { items: compatibleMenu }
-      }]
-    };
-    agentStateManager.updateProposals(conversationId, proposalsFromItems(compatibleMenu, 'menuItem'), signals.wantsOrder ? 'confirm_proposal' : 'choose_item');
-    const assistantMessage = messageService.createAssistantMessage(gatewayLikeResponse.message);
-    messageService.addMessage(assistantMessage);
-    setMessages(messageService.getMessages());
-    await trackConversationMessage(assistantMessage, conversationId, userService.getUserContext());
-    uiComponentService.addComponents(createGatewayUIComponents(gatewayLikeResponse));
-    setAvailableActions(createGatewayActions(gatewayLikeResponse));
-    return true;
-  }, [
-    addItem,
-    catalogService,
-    config.maxRecommendations,
-    createGatewayActions,
-    createGatewayUIComponents,
-    itemMatchesAgentState,
-    isProductionTenant,
-    localizeAgentCopy,
-    messageService,
-    normalizeSearchText,
-    proposalsFromItems,
-    shouldShareRuntimeCatalog,
-    trackBusinessEvent,
-    trackConversationMessage,
-    uiComponentService,
-    userService
-  ]);
-
-  const handleLocalCatalogFallback = useCallback(async (
-    message: string,
-    conversationId: string
-  ): Promise<boolean> => {
-    return handleStatefulCatalogFlow(message, conversationId);
-  }, [handleStatefulCatalogFlow]);
-
   const sendMessageThroughGateway = useCallback(async (
     message: string,
     conversationId: string,
@@ -845,18 +594,13 @@ export const ChatProvider: React.FC<{
       return true;
     } catch (error) {
       console.warn('[ChatContext] AI Gateway unavailable:', error);
-      if (isProductionTenant() || shouldUseAIGateway()) {
-        const assistantMessage = messageService.createAssistantMessage(
-          'Ho un problema temporaneo nel collegamento con l assistente AI. Riprova tra poco: preferisco non darti una risposta parziale o fuori contesto.'
-        );
-        messageService.addMessage(assistantMessage);
-        setMessages(messageService.getMessages());
-        await trackConversationMessage(assistantMessage, conversationId, userService.getUserContext());
-        return true;
-      }
-      const handledLocally = await handleLocalCatalogFallback(message, conversationId);
-      if (handledLocally) return true;
-      return false;
+      const assistantMessage = messageService.createAssistantMessage(
+        'Ho un problema temporaneo nel collegamento con l assistente AI. Riprova tra poco: preferisco non darti una risposta parziale o fuori contesto.'
+      );
+      messageService.addMessage(assistantMessage);
+      setMessages(messageService.getMessages());
+      await trackConversationMessage(assistantMessage, conversationId, userService.getUserContext());
+      return true;
     }
   }, [
     aiGatewayClient,
@@ -871,8 +615,6 @@ export const ChatProvider: React.FC<{
     uiComponentService,
     catalogService,
     userService,
-    handleLocalCatalogFallback,
-    isProductionTenant,
     shouldShareRuntimeCatalog,
     governanceUserContext,
     trackBusinessEvent,
@@ -949,31 +691,13 @@ export const ChatProvider: React.FC<{
       );
 
       if (!handledByGateway) {
-        const response = await aiService.sendMessage(userMessageContent, extendedContext);
-        
-        // Aggiungi risposta
-        messageService.addMessage(response.message);
-        setMessages(messageService.getMessages());
-        
-        // Track risposta
-        await trackConversationMessage(
-          response.message,
-          conversationId,
-          userService.getUserContext()
+        const assistantMessage = messageService.createAssistantMessage(
+          'Il gateway AI centrale non e attivo. Per questa chat serve abilitarlo: non uso risposte locali o provider alternativi.'
         );
-        
-        // Gestisci componenti UI
-        if (response.uiComponents && config.enableDynamicComponents) {
-          uiComponentService.addComponents(response.uiComponents);
-        }
-        
-        // Aggiorna suggerimenti
-        if (response.suggestedPrompts && config.enableSuggestions) {
-          suggestionManagement.updateSuggestions(response.suggestedPrompts);
-        }
-        
-        // Aggiorna azioni disponibili
-        setAvailableActions(response.availableActions || []);
+        messageService.addMessage(assistantMessage);
+        setMessages(messageService.getMessages());
+        await trackConversationMessage(assistantMessage, conversationId, userService.getUserContext());
+        setAvailableActions([]);
       }
       
     } catch (error) {
@@ -997,9 +721,7 @@ export const ChatProvider: React.FC<{
     conversationManager,
     userService,
     conversationTracker,
-    aiService,
     createPrivacyGovernanceResponse,
-    handleStatefulCatalogFlow,
     sendMessageThroughGateway,
     governanceUserContext,
     shouldLearnSensitiveProfile,

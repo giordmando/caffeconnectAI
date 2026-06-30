@@ -12,9 +12,9 @@ npm run gateway:start
 
 Default URL: `http://localhost:8787`.
 
-Without `OPENAI_API_KEY`, the gateway runs in deterministic demo mode.
-Local mock catalog and default knowledge are used only for demo-like tenants.
-For `tenant.environment=production` or `tenant.plan=pro|enterprise`, the gateway does not silently fall back to demo catalog or default knowledge.
+`OPENAI_API_KEY` is required for `POST /v1/chat`.
+If the key is missing, the chat endpoint returns `503 ai_gateway_not_configured` instead of falling back to deterministic demo responses.
+Catalog and knowledge data must come from configured merchant sources or from the request payload; the gateway no longer runs a separate offline/demo chat brain.
 
 ## Endpoints
 
@@ -39,9 +39,9 @@ For `tenant.environment=production` or `tenant.plan=pro|enterprise`, the gateway
 
 ## Next architecture step
 
-Replace the single orchestrator with an agent router: Triage, Menu Advisor, Product Sales, Order, Business Config, Analytics, Support, Privacy/Consent, and Campaign Agent.
+Keep the central LLM planner as the single decision point for agent selection, tool planning, memory updates, and response composition.
 
-MCP integrations should attach below the tool registry, not directly in the React UI.
+MCP and operational integrations should attach below the tool registry, not directly in the React UI.
 
 ## Merchant Analytics Events
 

@@ -192,7 +192,6 @@ function createOrchestrator() {
     openaiClient: new FakeOpenAIClient(),
     toolRegistry: createDefaultToolRegistry({}),
     config: {
-      demoMode: false,
       maxToolRounds: 3
     }
   });

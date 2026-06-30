@@ -38,7 +38,7 @@
 export interface AIGatewayChatResponse {
   message: string;
   responseId?: string;
-  mode: 'demo' | 'openai-responses' | 'validation';
+  mode: 'openai-responses' | 'validation';
   agent?: {
     id: string;
     label: string;
