@@ -23,6 +23,7 @@
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
+    "test:conversations": "node server/ai-gateway/tests/conversationRegression.test.js",
     "eject": "react-scripts eject",
     "gateway:start": "node server/ai-gateway/server.js",
     "gateway:dev": "node server/ai-gateway/server.js"

@@ -288,7 +288,7 @@ function createCatalogTools() {
       },
       execute: async (args = {}, context = {}) => {
         const { query = '', category = 'all', timeOfDay = 'all', limit = 6 } = args;
-        const q = normalize(query);
+        const q = normalizeTimeScopedQuery(query, timeOfDay);
         const restrictions = requestDietaryRestrictions(args, context);
         const catalog = loadMenuItems(context);
         const items = catalog.items
@@ -435,6 +435,14 @@ function createCatalogTools() {
       }
     }
   ];
+}
+
+function normalizeTimeScopedQuery(query, timeOfDay) {
+  const q = normalize(query);
+  if (timeOfDay === 'morning' && ['breakfast', 'colazione', 'morning', 'mattina'].includes(q)) return '';
+  if (timeOfDay === 'afternoon' && ['lunch', 'pranzo'].includes(q)) return '';
+  if (timeOfDay === 'evening' && ['aperitivo', 'sera', 'evening'].includes(q)) return '';
+  return q;
 }
 
 module.exports = { createCatalogTools };
